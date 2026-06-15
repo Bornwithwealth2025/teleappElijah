@@ -4,7 +4,7 @@
     "slug": "telifier-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/telefya.png",
     "scheme": "telifierapp",
     "userInterfaceStyle": "automatic",
     "ios": {
@@ -52,13 +52,7 @@
       "expo-asset",
       "@react-native-community/datetimepicker",
       "expo-apple-authentication",
-      [
-        "react-native-webrtc",
-        {
-          "cameraPermission": "Telifier needs camera access for video meetings.",
-          "microphonePermission": "Telifier needs microphone access for audio meetings."
-        }
-      ]
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
