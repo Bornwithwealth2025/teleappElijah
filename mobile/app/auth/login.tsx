@@ -2,7 +2,7 @@ import React from "react";
 import useAuthStore from "@/store/authStore";
 import { FontAwesome } from "@expo/vector-icons";
 import { Link, router, Href } from "expo-router";
-import { Eye, EyeOff, LockKeyhole, Mail } from "lucide-react-native";
+import { Check, ChevronLeft, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react-native";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -21,13 +21,7 @@ function AppleLogo({ color }: { color: string }) {
   return <FontAwesome name="apple" size={22} color={color} />;
 }
 
-function Checkbox({
-  checked,
-  onPress,
-}: {
-  checked: boolean;
-  onPress: () => void;
-}) {
+function Checkbox({ checked, onPress }: { checked: boolean; onPress: () => void }) {
   const { colors } = useAppTheme();
 
   return (
@@ -39,7 +33,7 @@ function Checkbox({
           checked && { backgroundColor: colors.primary },
         ]}
       >
-        {checked ? <AppText style={styles.checkmark}>✓</AppText> : null}
+        {checked ? <Check color="#FFFFFF" size={12} strokeWidth={3} /> : null}
       </View>
     </TouchableOpacity>
   );
@@ -47,58 +41,56 @@ function Checkbox({
 
 export default function LoginScreen() {
   const { colors } = useAppTheme();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
   const [savePassword, setSavePassword] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const { googleReady, appleAvailable, signInWithGoogle, signInWithApple } =
-    useSocialAuth();
+  const { googleReady, appleAvailable, signInWithGoogle, signInWithApple } = useSocialAuth();
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      router.replace("/(tabs)");
+    }
+  }, [isAuthenticated]);
 
   const handleLogin = async () => {
     try {
       await login({ email: email.trim().toLowerCase(), password });
       router.replace("/(tabs)");
-    } catch {
-      // error shown via store
-    }
+    } catch {}
   };
+
   return (
     <AppScreen contentStyle={styles.content}>
       <TouchableOpacity
         onPress={() => router.back()}
-        style={[
-          styles.backBtn,
-          {
-            backgroundColor: colors.surface,
-            borderColor: colors.border,
-          },
-        ]}
+        style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
         activeOpacity={0.75}
       >
-        <AppText style={[styles.backArrow, { color: colors.text }]}>←</AppText>
+        <ChevronLeft color={colors.text} size={22} />
       </TouchableOpacity>
 
       <View style={styles.header}>
-        <AppText variant="display" style={styles.title}>
+        <AppText variant="display" style={[styles.title, { color: colors.text }]}>
           Welcome back
         </AppText>
         <AppText variant="caption" tone="muted" style={styles.subtitle}>
-          Access your account securely using your email and password.
+          Sign in to continue managing secure meetings, rooms, and connections.
         </AppText>
       </View>
 
       <View style={styles.fields}>
         <AppTextInput
-          placeholder="Email Address"
+          placeholder="Email address"
           autoCapitalize="none"
           keyboardType="email-address"
           value={email}
-          onChangeText={(v) => {
-            setEmail(v);
+          onChangeText={(value) => {
+            setEmail(value);
             clearError();
           }}
-          leftSlot={<Mail color={colors.textSoft} size={18} />}
+          leftSlot={<Mail color={colors.textSoft} size={19} />}
           containerStyle={styles.inputContainer}
           style={styles.input}
         />
@@ -107,20 +99,17 @@ export default function LoginScreen() {
           placeholder="Password"
           secureTextEntry={!showPassword}
           value={password}
-          onChangeText={(v) => {
-            setPassword(v);
+          onChangeText={(value) => {
+            setPassword(value);
             clearError();
           }}
-          leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
+          leftSlot={<LockKeyhole color={colors.textSoft} size={19} />}
           rightSlot={
-            <TouchableOpacity
-              onPress={() => setShowPassword((value) => !value)}
-              activeOpacity={0.75}
-            >
+            <TouchableOpacity onPress={() => setShowPassword((value) => !value)} activeOpacity={0.75}>
               {showPassword ? (
-                <EyeOff color={colors.textSoft} size={18} />
+                <EyeOff color={colors.textSoft} size={19} />
               ) : (
-                <Eye color={colors.textSoft} size={18} />
+                <Eye color={colors.textSoft} size={19} />
               )}
             </TouchableOpacity>
           }
@@ -131,36 +120,21 @@ export default function LoginScreen() {
 
       <View style={styles.metaRow}>
         <View style={styles.rememberRow}>
-          <Checkbox
-            checked={savePassword}
-            onPress={() => setSavePassword((value) => !value)}
-          />
+          <Checkbox checked={savePassword} onPress={() => setSavePassword((value) => !value)} />
           <AppText variant="caption" tone="muted">
             Save password
           </AppText>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.75}
-          onPress={() => router.push("/auth/forgot-password" as Href)}
-        >
-          <AppText
-            variant="caption"
-            style={[styles.forgotLink, { color: colors.primary }]}
-          >
+        <TouchableOpacity activeOpacity={0.75} onPress={() => router.push("/auth/forgot-password" as Href)}>
+          <AppText variant="caption" style={[styles.forgotLink, { color: colors.primary }]}>
             Forgot password?
           </AppText>
         </TouchableOpacity>
       </View>
 
       {error ? (
-        <AppText
-          variant="caption"
-          style={{
-            color: colors.danger,
-            textAlign: "center",
-          }}
-        >
+        <AppText variant="caption" style={[styles.errorText, { color: colors.danger }]}>
           {error}
         </AppText>
       ) : null}
@@ -169,6 +143,7 @@ export default function LoginScreen() {
         title="Sign In"
         onPress={handleLogin}
         loading={isLoading}
+        disabled={!email.trim() || !password || isLoading}
         style={styles.primaryButton}
       />
 
@@ -182,38 +157,26 @@ export default function LoginScreen() {
 
       <View style={styles.socialStack}>
         <TouchableOpacity
-          style={[
-            styles.socialBtn,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
+          style={[styles.socialBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
           activeOpacity={0.75}
           disabled={!googleReady || isLoading}
           onPress={signInWithGoogle}
         >
           <GoogleLogo />
-          <AppText
-            variant="bodyStrong"
-            style={[styles.socialLabel, { color: colors.text }]}
-          >
+          <AppText variant="bodyStrong" style={[styles.socialLabel, { color: colors.text }]}>
             Continue with Google
           </AppText>
         </TouchableOpacity>
 
         {appleAvailable ? (
           <TouchableOpacity
-            style={[
-              styles.socialBtn,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
+            style={[styles.socialBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
             activeOpacity={0.75}
             disabled={isLoading}
             onPress={signInWithApple}
           >
             <AppleLogo color={colors.text} />
-            <AppText
-              variant="bodyStrong"
-              style={[styles.socialLabel, { color: colors.text }]}
-            >
+            <AppText variant="bodyStrong" style={[styles.socialLabel, { color: colors.text }]}>
               Continue with Apple
             </AppText>
           </TouchableOpacity>
@@ -227,10 +190,7 @@ export default function LoginScreen() {
 
         <Link href="/auth/register" asChild>
           <TouchableOpacity activeOpacity={0.75}>
-            <AppText
-              variant="caption"
-              style={[styles.authLink, { color: colors.primary }]}
-            >
+            <AppText variant="caption" style={[styles.authLink, { color: colors.primary }]}>
               Sign Up.
             </AppText>
           </TouchableOpacity>
@@ -242,51 +202,48 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   content: {
+    width: "100%",
+    maxWidth: 560,
     justifyContent: "center",
-    gap: Spacing.four,
+    gap: Spacing.five,
     paddingHorizontal: Spacing.five,
   },
   backBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "flex-start",
-    marginLeft: -Spacing.two,
-    marginBottom: Spacing.two,
-  },
-  backArrow: {
-    fontSize: 22,
-    fontWeight: "700",
-    lineHeight: 24,
   },
   header: {
     gap: Spacing.two,
   },
   title: {
-    fontSize: 29,
-    lineHeight: 36,
-    fontWeight: "800",
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: "900",
   },
   subtitle: {
-    maxWidth: 320,
-    lineHeight: 20,
+    maxWidth: 380,
+    lineHeight: 21,
   },
   fields: {
     gap: Spacing.three,
   },
   inputContainer: {
-    borderRadius: 14,
+    minHeight: 58,
+    borderRadius: 16,
   },
   input: {
-    fontSize: 15,
+    fontSize: 16,
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: Spacing.three,
   },
   rememberRow: {
     flexDirection: "row",
@@ -294,24 +251,22 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   checkboxBox: {
-    width: 18,
-    height: 18,
-    borderRadius: 5,
+    width: 20,
+    height: 20,
+    borderRadius: 6,
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
-  checkmark: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "800",
-    lineHeight: 13,
-  },
   forgotLink: {
+    fontWeight: "800",
+  },
+  errorText: {
+    textAlign: "center",
     fontWeight: "700",
   },
   primaryButton: {
-    minHeight: 56,
+    minHeight: 58,
     borderRadius: 999,
   },
   dividerRow: {
@@ -330,25 +285,26 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   socialBtn: {
+    minHeight: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.four,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.three,
-    minHeight: 56,
-    borderRadius: 14,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.four,
   },
   socialLabel: {
+    flexShrink: 1,
     fontSize: 15,
   },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 4,
-    marginTop: Spacing.two,
+    flexWrap: "wrap",
   },
   authLink: {
-    fontWeight: "800",
+    fontWeight: "900",
   },
 });

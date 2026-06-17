@@ -40,7 +40,7 @@ import { AppButton } from "@/components/ui/AppButton";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
-import { Radius, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
 type LocationOption = {
@@ -1204,164 +1204,164 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   content: {
+    width: "100%",
+    maxWidth: 580,
     justifyContent: "flex-start",
-    gap: 14,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.four,
-    paddingBottom: Spacing.five,
+    gap: Spacing.four,
+    paddingHorizontal: Spacing.five,
+    paddingTop: Spacing.five,
+    paddingBottom: Spacing.six,
   },
   contentCompact: {
-    gap: 10,
-    paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
+    gap: Spacing.three,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.four,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 46,
+    height: 46,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "flex-start",
   },
   header: {
-    gap: 8,
+    gap: Spacing.three,
   },
   stepWrap: {
-    gap: 7,
-    marginBottom: 2,
+    gap: Spacing.two,
   },
   stepLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
   stepLabel: {
-    fontSize: 11,
-    fontWeight: "800",
+    fontSize: 12,
+    fontWeight: "900",
   },
   stepRow: {
     flexDirection: "row",
     alignItems: "center",
   },
   stepDot: {
-    width: 9,
-    height: 9,
+    width: 11,
+    height: 11,
     borderRadius: 999,
   },
   stepLine: {
     flex: 1,
-    height: 3,
-    marginHorizontal: 5,
+    height: 4,
+    marginHorizontal: 7,
     borderRadius: 999,
   },
   title: {
-    fontSize: 28,
-    lineHeight: 34,
-    fontWeight: "800",
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: "900",
   },
   titleCompact: {
-    fontSize: 25,
-    lineHeight: 30,
+    fontSize: 29,
+    lineHeight: 35,
   },
   subtitle: {
-    maxWidth: 340,
-    lineHeight: 18,
+    maxWidth: 390,
+    lineHeight: 21,
   },
   fields: {
-    gap: 10,
+    gap: Spacing.three,
   },
   nameRow: {
-    flexDirection: "row",
-    gap: 10,
+    flexDirection: "column",
+    gap: Spacing.three,
   },
   stackRow: {
     flexDirection: "column",
   },
   nameInput: {
-    flex: 1,
-    minWidth: 0,
+    width: "100%",
   },
   phoneRow: {
     flexDirection: "row",
-    gap: 10,
+    gap: Spacing.three,
   },
   countryCodeButton: {
-    width: 118,
-    minHeight: 52,
-    borderRadius: 13,
+    width: 124,
+    minHeight: 58,
+    borderRadius: 16,
     borderWidth: 1,
-    paddingHorizontal: 8,
+    paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 7,
   },
   countryCodeCompact: {
     width: "100%",
     justifyContent: "flex-start",
-    paddingHorizontal: Spacing.three,
   },
   countryCodeText: {
     flexShrink: 1,
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 15,
+    fontWeight: "900",
   },
   phoneInput: {
     flex: 1,
     minWidth: 0,
   },
   inputContainer: {
-    minHeight: 52,
-    borderRadius: 13,
+    width: "100%",
+    minHeight: 58,
+    borderRadius: 16,
   },
   input: {
-    fontSize: 15,
+    fontSize: 16,
   },
   selectField: {
-    minHeight: 54,
-    borderRadius: 13,
+    minHeight: 60,
+    borderRadius: 16,
     borderWidth: 1,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.four,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: Spacing.two,
+    gap: Spacing.three,
   },
   selectLeft: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.two,
+    gap: Spacing.three,
   },
   selectTextWrap: {
     flex: 1,
     minWidth: 0,
   },
   selectLabel: {
-    marginBottom: 2,
-    fontSize: 10,
-    fontWeight: "800",
+    marginBottom: 3,
+    fontSize: 11,
+    fontWeight: "900",
   },
   selectValue: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
   },
   flagImage: {
-    borderRadius: 3,
+    borderRadius: 4,
     backgroundColor: "rgba(148, 163, 184, 0.18)",
   },
   passwordPanel: {
     borderWidth: 1,
-    borderRadius: Radius.medium,
-    padding: Spacing.three,
-    gap: 8,
+    borderRadius: 18,
+    padding: Spacing.four,
+    gap: Spacing.three,
   },
   passwordTitle: {
-    fontWeight: "800",
+    fontWeight: "900",
   },
   rulesGrid: {
-    gap: 6,
+    gap: Spacing.two,
   },
   rule: {
     flexDirection: "row",
@@ -1369,7 +1369,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   primaryButton: {
-    minHeight: 52,
+    minHeight: 58,
     borderRadius: 999,
   },
   dividerRow: {
@@ -1385,31 +1385,30 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   socialStack: {
-    gap: 9,
+    gap: Spacing.three,
   },
   socialBtn: {
+    minHeight: 56,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.four,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.three,
-    minHeight: 50,
-    borderRadius: 13,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.three,
   },
   socialLabel: {
     flexShrink: 1,
-    fontSize: 14,
+    fontSize: 15,
   },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
     gap: 4,
-    marginTop: 2,
     flexWrap: "wrap",
   },
   authLink: {
-    fontWeight: "800",
+    fontWeight: "900",
   },
   modalBackdrop: {
     flex: 1,
@@ -1418,23 +1417,23 @@ const styles = StyleSheet.create({
   },
   modalSheet: {
     maxHeight: "84%",
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     padding: Spacing.four,
     gap: Spacing.three,
   },
   modalHeader: {
-    minHeight: 32,
+    minHeight: 34,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   modalClose: {
-    fontWeight: "800",
+    fontWeight: "900",
   },
   searchBox: {
-    minHeight: 48,
-    borderRadius: 14,
+    minHeight: 50,
+    borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: Spacing.three,
     flexDirection: "row",
@@ -1447,7 +1446,7 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
   },
   optionRow: {
-    minHeight: 52,
+    minHeight: 54,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     alignItems: "center",
@@ -1457,7 +1456,7 @@ const styles = StyleSheet.create({
   optionText: {
     flex: 1,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
   },
   countryOptionLeft: {
     flex: 1,
@@ -1468,7 +1467,7 @@ const styles = StyleSheet.create({
   },
   callingCodeText: {
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "900",
   },
   emptyState: {
     minHeight: 120,
@@ -1487,7 +1486,7 @@ const styles = StyleSheet.create({
   dateColumnTitle: {
     marginBottom: 8,
     textAlign: "center",
-    fontWeight: "800",
+    fontWeight: "900",
   },
   dateColumnList: {
     flex: 1,
@@ -1503,10 +1502,10 @@ const styles = StyleSheet.create({
   },
   dateOptionText: {
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "900",
   },
   modalButton: {
-    minHeight: 50,
+    minHeight: 52,
     borderRadius: 999,
   },
 });

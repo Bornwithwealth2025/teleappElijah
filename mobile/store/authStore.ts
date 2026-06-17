@@ -53,6 +53,43 @@ function normalizeUser(user: AuthUser): AuthUser {
   };
 }
 
+function getAuthPayload(res: any) {
+  const data = res?.data ?? res;
+
+  const token =
+    data?.accessToken ??
+    data?.access_token ??
+    data?.token ??
+    data?.authToken ??
+    data?.data?.accessToken ??
+    data?.data?.access_token ??
+    data?.data?.token ??
+    data?.data?.authToken;
+
+  const user =
+    data?.user ??
+    data?.authUser ??
+    data?.profile ??
+    data?.data?.user ??
+    data?.data?.authUser ??
+    data?.data?.profile;
+
+  return {
+    token,
+    user,
+  };
+}
+
+async function persistAuthSession(token: string, user: AuthUser) {
+  await authStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+  await authStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+}
+
+async function clearAuthSession() {
+  await authStorage.deleteItem(STORAGE_KEYS.ACCESS_TOKEN);
+  await authStorage.deleteItem(STORAGE_KEYS.USER);
+}
+
 const useAuthStore = create<AuthState>((set) => {
   authEventEmitter.on("logout", () => {
     set({
@@ -60,6 +97,8 @@ const useAuthStore = create<AuthState>((set) => {
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      error: null,
+      pendingEmail: null,
     });
   });
 
@@ -76,7 +115,15 @@ const useAuthStore = create<AuthState>((set) => {
         const token = await authStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
         const userRaw = await authStorage.getItem(STORAGE_KEYS.USER);
 
-        if (!token || !userRaw) return;
+        if (!token || !userRaw) {
+          set({
+            user: null,
+            token: null,
+            isAuthenticated: false,
+            isLoading: false,
+          });
+          return;
+        }
 
         const user = normalizeUser(JSON.parse(userRaw) as AuthUser);
 
@@ -84,15 +131,18 @@ const useAuthStore = create<AuthState>((set) => {
           token,
           user,
           isAuthenticated: true,
+          isLoading: false,
+          error: null,
         });
       } catch {
-        await authStorage.deleteItem(STORAGE_KEYS.ACCESS_TOKEN);
-        await authStorage.deleteItem(STORAGE_KEYS.USER);
+        await clearAuthSession();
 
         set({
           user: null,
           token: null,
           isAuthenticated: false,
+          isLoading: false,
+          error: null,
         });
       }
     },
@@ -110,6 +160,7 @@ const useAuthStore = create<AuthState>((set) => {
         set({
           pendingEmail: payload.email,
           isLoading: false,
+          error: null,
         });
       } catch (err: any) {
         set({
@@ -127,24 +178,35 @@ const useAuthStore = create<AuthState>((set) => {
       try {
         const res = await AuthService.login(payload);
 
-        if (!res.success || !res.data?.accessToken || !res.data?.user) {
+        if (!res.success) {
           throw new Error(res.message || "Login failed.");
         }
 
-        const user = normalizeUser(res.data.user);
-        const token = res.data.accessToken;
+        const { token, user: rawUser } = getAuthPayload(res);
 
-        await authStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
-        await authStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        if (!token || !rawUser) {
+          throw new Error("Login succeeded, but session data was missing.");
+        }
+
+        const user = normalizeUser(rawUser);
+
+        await persistAuthSession(token, user);
 
         set({
           token,
           user,
           isAuthenticated: true,
           isLoading: false,
+          error: null,
+          pendingEmail: null,
         });
       } catch (err: any) {
+        await clearAuthSession();
+
         set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
           isLoading: false,
           error: getErrorMessage(err, "Login failed."),
         });
@@ -166,6 +228,7 @@ const useAuthStore = create<AuthState>((set) => {
         set({
           isLoading: false,
           pendingEmail: null,
+          error: null,
         });
       } catch (err: any) {
         set({
@@ -187,7 +250,10 @@ const useAuthStore = create<AuthState>((set) => {
           throw new Error(res.message || "Unable to resend OTP.");
         }
 
-        set({ isLoading: false });
+        set({
+          isLoading: false,
+          error: null,
+        });
       } catch (err: any) {
         set({
           isLoading: false,
@@ -211,6 +277,7 @@ const useAuthStore = create<AuthState>((set) => {
         set({
           isLoading: false,
           pendingEmail: payload.email,
+          error: null,
         });
       } catch (err: any) {
         set({
@@ -235,6 +302,7 @@ const useAuthStore = create<AuthState>((set) => {
         set({
           isLoading: false,
           pendingEmail: null,
+          error: null,
         });
       } catch (err: any) {
         set({
@@ -252,24 +320,35 @@ const useAuthStore = create<AuthState>((set) => {
       try {
         const res = await AuthService.socialLogin(payload);
 
-        if (!res.success || !res.data?.accessToken || !res.data?.user) {
+        if (!res.success) {
           throw new Error(res.message || "Social login failed.");
         }
 
-        const user = normalizeUser(res.data.user);
-        const token = res.data.accessToken;
+        const { token, user: rawUser } = getAuthPayload(res);
 
-        await authStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
-        await authStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        if (!token || !rawUser) {
+          throw new Error("Social login succeeded, but session data was missing.");
+        }
+
+        const user = normalizeUser(rawUser);
+
+        await persistAuthSession(token, user);
 
         set({
           token,
           user,
           isAuthenticated: true,
           isLoading: false,
+          error: null,
+          pendingEmail: null,
         });
       } catch (err: any) {
+        await clearAuthSession();
+
         set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
           isLoading: false,
           error: getErrorMessage(err, "Social login failed."),
         });
@@ -285,14 +364,14 @@ const useAuthStore = create<AuthState>((set) => {
         await AuthService.logout();
       } catch {
       } finally {
-        await authStorage.deleteItem(STORAGE_KEYS.ACCESS_TOKEN);
-        await authStorage.deleteItem(STORAGE_KEYS.USER);
+        await clearAuthSession();
 
         set({
           user: null,
           token: null,
           isAuthenticated: false,
           isLoading: false,
+          error: null,
           pendingEmail: null,
         });
       }

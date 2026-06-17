@@ -1,3 +1,4 @@
+// (tabs) layout.tsx 
 import { Redirect, Tabs } from "expo-router";
 import useAuthStore from "@/store/authStore";
 import { CalendarDays, Home, UserRound, Video } from "lucide-react-native";

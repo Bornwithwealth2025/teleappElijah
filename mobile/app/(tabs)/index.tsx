@@ -1,3 +1,4 @@
+// (tabs) index.tsx
 import { router } from "expo-router";
 import { Pressable, StyleSheet, View } from "react-native";
 import { UserRound } from "lucide-react-native";

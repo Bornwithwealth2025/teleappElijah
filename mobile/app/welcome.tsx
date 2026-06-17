@@ -1,69 +1,93 @@
-import { router } from 'expo-router';
-import { ImageBackground, StyleSheet, View, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
+import { router } from "expo-router";
+import { Image, StyleSheet, View, useWindowDimensions } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { StatusBar } from "expo-status-bar";
+import { MessageCircle, ShieldCheck, UsersRound, Video } from "lucide-react-native";
 
-import { AppButton } from '@/components/ui/AppButton';
-import { AppText } from '@/components/ui/AppText';
-import { Spacing } from '@/constants/theme';
-import { useAppTheme } from '@/hooks/use-app-themes';
+import { AppButton } from "@/components/ui/AppButton";
+import { AppText } from "@/components/ui/AppText";
+import { Spacing } from "@/constants/theme";
+import { useAppTheme } from "@/hooks/use-app-themes";
 
-const { height } = Dimensions.get('window');
+const features = [
+  { label: "Chat", icon: MessageCircle, color: "#1274F6" },
+  { label: "Meet", icon: Video, color: "#FF3B3B" },
+  { label: "Secure", icon: ShieldCheck, color: "#18B96E" },
+  { label: "Connect", icon: UsersRound, color: "#6D35E8" },
+];
 
 export default function WelcomeScreen() {
   const { colors, isDark } = useAppTheme();
+  const { width, height } = useWindowDimensions();
+  const compact = height < 720;
+  const logoSize = Math.min(width * 0.76, compact ? 270 : 340);
 
   return (
-    <View style={styles.root}>
-      <StatusBar style="light" />
+    <View style={[styles.root, { backgroundColor: isDark ? "#080B18" : "#FFFFFF" }]}>
+      <StatusBar style={isDark ? "light" : "dark"} />
 
-      <ImageBackground
-        source={require('@/assets/images/telefya.png')}
-        style={styles.hero}
-        resizeMode="cover"
-      >
-        <LinearGradient
-          colors={[
-            'rgba(22,10,46,0.02)',
-            'rgba(22,10,46,0.35)',
-            'rgba(22,10,46,0.92)',
-          ]}
-          locations={[0.28, 0.62, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-      </ImageBackground>
+      <LinearGradient
+        colors={isDark ? ["#0A1024", "#111936", "#080B18"] : ["#FFFFFF", "#F8FBFF", "#FFFFFF"]}
+        style={StyleSheet.absoluteFill}
+      />
 
-      <View
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: isDark ? colors.card : '#FFFFFF',
-          },
-        ]}
-      >
-        <View style={[styles.pill, { backgroundColor: colors.border }]} />
+      <View style={styles.content}>
+        <View style={styles.brandArea}>
+          <View style={[styles.logoWrap, { width: logoSize, height: logoSize }]}>
+            <Image
+              source={require("@/assets/images/telefya.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+          </View>
+
+          <View style={styles.featureRow}>
+            {features.map((item, index) => {
+              const Icon = item.icon;
+
+              return (
+                <View key={item.label} style={styles.featureItem}>
+                  <Icon color={item.color} size={compact ? 20 : 23} />
+                  <AppText style={[styles.featureLabel, { color: colors.text }]}>
+                    {item.label}
+                  </AppText>
+                  {index < features.length - 1 ? (
+                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+
+          <AppText style={styles.tagline}>
+            <AppText style={styles.blue}>O N E </AppText>
+            <AppText style={styles.purple}> A P P. </AppText>
+            <AppText style={styles.red}> A L L </AppText>
+            <AppText style={styles.green}> C O N N E C T I O N S.</AppText>
+          </AppText>
+        </View>
 
         <View style={styles.copy}>
           <AppText variant="display" style={[styles.heading, { color: colors.text }]}>
-            Welcome
+            Your meeting workspace
           </AppText>
 
-          <AppText variant="body" style={[styles.tagline, { color: colors.textMuted }]}>
-            Plan meetings, start instant rooms, and share secure links from one workspace.
+          <AppText variant="body" style={[styles.subtitle, { color: colors.textMuted }]}>
+            Chat, meet, secure conversations, and connect with people from one polished workspace.
           </AppText>
         </View>
 
         <View style={styles.actions}>
           <AppButton
-            title="Register"
-            onPress={() => router.push('/auth/register')}
+            title="Create account"
+            onPress={() => router.push("/auth/register")}
             style={styles.primaryButton}
           />
 
           <AppButton
-            title="Login"
+            title="Sign in"
             variant="secondary"
-            onPress={() => router.push('/auth/login')}
+            onPress={() => router.push("/auth/login")}
             style={styles.secondaryButton}
           />
         </View>
@@ -75,56 +99,105 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#0A0C1A',
   },
-  hero: {
-    height: height * 0.6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sheet: {
+  content: {
     flex: 1,
-    marginTop: -34,
-    borderTopLeftRadius: 34,
-    borderTopRightRadius: 34,
+    width: "100%",
     paddingHorizontal: Spacing.five,
-    paddingTop: Spacing.three,
+    paddingTop: Spacing.six,
     paddingBottom: Spacing.six,
-    gap: Spacing.five,
+    justifyContent: "space-between",
   },
-  pill: {
-    alignSelf: 'center',
-    width: 42,
-    height: 4,
-    borderRadius: 999,
-    marginBottom: Spacing.two,
+  brandArea: {
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+  logoWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logo: {
+    width: "100%",
+    height: "100%",
+  },
+  brandName: {
+    fontSize: 56,
+    lineHeight: 62,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  blue: {
+    color: "#1274F6",
+  },
+  red: {
+    color: "#FF3B3B",
+  },
+  yellow: {
+    color: "#FFB51F",
+  },
+  green: {
+    color: "#23C878",
+  },
+  purple: {
+    color: "#6D35E8",
+  },
+  featureRow: {
+    width: "100%",
+    maxWidth: 420,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: Spacing.one,
+  },
+  featureItem: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  featureLabel: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  divider: {
+    position: "absolute",
+    right: 0,
+    width: StyleSheet.hairlineWidth,
+    height: 26,
+  },
+  tagline: {
+    marginTop: Spacing.two,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: "900",
+    textAlign: "center",
   },
   copy: {
-    alignItems: 'center',
+    alignItems: "center",
     gap: Spacing.two,
   },
   heading: {
-    fontSize: 34,
-    lineHeight: 40,
-    fontWeight: '800',
-    textAlign: 'center',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "900",
+    textAlign: "center",
   },
-  tagline: {
-    maxWidth: 330,
-    textAlign: 'center',
+  subtitle: {
+    maxWidth: 350,
+    textAlign: "center",
     lineHeight: 22,
   },
   actions: {
     gap: Spacing.three,
   },
   primaryButton: {
-    minHeight: 54,
+    minHeight: 56,
     borderRadius: 999,
   },
   secondaryButton: {
-    minHeight: 54,
+    minHeight: 56,
     borderRadius: 999,
   },
 });
