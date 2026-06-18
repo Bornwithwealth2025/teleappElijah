@@ -1,8 +1,15 @@
 import React from "react";
 import useAuthStore from "@/store/authStore";
 import { FontAwesome } from "@expo/vector-icons";
-import { Link, router, Href } from "expo-router";
-import { Check, ChevronLeft, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react-native";
+import { Link, router, type Href } from "expo-router";
+import {
+  Check,
+  ChevronLeft,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  Mail,
+} from "lucide-react-native";
 import { StyleSheet, TouchableOpacity, View } from "react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
@@ -21,7 +28,13 @@ function AppleLogo({ color }: { color: string }) {
   return <FontAwesome name="apple" size={22} color={color} />;
 }
 
-function Checkbox({ checked, onPress }: { checked: boolean; onPress: () => void }) {
+function Checkbox({
+  checked,
+  onPress,
+}: {
+  checked: boolean;
+  onPress: () => void;
+}) {
   const { colors } = useAppTheme();
 
   return (
@@ -46,7 +59,8 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = React.useState(false);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const { googleReady, appleAvailable, signInWithGoogle, signInWithApple } = useSocialAuth();
+  const { googleReady, appleAvailable, signInWithGoogle, signInWithApple } =
+    useSocialAuth();
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -56,7 +70,11 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     try {
-      await login({ email: email.trim().toLowerCase(), password });
+      await login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
       router.replace("/(tabs)");
     } catch {}
   };
@@ -65,16 +83,20 @@ export default function LoginScreen() {
     <AppScreen contentStyle={styles.content}>
       <TouchableOpacity
         onPress={() => router.back()}
-        style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+        style={[
+          styles.backBtn,
+          { backgroundColor: colors.surface, borderColor: colors.border },
+        ]}
         activeOpacity={0.75}
       >
-        <ChevronLeft color={colors.text} size={22} />
+        <ChevronLeft color={colors.text} size={23} />
       </TouchableOpacity>
 
       <View style={styles.header}>
         <AppText variant="display" style={[styles.title, { color: colors.text }]}>
           Welcome back
         </AppText>
+
         <AppText variant="caption" tone="muted" style={styles.subtitle}>
           Sign in to continue managing secure meetings, rooms, and connections.
         </AppText>
@@ -90,7 +112,7 @@ export default function LoginScreen() {
             setEmail(value);
             clearError();
           }}
-          leftSlot={<Mail color={colors.textSoft} size={19} />}
+          leftSlot={<Mail color={colors.textSoft} size={20} />}
           containerStyle={styles.inputContainer}
           style={styles.input}
         />
@@ -103,13 +125,16 @@ export default function LoginScreen() {
             setPassword(value);
             clearError();
           }}
-          leftSlot={<LockKeyhole color={colors.textSoft} size={19} />}
+          leftSlot={<LockKeyhole color={colors.textSoft} size={20} />}
           rightSlot={
-            <TouchableOpacity onPress={() => setShowPassword((value) => !value)} activeOpacity={0.75}>
+            <TouchableOpacity
+              onPress={() => setShowPassword((value) => !value)}
+              activeOpacity={0.75}
+            >
               {showPassword ? (
-                <EyeOff color={colors.textSoft} size={19} />
+                <EyeOff color={colors.textSoft} size={20} />
               ) : (
-                <Eye color={colors.textSoft} size={19} />
+                <Eye color={colors.textSoft} size={20} />
               )}
             </TouchableOpacity>
           }
@@ -120,21 +145,33 @@ export default function LoginScreen() {
 
       <View style={styles.metaRow}>
         <View style={styles.rememberRow}>
-          <Checkbox checked={savePassword} onPress={() => setSavePassword((value) => !value)} />
+          <Checkbox
+            checked={savePassword}
+            onPress={() => setSavePassword((value) => !value)}
+          />
           <AppText variant="caption" tone="muted">
             Save password
           </AppText>
         </View>
 
-        <TouchableOpacity activeOpacity={0.75} onPress={() => router.push("/auth/forgot-password" as Href)}>
-          <AppText variant="caption" style={[styles.forgotLink, { color: colors.primary }]}>
+        <TouchableOpacity
+          activeOpacity={0.75}
+          onPress={() => router.push("/auth/forgot-password" as Href)}
+        >
+          <AppText
+            variant="caption"
+            style={[styles.forgotLink, { color: colors.primary }]}
+          >
             Forgot password?
           </AppText>
         </TouchableOpacity>
       </View>
 
       {error ? (
-        <AppText variant="caption" style={[styles.errorText, { color: colors.danger }]}>
+        <AppText
+          variant="caption"
+          style={[styles.errorText, { color: colors.danger }]}
+        >
           {error}
         </AppText>
       ) : null}
@@ -157,26 +194,38 @@ export default function LoginScreen() {
 
       <View style={styles.socialStack}>
         <TouchableOpacity
-          style={[styles.socialBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          style={[
+            styles.socialBtn,
+            { backgroundColor: colors.card, borderColor: colors.border },
+          ]}
           activeOpacity={0.75}
           disabled={!googleReady || isLoading}
           onPress={signInWithGoogle}
         >
           <GoogleLogo />
-          <AppText variant="bodyStrong" style={[styles.socialLabel, { color: colors.text }]}>
+          <AppText
+            variant="bodyStrong"
+            style={[styles.socialLabel, { color: colors.text }]}
+          >
             Continue with Google
           </AppText>
         </TouchableOpacity>
 
         {appleAvailable ? (
           <TouchableOpacity
-            style={[styles.socialBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[
+              styles.socialBtn,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
             activeOpacity={0.75}
             disabled={isLoading}
             onPress={signInWithApple}
           >
             <AppleLogo color={colors.text} />
-            <AppText variant="bodyStrong" style={[styles.socialLabel, { color: colors.text }]}>
+            <AppText
+              variant="bodyStrong"
+              style={[styles.socialLabel, { color: colors.text }]}
+            >
               Continue with Apple
             </AppText>
           </TouchableOpacity>
@@ -190,7 +239,10 @@ export default function LoginScreen() {
 
         <Link href="/auth/register" asChild>
           <TouchableOpacity activeOpacity={0.75}>
-            <AppText variant="caption" style={[styles.authLink, { color: colors.primary }]}>
+            <AppText
+              variant="caption"
+              style={[styles.authLink, { color: colors.primary }]}
+            >
               Sign Up.
             </AppText>
           </TouchableOpacity>
@@ -202,15 +254,16 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    width: "100%",
-    maxWidth: 560,
+    flexGrow: 1,
     justifyContent: "center",
     gap: Spacing.five,
-    paddingHorizontal: Spacing.five,
+    paddingHorizontal: Spacing.four,
+    paddingTop: Spacing.five,
+    paddingBottom: Spacing.six,
   },
   backBtn: {
-    width: 46,
-    height: 46,
+    width: 48,
+    height: 48,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: "center",
@@ -221,20 +274,22 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   title: {
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 36,
+    lineHeight: 42,
     fontWeight: "900",
   },
   subtitle: {
-    maxWidth: 380,
-    lineHeight: 21,
+    maxWidth: 430,
+    lineHeight: 22,
   },
   fields: {
+    width: "100%",
     gap: Spacing.three,
   },
   inputContainer: {
-    minHeight: 58,
-    borderRadius: 16,
+    width: "100%",
+    minHeight: 62,
+    borderRadius: 18,
   },
   input: {
     fontSize: 16,
@@ -244,6 +299,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: Spacing.three,
+    flexWrap: "wrap",
   },
   rememberRow: {
     flexDirection: "row",
@@ -266,7 +322,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   primaryButton: {
-    minHeight: 58,
+    minHeight: 60,
     borderRadius: 999,
   },
   dividerRow: {
@@ -285,8 +341,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   socialBtn: {
-    minHeight: 56,
-    borderRadius: 16,
+    minHeight: 58,
+    borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: Spacing.four,
     flexDirection: "row",

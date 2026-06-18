@@ -14,6 +14,7 @@ export const BASE_URL =
 export const STORAGE_KEYS = {
   ACCESS_TOKEN: "telefya_access_token",
   USER: "telefya_user",
+  REGISTERED_PROFILES: "telefya_registered_profiles",
 };
 
 export const authStorage = {

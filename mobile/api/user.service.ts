@@ -17,9 +17,31 @@ export type UploadableImage = {
 
 const UserService = {
   getProfile: async (): Promise<GetProfileResponse> => {
-    const { data } = await apiClient.get<GetProfileResponse>("/users/profile");
-    return data;
-  },
+  const endpoints = [
+    "/users/profile",
+    "/users/me",
+    "/users/get-profile",
+    "/auth/profile",
+    "/auth/me",
+  ];
+
+  let lastError: any;
+
+  for (const endpoint of endpoints) {
+    try {
+      const { data } = await apiClient.get<GetProfileResponse>(endpoint);
+      return data;
+    } catch (error: any) {
+      lastError = error;
+
+      if (error?.response?.status !== 404) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+},
 
   scheduleMeeting: async (
     payload: ScheduleMeetingRequest

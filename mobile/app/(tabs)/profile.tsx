@@ -1,6 +1,13 @@
 import React from "react";
 import { router, type Href } from "expo-router";
-import { Mail, MapPin, Phone, ShieldCheck } from "lucide-react-native";
+import {
+  LogOut,
+  Mail,
+  MapPin,
+  Phone,
+  ShieldCheck,
+  UserRound,
+} from "lucide-react-native";
 import { Pressable, StyleSheet, View } from "react-native";
 
 import { ProfileAvatar } from "@/components/shared/ProfileAvatar";
@@ -10,34 +17,44 @@ import { AppCard } from "@/components/ui/AppCard";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
-import { Radius, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { BASE_URL } from "@/api/client";
 import { useAppTheme } from "@/hooks/use-app-themes";
+import useAuthStore from "@/store/authStore";
 import useSchedulerStore from "@/store/schedulerStore";
 import useUserStore from "@/store/userStore";
 
-const menuItems: Array<{ label: string; href: Href }> = [
-  {
-    label: "Account settings",
-    href: "/settings/account",
-  },
-  {
-    label: "Notification preferences",
-    href: "/settings/notifications",
-  },
-  {
-    label: "Meeting defaults",
-    href: "/settings/meeting-default",
-  },
-  {
-    label: "Security",
-    href: "/settings/security",
-  },
+const menuItems: Array<{ label: string; href?: Href }> = [
+  { label: "Account settings" },
+  { label: "Notification preferences" },
+  { label: "Meeting defaults" },
+  { label: "Security" },
 ];
 
+function getValue(...values: Array<any>) {
+  return values.find(
+    (value) => value !== undefined && value !== null && value !== "",
+  );
+}
+
+function unwrapProfileData(value: any) {
+  return (
+    value?.data?.user ??
+    value?.data?.profile ??
+    value?.data ??
+    value?.user ??
+    value?.profile ??
+    value ??
+    {}
+  );
+}
+
 function getProfileName(profile: any) {
-  const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
-  return fullName || "User";
+  const fullName = `${profile?.first_name ?? profile?.firstName ?? ""} ${
+    profile?.last_name ?? profile?.lastName ?? ""
+  }`.trim();
+
+  return fullName || profile?.name || profile?.full_name || "User";
 }
 
 function resolveImageUrl(path?: string | null) {
@@ -63,6 +80,10 @@ function formatBirthDate(value?: string) {
 export default function ProfileScreen() {
   const { colors } = useAppTheme();
 
+  const authUser = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const logout = useAuthStore((state) => state.logout);
+
   const profile = useUserStore((state) => state.profile);
   const isLoading = useUserStore((state) => state.isLoading);
   const isUploading = useUserStore((state) => state.isUploading);
@@ -74,16 +95,66 @@ export default function ProfileScreen() {
   const fetchMeetings = useSchedulerStore((state) => state.fetchMeetings);
 
   React.useEffect(() => {
-    fetchProfile();
-    fetchMeetings();
-  }, [fetchMeetings, fetchProfile]);
+    if (isAuthenticated) {
+      void fetchProfile();
+      void fetchMeetings();
+    }
+  }, [fetchMeetings, fetchProfile, isAuthenticated]);
 
-  const profileName = getProfileName(profile);
-  const imageUrl = resolveImageUrl(profile?.profile_image);
-  const scheduledCount = meetings.length;
+  const backendProfile = unwrapProfileData(profile);
+
+  const activeProfile = {
+    ...(authUser ?? {}),
+    ...(backendProfile ?? {}),
+  };
+
+  const profileName = getProfileName(activeProfile);
+
+  const imageUrl = resolveImageUrl(
+    getValue(
+      activeProfile?.profile_image,
+      activeProfile?.profileImage,
+      activeProfile?.avatar,
+      authUser?.profile_image,
+      authUser?.profileImage,
+      authUser?.avatar,
+    ),
+  );
+
+  const email = getValue(
+    activeProfile?.email,
+    authUser?.email,
+    "No email available",
+  );
+
+  const phone = getValue(
+    activeProfile?.phone_number,
+    activeProfile?.phoneNumber,
+    activeProfile?.phone,
+    authUser?.phone_number,
+    authUser?.phoneNumber,
+    authUser?.phone,
+  );
+
+  const country = getValue(activeProfile?.country, authUser?.country);
+  const state = getValue(activeProfile?.state, authUser?.state);
+  const city = getValue(activeProfile?.city, authUser?.city);
+  const location = [city, state, country].filter(Boolean).join(", ");
+
+  const dob = getValue(
+    activeProfile?.date_of_birth,
+    activeProfile?.dateOfBirth,
+    authUser?.date_of_birth,
+    authUser?.dateOfBirth,
+  );
+
+  const handleLogout = async () => {
+    await logout();
+    router.replace("/welcome" as Href);
+  };
 
   return (
-    <AppScreen>
+    <AppScreen contentStyle={styles.content}>
       <AppHeader
         eyebrow="PROFILE"
         title="Your Telifier account"
@@ -94,29 +165,33 @@ export default function ProfileScreen() {
         <ProfileAvatar
           name={profileName}
           imageUri={imageUrl}
-          editable
+          editable={isAuthenticated}
           uploading={isUploading}
-          size={68}
+          size={72}
           onImageSelected={uploadProfileImage}
         />
 
         <View style={styles.profileCopy}>
           <View style={styles.nameRow}>
             <AppText variant="bodyStrong" numberOfLines={1}>
-              {isLoading ? "Loading profile..." : profileName}
+              {isLoading && !authUser && !profile ? "Loading profile..." : profileName}
             </AppText>
 
-            {profile?.is_verified ? (
+            {activeProfile?.is_verified || activeProfile?.isVerified ? (
               <ShieldCheck color={colors.primary} size={17} />
             ) : null}
           </View>
 
           <AppText variant="caption" tone="muted" numberOfLines={1}>
-            {profile?.email ?? "No email available"}
+            {email}
           </AppText>
 
           {isUploading ? (
-            <AppText variant="caption" tone="primary" style={styles.uploadingText}>
+            <AppText
+              variant="caption"
+              tone="primary"
+              style={styles.uploadingText}
+            >
               Uploading image...
             </AppText>
           ) : null}
@@ -140,7 +215,7 @@ export default function ProfileScreen() {
               Phone
             </AppText>
             <AppText variant="bodyStrong" numberOfLines={1}>
-              {profile?.phone_number ?? "Not provided"}
+              {phone ?? "Not provided"}
             </AppText>
           </View>
         </View>
@@ -152,9 +227,7 @@ export default function ProfileScreen() {
               Location
             </AppText>
             <AppText variant="bodyStrong" numberOfLines={1}>
-              {[profile?.city, profile?.state, profile?.country]
-                .filter(Boolean)
-                .join(", ") || "Not provided"}
+              {location || "Not provided"}
             </AppText>
           </View>
         </View>
@@ -166,48 +239,71 @@ export default function ProfileScreen() {
               Date of birth
             </AppText>
             <AppText variant="bodyStrong" numberOfLines={1}>
-              {formatBirthDate(profile?.date_of_birth)}
+              {formatBirthDate(dob)}
             </AppText>
           </View>
         </View>
       </AppCard>
 
-      <View style={styles.authActions}>
-        <AppButton
-          title="Sign in"
-          variant="secondary"
-          onPress={() => router.push("/auth/login")}
-          containerStyle={styles.authButton}
-        />
-        <AppButton
-          title="Create account"
-          onPress={() => router.push("/auth/register")}
-          containerStyle={styles.authButton}
-        />
-      </View>
-
       <View style={styles.statsGrid}>
         <StatCard value={meetings.length} label="Meetings" />
-        <StatCard value={scheduledCount} label="Scheduled" />
+        <StatCard value={meetings.length} label="Scheduled" />
       </View>
 
       <View style={styles.menuList}>
         {menuItems.map((item) => (
-          <Pressable key={item.label} onPress={() => router.push(item.href)}>
+          <Pressable
+            key={item.label}
+            disabled={!item.href}
+            onPress={() => {
+              if (item.href) router.push(item.href);
+            }}
+          >
             <AppCard elevated style={styles.menuItem}>
-              <AppText variant="bodyStrong">{item.label}</AppText>
-              <AppText variant="bodyStrong" tone="muted">
-                ›
+              <View style={styles.menuLeft}>
+                <UserRound color={colors.textSoft} size={18} />
+                <AppText variant="bodyStrong">{item.label}</AppText>
+              </View>
+
+              <AppText variant="caption" tone="muted">
+                Coming soon
               </AppText>
             </AppCard>
           </Pressable>
         ))}
       </View>
+
+      {isAuthenticated ? (
+        <AppButton
+          title="Sign out"
+          variant="danger"
+          leftIcon={<LogOut color="#FFFFFF" size={18} />}
+          onPress={handleLogout}
+          style={styles.logoutButton}
+        />
+      ) : (
+        <View style={styles.authActions}>
+          <AppButton
+            title="Sign in"
+            variant="secondary"
+            onPress={() => router.push("/auth/login")}
+            containerStyle={styles.authButton}
+          />
+          <AppButton
+            title="Create account"
+            onPress={() => router.push("/auth/register")}
+            containerStyle={styles.authButton}
+          />
+        </View>
+      )}
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    gap: Spacing.five,
+  },
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -242,13 +338,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  authActions: {
-    flexDirection: "row",
-    gap: Spacing.three,
-  },
-  authButton: {
-    flex: 1,
-  },
   statsGrid: {
     flexDirection: "row",
     gap: Spacing.three,
@@ -261,5 +350,24 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: Spacing.three,
+  },
+  menuLeft: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+  logoutButton: {
+    minHeight: 56,
+    borderRadius: 999,
+  },
+  authActions: {
+    flexDirection: "row",
+    gap: Spacing.three,
+  },
+  authButton: {
+    flex: 1,
   },
 });

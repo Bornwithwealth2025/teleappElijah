@@ -1,6 +1,6 @@
 import React from "react";
-import { router } from "expo-router";
 import { Alert, Platform, Share, StyleSheet, TouchableOpacity, View } from "react-native";
+import { router } from "expo-router";
 
 import { ScheduleCard } from "@/components/scheduler/ScheduleCard";
 import { ScheduleForm } from "@/components/scheduler/ScheduleForm";
@@ -12,7 +12,9 @@ import { Spacing } from "@/constants/theme";
 import useSchedulerStore from "@/store/schedulerStore";
 import { getRoomIdFromMeetingUrl } from "@/utils/meetingLinks";
 
-function formatScheduleDate(value: string) {
+function formatScheduleDate(value?: string | null) {
+  if (!value) return "Scheduled";
+
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return "Scheduled";
@@ -23,7 +25,9 @@ function formatScheduleDate(value: string) {
   });
 }
 
-function formatScheduleTime(value: string) {
+function formatScheduleTime(value?: string | null) {
+  if (!value) return "Meeting link";
+
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) return "Meeting link";
@@ -34,13 +38,28 @@ function formatScheduleTime(value: string) {
   });
 }
 
-async function copyText(value: string) {
-  if (Platform.OS === "web" && navigator?.clipboard) {
-    await navigator.clipboard.writeText(value);
+async function shareMeetingLink(value?: string | null) {
+  if (!value) {
+    Alert.alert("Meeting link", "No meeting link available.");
     return;
   }
 
-  Alert.alert("Meeting link", value);
+  if (Platform.OS === "web" && navigator?.clipboard) {
+    await navigator.clipboard.writeText(value);
+    Alert.alert("Meeting link", "Meeting link copied.");
+    return;
+  }
+
+  await Share.share({ message: value });
+}
+
+function getScheduleTitle(item: any) {
+  return (
+    item?.title ??
+    item?.meeting_title ??
+    item?.name ??
+    `Meeting #${item?.id ?? ""}`
+  );
 }
 
 export default function SchedulerScreen() {
@@ -50,11 +69,11 @@ export default function SchedulerScreen() {
   const fetchMeetings = useSchedulerStore((state) => state.fetchMeetings);
 
   React.useEffect(() => {
-    fetchMeetings();
+    void fetchMeetings();
   }, [fetchMeetings]);
 
   return (
-    <AppScreen>
+    <AppScreen contentStyle={styles.content}>
       <AppHeader
         eyebrow="SCHEDULER"
         title="Plan meetings"
@@ -66,7 +85,7 @@ export default function SchedulerScreen() {
       <SectionHeader title="Scheduled" actionLabel={`${meetings.length}`} />
 
       <View style={styles.list}>
-        {isLoading ? (
+        {isLoading && meetings.length === 0 ? (
           <AppText variant="caption" tone="muted" style={styles.centerText}>
             Loading meetings...
           </AppText>
@@ -78,23 +97,32 @@ export default function SchedulerScreen() {
           </AppText>
         ) : null}
 
-        {meetings.map((item) => {
-          const displayDate = item.date ?? item.created_at;
-          const roomId = getRoomIdFromMeetingUrl(item.meeting_url);
+        {meetings.map((item: any) => {
+          const displayDate =
+            item?.date ??
+            item?.scheduled_at ??
+            item?.start_time ??
+            item?.created_at;
+
+          const roomId =
+            getRoomIdFromMeetingUrl(item?.meeting_url) ||
+            String(item?.room_id ?? item?.roomId ?? item?.id ?? "");
 
           return (
             <TouchableOpacity
-              key={item.id}
+              key={String(item?.id ?? roomId)}
               activeOpacity={0.78}
-              onPress={() => router.push(`/meeting/${roomId}`)}
+              onPress={() => {
+                if (roomId) router.push(`/meeting/${roomId}` as any);
+              }}
             >
               <ScheduleCard
-                title={`Meeting #${item.id}`}
+                title={getScheduleTitle(item)}
                 date={formatScheduleDate(displayDate)}
                 time={formatScheduleTime(displayDate)}
-                guests={1}
-                onCopy={() => copyText(item.meeting_url)}
-                onDelete={() => deleteMeetings([String(item.id)])}
+                guests={item?.participants_count ?? item?.participants ?? 1}
+                onCopy={() => shareMeetingLink(item?.meeting_url)}
+                onDelete={() => deleteMeetings([String(item?.id)])}
               />
             </TouchableOpacity>
           );
@@ -105,6 +133,9 @@ export default function SchedulerScreen() {
 }
 
 const styles = StyleSheet.create({
+  content: {
+    gap: Spacing.five,
+  },
   list: {
     gap: Spacing.three,
   },

@@ -1,8 +1,21 @@
+import React from "react";
 import { router } from "expo-router";
-import { Image, StyleSheet, View, useWindowDimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { StatusBar } from "expo-status-bar";
-import { MessageCircle, ShieldCheck, UsersRound, Video } from "lucide-react-native";
+import * as NavigationBar from "expo-navigation-bar";
+import {
+  Image,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  View,
+  useWindowDimensions,
+} from "react-native";
+import {
+  MessageCircle,
+  ShieldCheck,
+  UsersRound,
+  Video,
+} from "lucide-react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
@@ -19,15 +32,53 @@ const features = [
 export default function WelcomeScreen() {
   const { colors, isDark } = useAppTheme();
   const { width, height } = useWindowDimensions();
+
   const compact = height < 720;
-  const logoSize = Math.min(width * 0.76, compact ? 270 : 340);
+  const background = isDark ? "#070A12" : "#FFFFFF";
+  const logoSize = Math.min(width * 0.92, compact ? 310 : 410);
+
+  React.useEffect(() => {
+    async function configureSystemBars() {
+      if (Platform.OS !== "android") return;
+
+      const nav = NavigationBar as any;
+
+      try {
+        if (nav.setPositionAsync) {
+          await nav.setPositionAsync("absolute");
+        }
+
+        if (nav.setBackgroundColorAsync) {
+          await nav.setBackgroundColorAsync("transparent");
+        }
+
+        if (nav.setButtonStyleAsync) {
+          await nav.setButtonStyleAsync(isDark ? "light" : "dark");
+        }
+
+        if (nav.setBehaviorAsync) {
+          await nav.setBehaviorAsync("overlay-swipe");
+        }
+      } catch {}
+    }
+
+    void configureSystemBars();
+  }, [isDark]);
 
   return (
-    <View style={[styles.root, { backgroundColor: isDark ? "#080B18" : "#FFFFFF" }]}>
-      <StatusBar style={isDark ? "light" : "dark"} />
+    <View style={[styles.root, { backgroundColor: background }]}>
+      <StatusBar
+        barStyle={isDark ? "light-content" : "dark-content"}
+        translucent
+        backgroundColor="transparent"
+      />
 
       <LinearGradient
-        colors={isDark ? ["#0A1024", "#111936", "#080B18"] : ["#FFFFFF", "#F8FBFF", "#FFFFFF"]}
+        colors={
+          isDark
+            ? ["#070A12", "#0E1320", "#070A12"]
+            : ["#FFFFFF", "#F7FBFF", "#FFFFFF"]
+        }
         style={StyleSheet.absoluteFill}
       />
 
@@ -47,12 +98,22 @@ export default function WelcomeScreen() {
 
               return (
                 <View key={item.label} style={styles.featureItem}>
-                  <Icon color={item.color} size={compact ? 20 : 23} />
-                  <AppText style={[styles.featureLabel, { color: colors.text }]}>
+                  <Icon color={item.color} size={compact ? 19 : 22} />
+
+                  <AppText
+                    numberOfLines={1}
+                    style={[styles.featureLabel, { color: colors.text }]}
+                  >
                     {item.label}
                   </AppText>
+
                   {index < features.length - 1 ? (
-                    <View style={[styles.divider, { backgroundColor: colors.border }]} />
+                    <View
+                      style={[
+                        styles.divider,
+                        { backgroundColor: colors.border },
+                      ]}
+                    />
                   ) : null}
                 </View>
               );
@@ -67,29 +128,38 @@ export default function WelcomeScreen() {
           </AppText>
         </View>
 
-        <View style={styles.copy}>
-          <AppText variant="display" style={[styles.heading, { color: colors.text }]}>
-            Your meeting workspace
-          </AppText>
+        <View style={styles.bottomArea}>
+          <View style={styles.copy}>
+            <AppText
+              variant="display"
+              style={[styles.heading, { color: colors.text }]}
+            >
+              Your meeting workspace
+            </AppText>
 
-          <AppText variant="body" style={[styles.subtitle, { color: colors.textMuted }]}>
-            Chat, meet, secure conversations, and connect with people from one polished workspace.
-          </AppText>
-        </View>
+            <AppText
+              variant="body"
+              style={[styles.subtitle, { color: colors.textMuted }]}
+            >
+              Chat, meet, secure conversations, and connect with people from one
+              polished workspace.
+            </AppText>
+          </View>
 
-        <View style={styles.actions}>
-          <AppButton
-            title="Create account"
-            onPress={() => router.push("/auth/register")}
-            style={styles.primaryButton}
-          />
+          <View style={styles.actions}>
+            <AppButton
+              title="Create account"
+              onPress={() => router.push("/auth/register")}
+              style={styles.primaryButton}
+            />
 
-          <AppButton
-            title="Sign in"
-            variant="secondary"
-            onPress={() => router.push("/auth/login")}
-            style={styles.secondaryButton}
-          />
+            <AppButton
+              title="Sign in"
+              variant="secondary"
+              onPress={() => router.push("/auth/login")}
+              style={styles.secondaryButton}
+            />
+          </View>
         </View>
       </View>
     </View>
@@ -99,55 +169,40 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    width: "100%",
   },
   content: {
     flex: 1,
     width: "100%",
-    paddingHorizontal: Spacing.five,
-    paddingTop: Spacing.six,
-    paddingBottom: Spacing.six,
+    paddingHorizontal: Spacing.four,
+    paddingTop:
+      Platform.OS === "android"
+        ? (StatusBar.currentHeight ?? 0) + Spacing.two
+        : Spacing.five,
+    paddingBottom: Platform.OS === "android" ? Spacing.six : Spacing.five,
     justifyContent: "space-between",
   },
   brandArea: {
+    flex: 1,
     alignItems: "center",
+    justifyContent: "center",
     gap: Spacing.three,
   },
   logoWrap: {
     alignItems: "center",
     justifyContent: "center",
+    marginTop: -Spacing.three,
   },
   logo: {
     width: "100%",
     height: "100%",
   },
-  brandName: {
-    fontSize: 56,
-    lineHeight: 62,
-    fontWeight: "900",
-    textAlign: "center",
-  },
-  blue: {
-    color: "#1274F6",
-  },
-  red: {
-    color: "#FF3B3B",
-  },
-  yellow: {
-    color: "#FFB51F",
-  },
-  green: {
-    color: "#23C878",
-  },
-  purple: {
-    color: "#6D35E8",
-  },
   featureRow: {
     width: "100%",
-    maxWidth: 420,
+    maxWidth: 460,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: Spacing.one,
   },
   featureItem: {
     flex: 1,
@@ -155,7 +210,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 5,
   },
   featureLabel: {
     fontSize: 13,
@@ -168,36 +223,53 @@ const styles = StyleSheet.create({
     height: 26,
   },
   tagline: {
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: "900",
     textAlign: "center",
+  },
+  blue: {
+    color: "#1274F6",
+  },
+  red: {
+    color: "#FF3B3B",
+  },
+  green: {
+    color: "#23C878",
+  },
+  purple: {
+    color: "#6D35E8",
+  },
+  bottomArea: {
+    width: "100%",
+    gap: Spacing.four,
   },
   copy: {
     alignItems: "center",
     gap: Spacing.two,
   },
   heading: {
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 29,
+    lineHeight: 35,
     fontWeight: "900",
     textAlign: "center",
   },
   subtitle: {
-    maxWidth: 350,
+    maxWidth: 380,
     textAlign: "center",
     lineHeight: 22,
   },
   actions: {
+    width: "100%",
     gap: Spacing.three,
   },
   primaryButton: {
-    minHeight: 56,
+    minHeight: 58,
     borderRadius: 999,
   },
   secondaryButton: {
-    minHeight: 56,
+    minHeight: 58,
     borderRadius: 999,
   },
 });

@@ -31,35 +31,35 @@ export const LightColors = {
 };
 
 export const DarkColors = {
-  background: "#160A2E",
-  surface: "#21103F",
-  surfaceStrong: "#2F1758",
-  card: "#241044",
+  background: "#080B10",
+  surface: "#10151F",
+  surfaceStrong: "#171E2B",
+  card: "#111827",
 
-  primary: "#A78BFA",
-  primarySoft: "#3B1F6D",
-  primaryDeep: "#7C3AED",
+  primary: "#7C3AED",
+  primarySoft: "#211A35",
+  primaryDeep: "#6D28D9",
 
-  secondary: "#67E8F9",
-  secondarySoft: "#143A4A",
+  secondary: "#0EA5E9",
+  secondarySoft: "#082F49",
 
-  text: "#FFFFFF",
-  textMuted: "#C7BFEA",
-  textSoft: "#9A8CC7",
+  text: "#F9FAFB",
+  textMuted: "#A7B0C0",
+  textSoft: "#747F91",
 
-  border: "#3D246B",
-  divider: "#301B55",
+  border: "#242C3A",
+  divider: "#1B2230",
 
-  success: "#34D399",
-  warning: "#FBBF24",
-  danger: "#F87171",
+  success: "#22C55E",
+  warning: "#F59E0B",
+  danger: "#EF4444",
 
-  tabInactive: "#9A8CC7",
+  tabInactive: "#747F91",
 
-  glass: "rgba(47, 23, 88, 0.58)",
-  glassStrong: "rgba(47, 23, 88, 0.76)",
-  glassBorder: "rgba(167, 139, 250, 0.22)",
-  glassHighlight: "rgba(255, 255, 255, 0.08)",
+  glass: "rgba(17, 24, 39, 0.74)",
+  glassStrong: "rgba(17, 24, 39, 0.9)",
+  glassBorder: "rgba(124, 58, 237, 0.16)",
+  glassHighlight: "rgba(255, 255, 255, 0.055)",
 };
 
 export const Colors = {

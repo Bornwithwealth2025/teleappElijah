@@ -1204,22 +1204,22 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   content: {
+    flexGrow: 1,
     width: "100%",
-    maxWidth: 580,
     justifyContent: "flex-start",
     gap: Spacing.four,
-    paddingHorizontal: Spacing.five,
+    paddingHorizontal: Spacing.four,
     paddingTop: Spacing.five,
     paddingBottom: Spacing.six,
   },
   contentCompact: {
     gap: Spacing.three,
-    paddingHorizontal: Spacing.four,
+    paddingHorizontal: Spacing.three,
     paddingTop: Spacing.four,
   },
   backBtn: {
-    width: 46,
-    height: 46,
+    width: 48,
+    height: 48,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: "center",
@@ -1245,8 +1245,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   stepDot: {
-    width: 11,
-    height: 11,
+    width: 12,
+    height: 12,
     borderRadius: 999,
   },
   stepLine: {
@@ -1256,19 +1256,20 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   title: {
-    fontSize: 34,
-    lineHeight: 40,
+    fontSize: 36,
+    lineHeight: 42,
     fontWeight: "900",
   },
   titleCompact: {
-    fontSize: 29,
-    lineHeight: 35,
+    fontSize: 31,
+    lineHeight: 37,
   },
   subtitle: {
-    maxWidth: 390,
-    lineHeight: 21,
+    maxWidth: 430,
+    lineHeight: 22,
   },
   fields: {
+    width: "100%",
     gap: Spacing.three,
   },
   nameRow: {
@@ -1286,9 +1287,9 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   countryCodeButton: {
-    width: 124,
-    minHeight: 58,
-    borderRadius: 16,
+    width: 126,
+    minHeight: 62,
+    borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: Spacing.three,
     flexDirection: "row",
@@ -1311,15 +1312,15 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     width: "100%",
-    minHeight: 58,
-    borderRadius: 16,
+    minHeight: 62,
+    borderRadius: 18,
   },
   input: {
     fontSize: 16,
   },
   selectField: {
-    minHeight: 60,
-    borderRadius: 16,
+    minHeight: 62,
+    borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: Spacing.four,
     flexDirection: "row",
@@ -1353,7 +1354,7 @@ const styles = StyleSheet.create({
   },
   passwordPanel: {
     borderWidth: 1,
-    borderRadius: 18,
+    borderRadius: 20,
     padding: Spacing.four,
     gap: Spacing.three,
   },
@@ -1369,7 +1370,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   primaryButton: {
-    minHeight: 58,
+    minHeight: 60,
     borderRadius: 999,
   },
   dividerRow: {
@@ -1388,8 +1389,8 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   socialBtn: {
-    minHeight: 56,
-    borderRadius: 16,
+    minHeight: 58,
+    borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: Spacing.four,
     flexDirection: "row",
@@ -1416,14 +1417,14 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15, 23, 42, 0.45)",
   },
   modalSheet: {
-    maxHeight: "84%",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    maxHeight: "86%",
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
     padding: Spacing.four,
     gap: Spacing.three,
   },
   modalHeader: {
-    minHeight: 34,
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1432,8 +1433,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   searchBox: {
-    minHeight: 50,
-    borderRadius: 16,
+    minHeight: 52,
+    borderRadius: 18,
     borderWidth: 1,
     paddingHorizontal: Spacing.three,
     flexDirection: "row",
@@ -1442,11 +1443,11 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     paddingVertical: 0,
   },
   optionRow: {
-    minHeight: 54,
+    minHeight: 56,
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     alignItems: "center",
@@ -1475,7 +1476,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   datePickerGrid: {
-    height: 240,
+    height: 250,
     flexDirection: "row",
     gap: 8,
   },
@@ -1492,8 +1493,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dateOption: {
-    minHeight: 38,
-    borderRadius: 12,
+    minHeight: 40,
+    borderRadius: 13,
     borderWidth: 1,
     marginBottom: 7,
     alignItems: "center",
@@ -1505,7 +1506,7 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   modalButton: {
-    minHeight: 52,
+    minHeight: 54,
     borderRadius: 999,
   },
 });
