@@ -1,15 +1,26 @@
-import { StyleSheet, View, type ViewStyle } from 'react-native';
+// components/ui/AppHeader.tsx
+import type { ReactNode } from "react";
+import {
+  StyleSheet,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from "react-native";
 
-import { Spacing } from '@/constants/theme';
-import { AppText } from './AppText';
+import { Spacing } from "@/constants/theme";
+
+import { AppText } from "./AppText";
+
+type AppHeaderSize = "hero" | "page" | "compact";
 
 type AppHeaderProps = {
   eyebrow?: string;
   title: string;
   subtitle?: string;
-  leftSlot?: React.ReactNode;
-  rightSlot?: React.ReactNode;
-  style?: ViewStyle;
+  leftSlot?: ReactNode;
+  rightSlot?: ReactNode;
+  size?: AppHeaderSize;
+  style?: StyleProp<ViewStyle>;
 };
 
 export function AppHeader({
@@ -18,30 +29,45 @@ export function AppHeader({
   subtitle,
   leftSlot,
   rightSlot,
+  size = "hero",
   style,
 }: AppHeaderProps) {
+  const titleVariant = {
+    hero: "display",
+    page: "title",
+    compact: "sectionTitle",
+  } as const;
+
   return (
-    <View style={[styles.root, style]}>
-      {(leftSlot || rightSlot) ? (
-        <View style={styles.brandRow}>
-          {leftSlot ? <View style={styles.leftSlot}>{leftSlot}</View> : <View />}
-          {rightSlot ? <View style={styles.rightSlot}>{rightSlot}</View> : null}
+    <View style={[styles.root, size === "compact" && styles.compactRoot, style]}>
+      {leftSlot || rightSlot ? (
+        <View style={styles.actionRow}>
+          <View style={styles.leftSlot}>{leftSlot}</View>
+          <View style={styles.rightSlot}>{rightSlot}</View>
         </View>
       ) : null}
 
-      <View style={styles.copyWrap}>
+      <View style={[styles.copyWrap, size === "compact" && styles.compactCopy]}>
         {eyebrow ? (
-          <AppText variant="label" tone="primary" style={styles.eyebrow}>
+          <AppText variant="overline" tone="primary" style={styles.eyebrow}>
             {eyebrow}
           </AppText>
         ) : null}
 
-        <AppText variant="display" style={styles.title}>
+        <AppText
+          variant={titleVariant[size]}
+          numberOfLines={size === "compact" ? 1 : 2}
+          style={styles.title}
+        >
           {title}
         </AppText>
 
         {subtitle ? (
-          <AppText variant="body" tone="muted" style={styles.subtitle}>
+          <AppText
+            variant={size === "compact" ? "caption" : "body"}
+            tone="muted"
+            style={styles.subtitle}
+          >
             {subtitle}
           </AppText>
         ) : null}
@@ -52,42 +78,55 @@ export function AppHeader({
 
 const styles = StyleSheet.create({
   root: {
-    width: '100%',
-    gap: Spacing.six,
+    width: "100%",
+    gap: Spacing.four,
   },
-  brandRow: {
-    width: '100%',
-    minHeight: 56,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+
+  compactRoot: {
+    gap: Spacing.three,
   },
+
+  actionRow: {
+    width: "100%",
+    minHeight: 48,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
   leftSlot: {
-    flexShrink: 1,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
+    flex: 1,
+    alignItems: "flex-start",
+    justifyContent: "center",
   },
+
   rightSlot: {
-    flexShrink: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
     gap: Spacing.two,
     marginLeft: Spacing.three,
   },
+
   copyWrap: {
-    width: '100%',
-    maxWidth: 370,
-    paddingTop: Spacing.two,
+    width: "100%",
+    maxWidth: 430,
   },
+
+  compactCopy: {
+    maxWidth: "100%",
+  },
+
   eyebrow: {
     marginBottom: Spacing.two,
   },
+
   title: {
-    maxWidth: 350,
+    maxWidth: 390,
   },
+
   subtitle: {
-    marginTop: Spacing.three,
-    maxWidth: 330,
+    maxWidth: 360,
+    marginTop: Spacing.two,
   },
 });

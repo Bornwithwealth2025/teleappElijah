@@ -1,32 +1,38 @@
+// components/ui/IconButton.tsx
+import type { ReactNode } from "react";
 import {
   Pressable,
   StyleSheet,
   type GestureResponderEvent,
   type PressableProps,
+  type StyleProp,
   type ViewStyle,
 } from "react-native";
 
-import { Radius } from "@/constants/theme";
+import { Radius, Shadows } from "@/constants/theme";
 import { useFeedback } from "@/contexts/feedback-context";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
-type IconButtonVariant = "solid" | "soft" | "ghost";
+type IconButtonVariant = "solid" | "soft" | "surface" | "ghost" | "danger";
 
 type IconButtonProps = PressableProps & {
-  icon: React.ReactNode;
+  icon: ReactNode;
   variant?: IconButtonVariant;
   size?: number;
-  containerStyle?: ViewStyle;
+  active?: boolean;
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
 export function IconButton({
   icon,
   variant = "soft",
   size = 44,
-  disabled,
+  active = false,
+  disabled = false,
   containerStyle,
   style,
   onPress,
+  accessibilityLabel,
   ...props
 }: IconButtonProps) {
   const { colors } = useAppTheme();
@@ -38,16 +44,26 @@ export function IconButton({
       borderColor: colors.primary,
     },
     soft: {
-      backgroundColor: colors.primarySoft,
-      borderColor: colors.border,
+      backgroundColor: active ? colors.primary : colors.primarySoft,
+      borderColor: active ? colors.primary : colors.primarySoft,
+    },
+    surface: {
+      backgroundColor: colors.card,
+      borderColor: active ? colors.primary : colors.border,
     },
     ghost: {
       backgroundColor: "transparent",
-      borderColor: colors.border,
+      borderColor: "transparent",
+    },
+    danger: {
+      backgroundColor: colors.danger,
+      borderColor: colors.danger,
     },
   }[variant];
 
   function handlePress(event: GestureResponderEvent) {
+    if (disabled) return;
+
     feedback.tap();
     onPress?.(event);
   }
@@ -55,8 +71,10 @@ export function IconButton({
   return (
     <Pressable
       {...props}
-      onPress={handlePress}
       disabled={disabled}
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       style={({ pressed }) => [
         styles.base,
         {
@@ -65,11 +83,12 @@ export function IconButton({
           borderRadius: Radius.pill,
         },
         variantStyle,
+        variant === "surface" && Shadows.soft,
         disabled && styles.disabled,
         pressed && !disabled && styles.pressed,
         containerStyle,
         typeof style === "function"
-          ? style({ pressed, hovered: false })
+          ? style({ pressed, hovered: false, focused: false })
           : style,
       ]}
     >
@@ -84,11 +103,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   pressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.92,
+    transform: [{ scale: 0.97 }],
   },
+
   disabled: {
-    opacity: 0.5,
+    opacity: 0.46,
   },
 });

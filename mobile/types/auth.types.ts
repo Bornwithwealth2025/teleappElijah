@@ -35,7 +35,7 @@ export interface ResetPasswordRequest {
   password: string;
 }
 
-export interface ApiResponse<T = undefined> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
   status: number;
@@ -46,40 +46,71 @@ export interface ApiResponse<T = undefined> {
 export interface AuthUser {
   id: string;
   user_id?: string;
+  name?: string;
   email: string;
   first_name?: string;
   last_name?: string;
   profile_image?: string | null;
-  phone_number?: string;
-  country?: string;
-  state?: string;
-  city?: string;
-  date_of_birth?: string;
+  phone_number?: string | null;
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  date_of_birth?: string | null;
   is_verified?: number | boolean;
 }
 
 export interface LoginResponseData {
-  accessToken: string;
-  user: AuthUser;
+  accessToken?: string;
+  access_token?: string;
+  token?: string;
+  user?: AuthUser;
+
+  id?: string | number;
+  user_id?: string | number;
+  name?: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
 }
 
 export interface RegisterResponseData {
-  user: {
-    id?: string;
-    user_id?: string;
-    email: string;
+  user?: {
+    id?: string | number;
+    user_id?: string | number;
+    email?: string;
   };
 }
 
-export type LoginResponse = ApiResponse<LoginResponseData>;
-export type RegisterResponse = ApiResponse<RegisterResponseData>;
+export type LoginResponse =
+  ApiResponse<LoginResponseData> & {
+    accessToken?: string;
+    id?: string | number;
+    user_id?: string | number;
+    name?: string;
+    email?: string;
+    first_name?: string;
+    last_name?: string;
+  };
+
+export type RegisterResponse =
+  ApiResponse<RegisterResponseData>;
+
 export type VerifyEmailResponse = ApiResponse;
 export type ResendOtpResponse = ApiResponse;
 export type RequestPasswordResetResponse = ApiResponse;
 export type ResetPasswordResponse = ApiResponse;
-export type RefreshTokenResponse = ApiResponse<{ accessToken?: string }> & {
-  accessToken?: string;
-};
+
+export type RefreshTokenResponse =
+  ApiResponse<{
+    accessToken?: string;
+    access_token?: string;
+    token?: string;
+  }> & {
+    accessToken?: string;
+    access_token?: string;
+    token?: string;
+  };
+
 export type LogoutResponse = ApiResponse;
 
 export type SocialAuthProvider = "google" | "apple";

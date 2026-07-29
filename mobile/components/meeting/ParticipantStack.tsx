@@ -8,16 +8,38 @@ type ParticipantStackProps = {
   count: number;
   initials?: string[];
   label?: string;
+  showLabel?: boolean;
 };
 
 export function ParticipantStack({
   count,
   initials = ["E", "A", "M"],
   label,
+  showLabel = true,
 }: ParticipantStackProps) {
   const { colors } = useAppTheme();
-  const visibleInitials = initials.filter(Boolean).slice(0, SCREEN.isSmallWidth ? 2 : 3);
-  const avatarSize = SCREEN.isSmallWidth ? scaleSize(26) : scaleSize(30);
+
+  const maxVisible = SCREEN.isSmallWidth ? 2 : 3;
+  const visibleInitials = initials
+    .filter(Boolean)
+    .slice(0, Math.min(maxVisible, Math.max(count, 0)));
+
+  const remainingCount = Math.max(count - visibleInitials.length, 0);
+  const avatarSize = SCREEN.isSmallWidth ? scaleSize(27) : scaleSize(31);
+
+  const avatarColors = [
+    colors.primary,
+    colors.secondary,
+    colors.success,
+  ];
+
+  if (count <= 0) {
+    return showLabel ? (
+      <AppText variant="caption" tone="muted">
+        {label ?? "No attendees yet"}
+      </AppText>
+    ) : null;
+  }
 
   return (
     <View style={styles.root}>
@@ -31,12 +53,7 @@ export function ParticipantStack({
                 width: avatarSize,
                 height: avatarSize,
                 marginLeft: index === 0 ? 0 : -Spacing.two,
-                backgroundColor:
-                  index === 0
-                    ? colors.primary
-                    : index === 1
-                      ? colors.secondary
-                      : colors.primarySoft,
+                backgroundColor: avatarColors[index],
                 borderColor: colors.card,
               },
             ]}
@@ -44,20 +61,44 @@ export function ParticipantStack({
             <AppText
               variant="caption"
               numberOfLines={1}
-              style={{
-                color: index === 2 ? colors.primary : "#FFFFFF",
-                fontWeight: "800",
-              }}
+              style={styles.avatarText}
             >
               {initial.slice(0, 1).toUpperCase()}
             </AppText>
           </View>
         ))}
+
+        {remainingCount > 0 ? (
+          <View
+            style={[
+              styles.avatar,
+              styles.remainingAvatar,
+              {
+                width: avatarSize,
+                height: avatarSize,
+                marginLeft: -Spacing.two,
+                backgroundColor: colors.surface,
+                borderColor: colors.card,
+              },
+            ]}
+          >
+            <AppText variant="caption" tone="primary" style={styles.remainingText}>
+              +{remainingCount}
+            </AppText>
+          </View>
+        ) : null}
       </View>
 
-      <AppText variant="caption" tone="muted" numberOfLines={1} style={styles.label}>
-        {label ?? `${count} joined`}
-      </AppText>
+      {showLabel ? (
+        <AppText
+          variant="caption"
+          tone="muted"
+          numberOfLines={1}
+          style={styles.label}
+        >
+          {label ?? `${count} ${count === 1 ? "attendee" : "attendees"}`}
+        </AppText>
+      ) : null}
     </View>
   );
 }
@@ -68,16 +109,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minWidth: 0,
   },
+
   stack: {
     flexDirection: "row",
     marginRight: Spacing.two,
   },
+
   avatar: {
     borderRadius: Radius.pill,
     borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
   },
+
+  avatarText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+
+  remainingAvatar: {
+    borderWidth: 2,
+  },
+
+  remainingText: {
+    fontWeight: "800",
+  },
+
   label: {
     flexShrink: 1,
   },

@@ -1,28 +1,27 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+
 :root {
-  --telifier-white: #ffffff;
-  --telifier-black: #111827;
+  --telefya-background: #ffffff;
+  --telefya-foreground: #071633;
 
-  --telifier-purple-50: #f5f3ff;
-  --telifier-purple-100: #ede9fe;
-  --telifier-purple-300: #c4b5fd;
-  --telifier-purple-500: #8b5cf6;
-  --telifier-purple-700: #6d28d9;
-  --telifier-purple-900: #4c1d95;
+  --telefya-surface: #ffffff;
+  --telefya-surface-soft: #f7f9fe;
+  --telefya-border: #e2e8f3;
 
-  --telifier-blue-100: #e0f2fe;
-  --telifier-blue-400: #38bdf8;
-  --telifier-blue-500: #0ea5e9;
+  --telefya-navy-50: #f4f7fc;
+  --telefya-navy-100: #e7edf8;
+  --telefya-navy-300: #98a6bd;
+  --telefya-navy-400: #6f7f9d;
+  --telefya-navy-500: #33415f;
+  --telefya-navy-700: #10244d;
+  --telefya-navy-900: #071633;
 
-  --telifier-gray-50: #f9fafb;
-  --telifier-gray-100: #f3f4f6;
-  --telifier-gray-200: #e5e7eb;
-  --telifier-gray-500: #6b7280;
-  --telifier-gray-900: #111827;
-
-  --telifier-dark-bg: #160a2e;
-  --telifier-dark-surface: #21103f;
-  --telifier-dark-card: #241044;
-  --telifier-dark-border: #3d246b;
+  --telefya-blue: #0f6bff;
+  --telefya-violet: #6426ff;
+  --telefya-purple: #8b22ff;
+  --telefya-green: #22d386;
+  --telefya-coral: #ff4b3e;
+  --telefya-gold: #ffb21c;
 }
 
 * {
@@ -37,16 +36,22 @@ body,
 
 body {
   margin: 0;
-  background: var(--telifier-white);
-  color: var(--telifier-black);
+  color: var(--telefya-foreground);
   font-family:
-    Inter,
+    "Inter",
     ui-sans-serif,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background:
+    radial-gradient(circle at 84% 6%, rgba(139, 34, 255, 0.1), transparent 28%),
+    radial-gradient(circle at 9% 14%, rgba(15, 107, 255, 0.08), transparent 26%),
+    radial-gradient(circle at 92% 72%, rgba(34, 211, 134, 0.07), transparent 24%),
+    linear-gradient(180deg, #ffffff 0%, #f8faff 48%, #f3f7ff 100%);
 }
 
 button,
@@ -59,4 +64,25 @@ select {
 a {
   color: inherit;
   text-decoration: none;
+}
+
+.telefya-gradient {
+  background: linear-gradient(135deg, #0f6bff 0%, #6426ff 48%, #8b22ff 100%);
+}
+
+.telefya-logo-gradient {
+  background: linear-gradient(
+    90deg,
+    #0f6bff 0%,
+    #ff4b3e 28%,
+    #ffb21c 50%,
+    #22d386 71%,
+    #8b22ff 100%
+  );
+}
+
+.enterprise-card {
+  border: 1px solid #e2e8f3;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 8px 26px rgba(7, 22, 51, 0.07);
 }

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "telifier-app",
-    "slug": "telifier-app",
+    "name": "telefya-app",
+    "slug": "telefya-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/telefya.png",
-    "scheme": "telifierapp",
+    "icon": "./assets/images/telefya-logo.png",
+    "scheme": "telefyapp",
     "userInterfaceStyle": "automatic",
     "androidStatusBar": {
       "translucent": true,
@@ -20,8 +20,8 @@
       "icon": "./assets/expo.icon",
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Telifier needs camera access for video meetings.",
-        "NSMicrophoneUsageDescription": "Telifier needs microphone access for audio meetings."
+        "NSCameraUsageDescription": "Telefya needs camera access for video meetings.",
+        "NSMicrophoneUsageDescription": "Telefya needs microphone access for audio meetings."
       }
     },
     "android": {
@@ -30,7 +30,13 @@
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS",
         "INTERNET",
-        "ACCESS_NETWORK_STATE"
+        "ACCESS_NETWORK_STATE",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PROJECTION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -38,7 +44,8 @@
         "backgroundImage": "./assets/images/telefya-logo.png",
         "monochromeImage": "./assets/images/telefya-logo.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.telefyaapp"
     },
     "web": {
       "output": "static",
@@ -51,7 +58,7 @@
         {
           "backgroundColor": "#208AEF",
           "android": {
-            "image": "./assets/images/splash-icon.png",
+            "image": "./assets/images/telefya-logo.png",
             "imageWidth": 76
           }
         }

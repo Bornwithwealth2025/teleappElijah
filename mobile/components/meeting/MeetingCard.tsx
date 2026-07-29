@@ -1,6 +1,18 @@
+import React, { useRef } from "react";
 import { router } from "expo-router";
-import { CalendarDays, Radio, RotateCcw } from "lucide-react-native";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Animated,
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
+import {
+  CalendarDays,
+  ChevronRight,
+  Clock3,
+  Radio,
+  RotateCcw,
+} from "lucide-react-native";
 
 import { ParticipantStack } from "./ParticipantStack";
 import { AppCard } from "@/components/ui/AppCard";
@@ -26,10 +38,14 @@ export function MeetingCard({
   status,
 }: MeetingCardProps) {
   const { colors } = useAppTheme();
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  const safeParticipants = Math.max(0, Number(participants) || 0);
 
   const statusConfig = {
     live: {
-      label: "Live",
+      label: "Live now",
       backgroundColor: colors.danger,
       color: "#FFFFFF",
       icon: <Radio color="#FFFFFF" size={13} />,
@@ -37,7 +53,7 @@ export function MeetingCard({
     scheduled: {
       label: "Scheduled",
       backgroundColor: colors.primarySoft,
-      color: colors.primary,
+      color: colors.primaryDeep,
       icon: <CalendarDays color={colors.primary} size={13} />,
     },
     ended: {
@@ -48,63 +64,155 @@ export function MeetingCard({
     },
   }[status];
 
+  function animatePressIn() {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 0.985,
+        useNativeDriver: true,
+        speed: 24,
+        bounciness: 4,
+      }),
+      Animated.timing(opacity, {
+        toValue: 0.86,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }
+
+  function animatePressOut() {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 20,
+        bounciness: 7,
+      }),
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }
+
   function handlePress() {
-    router.push(`/meeting/${id}`);
+    router.push(`/meeting/${id}` as any);
   }
 
   return (
-    <TouchableOpacity activeOpacity={0.78} onPress={handlePress}>
-      <AppCard elevated compact={SCREEN.isShortHeight} style={styles.card}>
-        <View style={styles.topRow}>
-          <View style={styles.titleWrap}>
-            <AppText variant="bodyStrong" numberOfLines={1}>
-              {title}
-            </AppText>
-            <AppText variant="caption" tone="muted" numberOfLines={1}>
-              {time}
-            </AppText>
+    <Pressable
+      onPress={handlePress}
+      onPressIn={animatePressIn}
+      onPressOut={animatePressOut}
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${title}`}
+    >
+      <Animated.View
+        style={[
+          styles.animated,
+          {
+            transform: [{ scale }],
+            opacity,
+          },
+        ]}
+      >
+        <AppCard
+          elevated={status !== "ended"}
+          compact={SCREEN.isShortHeight}
+          variant={status === "live" ? "tinted" : "default"}
+          style={styles.card}
+        >
+          <View style={styles.topRow}>
+            <View style={styles.titleWrap}>
+              <AppText variant="subtitle" numberOfLines={1}>
+                {title}
+              </AppText>
+
+              <View style={styles.timeRow}>
+                <Clock3 color={colors.textMuted} size={14} />
+                <AppText variant="caption" tone="muted" numberOfLines={1}>
+                  {time}
+                </AppText>
+              </View>
+            </View>
+
+            <View style={styles.rightSide}>
+              <View
+                style={[
+                  styles.statusBadge,
+                  { backgroundColor: statusConfig.backgroundColor },
+                ]}
+              >
+                {statusConfig.icon}
+
+                <AppText
+                  variant="caption"
+                  numberOfLines={1}
+                  style={[
+                    styles.statusText,
+                    { color: statusConfig.color },
+                  ]}
+                >
+                  {statusConfig.label}
+                </AppText>
+              </View>
+
+              <ChevronRight color={colors.textSoft} size={20} />
+            </View>
           </View>
 
-          <View
-            style={[
-              styles.statusBadge,
-              { backgroundColor: statusConfig.backgroundColor },
-            ]}
-          >
-            {statusConfig.icon}
-            <AppText
-              variant="caption"
-              numberOfLines={1}
-              style={[styles.statusText, { color: statusConfig.color }]}
-            >
-              {statusConfig.label}
+          <View style={styles.footer}>
+            <ParticipantStack
+              count={safeParticipants}
+              showLabel={false}
+            />
+
+            <AppText variant="caption" tone="muted">
+              {safeParticipants}{" "}
+              {safeParticipants === 1 ? "participant" : "participants"}
             </AppText>
           </View>
-        </View>
-
-        <ParticipantStack count={participants} />
-      </AppCard>
-    </TouchableOpacity>
+        </AppCard>
+      </Animated.View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  animated: {
+    width: "100%",
+  },
+
   card: {
     gap: SCREEN.isShortHeight ? Spacing.three : Spacing.four,
   },
+
   topRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "flex-start",
     gap: Spacing.two,
   },
+
   titleWrap: {
     flex: 1,
     minWidth: 0,
+    gap: Spacing.one,
   },
+
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  rightSide: {
+    alignItems: "flex-end",
+    gap: Spacing.two,
+  },
+
   statusBadge: {
-    minHeight: SCREEN.isSmallWidth ? 24 : 28,
-    maxWidth: 116,
+    minHeight: 26,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.two,
     flexDirection: "row",
@@ -112,7 +220,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 5,
   },
+
   statusText: {
     fontWeight: "800",
+  },
+
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
   },
 });

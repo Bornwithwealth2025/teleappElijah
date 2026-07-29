@@ -1,5 +1,5 @@
 import apiClient from "@/api/client";
-import {
+import type {
   DeleteMeetingRequest,
   DeleteMeetingsResponse,
   GetMeetingsResponse,
@@ -13,83 +13,102 @@ export type UploadableImage = {
   uri: string;
   name?: string;
   type?: string;
+  file?: Blob;
 };
 
-const UserService = {
-  getProfile: async (): Promise<GetProfileResponse> => {
-  const endpoints = [
-    "/users/profile",
-    "/users/me",
-    "/users/get-profile",
-    "/auth/profile",
-    "/auth/me",
-  ];
+async function buildImageFormData(image: UploadableImage) {
+  const formData = new FormData();
+  const name = image.name ?? "profile.jpg";
+  const type = image.type ?? "image/jpeg";
 
-  let lastError: any;
-
-  for (const endpoint of endpoints) {
-    try {
-      const { data } = await apiClient.get<GetProfileResponse>(endpoint);
-      return data;
-    } catch (error: any) {
-      lastError = error;
-
-      if (error?.response?.status !== 404) {
-        throw error;
-      }
-    }
+  if (image.file) {
+    formData.append("image", image.file, name);
+    return formData;
   }
 
-  throw lastError;
-},
+  if (
+    typeof window !== "undefined" &&
+    typeof Blob !== "undefined"
+  ) {
+    const response = await fetch(image.uri);
+    const blob = await response.blob();
 
-  scheduleMeeting: async (
-    payload: ScheduleMeetingRequest
-  ): Promise<ScheduleMeetingResponse> => {
-    const { data } = await apiClient.post<ScheduleMeetingResponse>(
-      "/users/schedule-meeting",
-      payload
+    formData.append(
+      "image",
+      new Blob([blob], { type }),
+      name,
     );
+
+    return formData;
+  }
+
+  formData.append("image", {
+    uri: image.uri,
+    name,
+    type,
+  } as any);
+
+  return formData;
+}
+
+const UserService = {
+  async getProfile(): Promise<GetProfileResponse> {
+    const { data } =
+      await apiClient.get<GetProfileResponse>(
+        "/user/profile",
+      );
+
     return data;
   },
 
-  getMeetings: async (): Promise<GetMeetingsResponse> => {
-    const { data } = await apiClient.get<GetMeetingsResponse>(
-      "/users/get-meeting"
-    );
+  async scheduleMeeting(
+    payload: ScheduleMeetingRequest,
+  ): Promise<ScheduleMeetingResponse> {
+    const { data } =
+      await apiClient.post<ScheduleMeetingResponse>(
+        "/user/schedule-meeting",
+        payload,
+      );
+
     return data;
   },
 
-  deleteMeetings: async (
-    payload: DeleteMeetingRequest
-  ): Promise<DeleteMeetingsResponse> => {
-    const { data } = await apiClient.post<DeleteMeetingsResponse>(
-      "/users/delete-meeting",
-      payload
-    );
+  async getMeetings(): Promise<GetMeetingsResponse> {
+    const { data } =
+      await apiClient.get<GetMeetingsResponse>(
+        "/user/get-meeting",
+      );
+
     return data;
   },
 
-  uploadProfileImage: async (
-    image: UploadableImage
-  ): Promise<UploadProfileImageResponse> => {
-    const formData = new FormData();
+  async deleteMeetings(
+    payload: DeleteMeetingRequest,
+  ): Promise<DeleteMeetingsResponse> {
+    const { data } =
+      await apiClient.post<DeleteMeetingsResponse>(
+        "/user/delete-meeting",
+        payload,
+      );
 
-    formData.append("image", {
-      uri: image.uri,
-      name: image.name ?? "profile.jpg",
-      type: image.type ?? "image/jpeg",
-    } as any);
+    return data;
+  },
 
-    const { data } = await apiClient.post<UploadProfileImageResponse>(
-      "/users/upload-file",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
+  async uploadProfileImage(
+    image: UploadableImage,
+  ): Promise<UploadProfileImageResponse> {
+    const formData = await buildImageFormData(image);
+
+    const { data } =
+      await apiClient.post<UploadProfileImageResponse>(
+        "/user/upload-file",
+        formData,
+        {
+          headers: {
+            Accept: "application/json"
+          },
         },
-      }
-    );
+      );
 
     return data;
   },

@@ -1,22 +1,25 @@
+// components/ui/AppTextInput.tsx
+import React, { useRef, useState, type ReactNode } from "react";
 import {
+  Pressable,
   StyleSheet,
   TextInput,
   View,
-  type TextInputProps,
-  type ViewStyle,
   type StyleProp,
+  type TextInputProps,
   type TextStyle,
-} from 'react-native';
+  type ViewStyle,
+} from "react-native";
 
-import { Radius, Spacing, verticalScale } from '@/constants/theme';
-import { useAppTheme } from '@/hooks/use-app-themes';
-import { AppText } from './AppText';
+import { Radius, Spacing, verticalScale } from "@/constants/theme";
+import { useAppTheme } from "@/hooks/use-app-themes";
+import { AppText } from "./AppText";
 
 type AppTextInputProps = TextInputProps & {
   label?: string;
   error?: string;
-  leftSlot?: React.ReactNode;
-  rightSlot?: React.ReactNode;
+  leftSlot?: ReactNode;
+  rightSlot?: ReactNode;
   containerStyle?: StyleProp<ViewStyle>;
   style?: StyleProp<TextStyle>;
 };
@@ -29,9 +32,21 @@ export function AppTextInput({
   containerStyle,
   style,
   placeholderTextColor,
+  editable = true,
+  multiline = false,
+  onFocus,
+  onBlur,
   ...props
 }: AppTextInputProps) {
   const { colors } = useAppTheme();
+  const inputRef = useRef<TextInput>(null);
+  const [focused, setFocused] = useState(false);
+
+  const focusInput = () => {
+    if (editable) {
+      inputRef.current?.focus();
+    }
+  };
 
   return (
     <View style={[styles.root, containerStyle]}>
@@ -41,31 +56,52 @@ export function AppTextInput({
         </AppText>
       ) : null}
 
-      <View
+      <Pressable
+        onPress={focusInput}
+        accessible={false}
         style={[
-          styles.inputShell,
+          styles.shell,
+          multiline && styles.multilineShell,
           {
-            backgroundColor: colors.surface,
-            borderColor: error ? colors.danger : colors.border,
+            backgroundColor: editable ? colors.card : colors.surface,
+            borderColor: error
+              ? colors.danger
+              : focused
+                ? colors.primary
+                : colors.border,
+            opacity: editable ? 1 : 0.65,
           },
+          focused && { shadowColor: colors.focusRing, ...styles.focused },
         ]}
       >
         {leftSlot ? <View style={styles.leftSlot}>{leftSlot}</View> : null}
 
         <TextInput
+          ref={inputRef}
           {...props}
+          editable={editable}
+          multiline={multiline}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
           placeholderTextColor={placeholderTextColor ?? colors.textSoft}
+          selectionColor={colors.primary}
+          cursorColor={colors.primary}
           style={[
             styles.input,
-            {
-              color: colors.text,
-            },
+            multiline && styles.multilineInput,
+            { color: colors.text },
             style,
           ]}
         />
 
         {rightSlot ? <View style={styles.rightSlot}>{rightSlot}</View> : null}
-      </View>
+      </Pressable>
 
       {error ? (
         <AppText variant="caption" tone="danger" style={styles.error}>
@@ -81,31 +117,54 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
   label: {
-    fontWeight: '600',
+    fontWeight: "600",
   },
-  inputShell: {
-    minHeight: verticalScale(50),
-    borderRadius: Radius.medium,
+  shell: {
+    minHeight: verticalScale(54),
     borderWidth: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.medium,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.four,
+  },
+  multilineShell: {
+    minHeight: verticalScale(116),
+    alignItems: "flex-start",
+    paddingVertical: Spacing.three,
+  },
+  focused: {
+    shadowOpacity: 0.6,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 1,
   },
   input: {
     flex: 1,
-    minHeight: verticalScale(48),
-    fontSize: 15,
+    minWidth: 0,
+    minHeight: verticalScale(52),
+    fontSize: 16,
+    lineHeight: 22,
     paddingVertical: 0,
+    includeFontPadding: false,
+  },
+  multilineInput: {
+    minHeight: verticalScale(90),
+    paddingTop: Spacing.one,
+    textAlignVertical: "top",
   },
   leftSlot: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: Spacing.two,
+    minWidth: 20,
+    minHeight: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: Spacing.three,
   },
   rightSlot: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: Spacing.two,
+    minWidth: 20,
+    minHeight: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: Spacing.three,
   },
   error: {
     marginTop: -Spacing.one,

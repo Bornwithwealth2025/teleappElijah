@@ -6,7 +6,7 @@ import {
   getConfMeetingSocket,
 } from "@/services/confMeetingSocket";
 import MediasoupClient from "@/services/mediasoupClient";
-import {
+import type {
   JoinMeetingParams,
   JoinMeetingResponse,
   MeetingMessage,
@@ -15,7 +15,7 @@ import {
   MeetingStatus,
 } from "@/types/meeting.types";
 
-type RemoteStream = {
+export type RemoteStream = {
   id: string;
   producerId: string;
   userId?: string;
@@ -25,33 +25,65 @@ type RemoteStream = {
   isScreen?: boolean;
 };
 
+type BackendParticipant = {
+  userId?: string;
+  userName?: string;
+  isHost?: boolean;
+  micOn?: boolean;
+  cameraOn?: boolean;
+};
+
+type ExtendedJoinResponse = JoinMeetingResponse & {
+  participants?: BackendParticipant[];
+};
+
+type JoinPayload = JoinMeetingParams & {
+  micOn?: boolean;
+  cameraOn?: boolean;
+  isBot?: boolean;
+};
+
 function createMessageId() {
-  return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+  return `msg_${Date.now()}_${Math.random()
+    .toString(36)
+    .slice(2, 10)}`;
 }
 
-type MeetingStore = {
-  status: MeetingStatus;
-  error: string | null;
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message
+    ? error.message
+    : fallback;
+}
 
-  roomId: string | null;
-  userId: string | null;
-  userName: string | null;
-  socketId: string | null;
-  isHost: boolean;
+function createInitialState() {
+  return {
+    status: "idle" as MeetingStatus,
+    error: null as string | null,
 
-  isMuted: boolean;
-  isCameraOff: boolean;
-  isHandRaised: boolean;
-  isScreenSharing: boolean;
+    roomId: null as string | null,
+    userId: null as string | null,
+    userName: null as string | null,
+    socketId: null as string | null,
+    isHost: false,
 
-  participants: MeetingParticipant[];
-  messages: MeetingMessage[];
-  producers: MeetingProducerInfo[];
+    isMuted: false,
+    isCameraOff: false,
+    isHandRaised: false,
+    isScreenSharing: false,
 
-  localStream: unknown | null;
-  remoteStreams: RemoteStream[];
-  screenShareStream: unknown | null;
+    participants: [] as MeetingParticipant[],
+    messages: [] as MeetingMessage[],
+    producers: [] as MeetingProducerInfo[],
 
+    localStream: null as any,
+    remoteStreams: [] as RemoteStream[],
+    screenShareStream: null as any,
+  };
+}
+
+type MeetingState = ReturnType<typeof createInitialState>;
+
+type MeetingStore = MeetingState & {
   joinMeeting: (params: JoinMeetingParams) => Promise<void>;
   leaveMeeting: () => Promise<void>;
 
@@ -61,133 +93,197 @@ type MeetingStore = {
   toggleMute: () => Promise<void>;
   toggleCamera: () => Promise<void>;
   toggleHand: () => Promise<void>;
+  toggleScreenShare: () => Promise<void>;
 
   sendMessage: (message: string) => Promise<void>;
-  editMessage: (messageId: string, newMessage: string) => Promise<void>;
+  editMessage: (
+    messageId: string,
+    newMessage: string,
+  ) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
 
   setLocalStream: (stream: unknown | null) => void;
-  addRemoteStream: (payload: RemoteStream) => void;
+  addRemoteStream: (stream: RemoteStream) => void;
   removeRemoteStreamsByUser: (userId: string) => void;
   removeRemoteStreamByProducer: (producerId: string) => void;
 
   addProducer: (producer: MeetingProducerInfo) => void;
-  upsertParticipant: (participant: MeetingParticipant) => void;
+  upsertParticipant: (
+    participant: MeetingParticipant,
+  ) => void;
   removeParticipant: (userId: string) => void;
+
   upsertMessage: (message: MeetingMessage) => void;
-  markMessageEdited: (messageId: string, newMessage: string) => void;
+  markMessageEdited: (
+    messageId: string,
+    newMessage: string,
+  ) => void;
   removeMessage: (messageId: string) => void;
 
   resetMeeting: () => void;
 };
 
-const initialState = {
-  status: "idle" as MeetingStatus,
-  error: null,
+function mapBackendParticipant(
+  participant: BackendParticipant,
+): MeetingParticipant | null {
+  const userId = String(participant.userId ?? "").trim();
 
-  roomId: null,
-  userId: null,
-  userName: null,
-  socketId: null,
-  isHost: false,
+  if (!userId) return null;
 
-  isMuted: false,
-  isCameraOff: false,
-  isHandRaised: false,
-  isScreenSharing: false,
-
-  participants: [],
-  messages: [],
-  producers: [],
-
-  localStream: null,
-  remoteStreams: [],
-  screenShareStream: null,
-};
+  return {
+    id: userId,
+    userId,
+    name: participant.userName ?? "Participant",
+    isHost: Boolean(participant.isHost),
+    isMuted: participant.micOn === false,
+    isCameraOff: participant.cameraOn === false,
+    isHandRaised: false,
+    isScreenSharing: false,
+  };
+}
 
 const useMeetingStore = create<MeetingStore>((set, get) => ({
-  ...initialState,
+  ...createInitialState(),
 
-  joinMeeting: async ({ roomId, userId, userName, isHost = true, isBot = false }) => {
-    set({ status: "joining", error: null });
+  joinMeeting: async ({
+    roomId,
+    userId,
+    userName,
+    isHost,
+    isBot,
+  }) => {
+    if (!roomId || !userId || !userName) {
+      set({
+        status: "error",
+        error: "Meeting room information is incomplete.",
+      });
+      return;
+    }
+
+    set({
+      ...createInitialState(),
+      status: "joining",
+      roomId,
+      userId,
+      userName,
+    });
 
     try {
       const socket = await getConfMeetingSocket();
 
-      const joined = await ConfMeetingSocketCommands.join<JoinMeetingResponse>({
+      const joined = (await ConfMeetingSocketCommands.join({
         roomId,
         userId,
         userName,
         isHost,
         isBot,
-      });
+        micOn: true,
+        cameraOn: true,
+      } as JoinPayload)) as ExtendedJoinResponse;
 
-      await MediasoupClient.loadDevice(joined.rtpCapabilities);
+      if (!joined?.success) {
+        throw new Error(
+          joined?.error || "Unable to join the meeting room.",
+        );
+      }
+
+      await MediasoupClient.loadDevice(
+        joined.rtpCapabilities,
+      );
 
       await ConfMeetingSocketCommands.saveRtpCapabilities({
         rtpCapabilities: MediasoupClient.getRtpCapabilities(),
       });
+
+      await MediasoupClient.createRecvTransport();
+
+      const backendParticipants = (joined.participants ?? [])
+        .map(mapBackendParticipant)
+        .filter(Boolean) as MeetingParticipant[];
+
+      const currentUser: MeetingParticipant = {
+        id: userId,
+        userId,
+        name: userName,
+        socketId: socket.id ?? "",
+        isHost: Boolean(joined.isHost),
+        isMuted: false,
+        isCameraOff: false,
+        isHandRaised: false,
+        isScreenSharing: false,
+      };
+
+      const hasCurrentUser = backendParticipants.some(
+        (participant) => participant.userId === userId,
+      );
 
       set({
         status: "joined",
         roomId,
         userId,
         userName,
-        socketId: socket.id,
-        isHost: joined.isHost,
-        participants: [
-          {
-            id: userId,
-            userId,
-            name: userName,
-            socketId: socket.id,
-            isHost: joined.isHost,
-            isMuted: false,
-            isCameraOff: false,
-            isHandRaised: false,
-            isScreenSharing: false,
-          },
-        ],
+        socketId: socket.id ?? null,
+        isHost: Boolean(joined.isHost),
+        participants: hasCurrentUser
+          ? backendParticipants
+          : [...backendParticipants, currentUser],
+        error: null,
       });
-
-      await MediasoupClient.createRecvTransport();
     } catch (error) {
+      MediasoupClient.cleanup();
+      disconnectConfMeetingSocket();
+
       set({
         status: "error",
-        error:
-          error instanceof Error
-            ? error.message
-            : "Unable to join meeting. Please try again.",
+        error: getErrorMessage(
+          error,
+          "Unable to join meeting. Please try again.",
+        ),
       });
     }
   },
 
   leaveMeeting: async () => {
-    const { roomId, userId } = get();
+    const { roomId, userId, status } = get();
 
-    if (!roomId || !userId) {
-      get().resetMeeting();
-      return;
-    }
+    if (status === "idle") return;
 
-    set({ status: "leaving" });
+    set({
+      status: "leaving",
+      error: null,
+    });
 
     try {
-      await ConfMeetingSocketCommands.leave({ roomId, userId });
+      if (roomId && userId) {
+        await ConfMeetingSocketCommands.leave({
+          roomId,
+          userId,
+        });
+      }
+    } catch {
+      // Cleanup still runs if the socket is unavailable.
     } finally {
       MediasoupClient.cleanup();
       disconnectConfMeetingSocket();
-      get().resetMeeting();
+      set(createInitialState());
     }
   },
 
   startLocalMedia: async () => {
     const { userId, userName } = get();
 
-    if (!userId || !userName) return;
+    if (!userId || !userName) {
+      throw new Error(
+        "Join the meeting before starting media.",
+      );
+    }
 
     const stream = await MediasoupClient.getLocalStream();
-    get().setLocalStream(stream);
+
+    set({
+      localStream: stream,
+      error: null,
+    });
 
     const appData = {
       userId,
@@ -195,107 +291,277 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
       isScreen: false,
     };
 
-    await MediasoupClient.produceAudio(appData);
-    await MediasoupClient.produceVideo(appData);
+    try {
+      await MediasoupClient.produceAudio(appData);
+    } catch {
+      // Video can still continue if microphone production fails.
+    }
+
+    try {
+      await MediasoupClient.produceVideo(appData);
+    } catch {
+      // Audio can still continue if camera production fails.
+    }
   },
 
   consumeProducer: async (producer) => {
     const { userId, userName } = get();
 
-    if (!userId || producer.userId === userId) return;
+    if (!userId || producer.userId === userId) {
+      return;
+    }
+
+    const alreadyConsumed = get().remoteStreams.some(
+      (stream) =>
+        stream.producerId === producer.producerId,
+    );
+
+    if (alreadyConsumed) return;
 
     get().addProducer(producer);
 
-    const result = await MediasoupClient.consume(producer.producerId, {
-      userId,
-      userName,
-    });
+    try {
+      const result = await MediasoupClient.consume(
+        producer.producerId,
+        {
+          userId,
+          userName,
+        },
+      );
 
-    if (!result.stream) return;
+      if (!result.stream) return;
 
-    get().addRemoteStream({
-      id: result.consumer.id,
-      producerId: producer.producerId,
-      userId: producer.userId,
-      userName: producer.userName,
-      kind: producer.kind,
-      isScreen: producer.isScreen,
-      stream: result.stream,
-    });
+      get().addRemoteStream({
+        id: result.consumer.id,
+        producerId: producer.producerId,
+        userId: producer.userId,
+        userName: producer.userName,
+        kind: producer.kind,
+        isScreen: producer.isScreen,
+        stream: result.stream,
+      });
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to receive participant media.",
+        ),
+      });
+    }
   },
 
   toggleMute: async () => {
-    const { userId } = get();
+    const { userId, isMuted } = get();
+
     if (!userId) return;
 
-    const nextMuted = !get().isMuted;
+    const nextMuted = !isMuted;
 
-    MediasoupClient.setTrackEnabled("audio", !nextMuted);
+    try {
+      MediasoupClient.setTrackEnabled(
+        "audio",
+        !nextMuted,
+      );
 
-    await ConfMeetingSocketCommands.toggleMic({
-      userId,
-      isMicMuted: nextMuted,
-    });
+      await ConfMeetingSocketCommands.toggleMic({
+        userId,
+        isMicMuted: nextMuted,
+      });
 
-    set((state) => ({
-      isMuted: nextMuted,
-      participants: state.participants.map((participant) =>
-        participant.userId === userId
-          ? { ...participant, isMuted: nextMuted }
-          : participant
-      ),
-    }));
+      set((state) => ({
+        isMuted: nextMuted,
+        participants: state.participants.map(
+          (participant) =>
+            participant.userId === userId
+              ? {
+                  ...participant,
+                  isMuted: nextMuted,
+                }
+              : participant,
+        ),
+      }));
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to update microphone.",
+        ),
+      });
+    }
   },
 
   toggleCamera: async () => {
-    const { userId } = get();
+    const { userId, isCameraOff } = get();
+
     if (!userId) return;
 
-    const nextCameraOff = !get().isCameraOff;
+    const nextCameraOff = !isCameraOff;
 
-    MediasoupClient.setTrackEnabled("video", !nextCameraOff);
+    try {
+      MediasoupClient.setTrackEnabled(
+        "video",
+        !nextCameraOff,
+      );
 
-    await ConfMeetingSocketCommands.toggleCamera({
-      userId,
-      isCameraOff: nextCameraOff,
-    });
+      await ConfMeetingSocketCommands.toggleCamera({
+        userId,
+        isCameraOff: nextCameraOff,
+      });
 
-    set((state) => ({
-      isCameraOff: nextCameraOff,
-      participants: state.participants.map((participant) =>
-        participant.userId === userId
-          ? { ...participant, isCameraOff: nextCameraOff }
-          : participant
-      ),
-    }));
+      set((state) => ({
+        isCameraOff: nextCameraOff,
+        participants: state.participants.map(
+          (participant) =>
+            participant.userId === userId
+              ? {
+                  ...participant,
+                  isCameraOff: nextCameraOff,
+                }
+              : participant,
+        ),
+      }));
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to update camera.",
+        ),
+      });
+    }
   },
 
   toggleHand: async () => {
-    const { userId } = get();
-    if (!userId) return;
-
-    const nextHandState = !get().isHandRaised;
-
-    await ConfMeetingSocketCommands.raiseHand({
+    const {
+      roomId,
       userId,
-      handup: nextHandState,
-    });
+      userName,
+      isHandRaised,
+    } = get();
 
-    set((state) => ({
-      isHandRaised: nextHandState,
-      participants: state.participants.map((participant) =>
-        participant.userId === userId
-          ? { ...participant, isHandRaised: nextHandState }
-          : participant
-      ),
-    }));
+    if (!roomId || !userId || !userName) {
+      return;
+    }
+
+    const nextHandState = !isHandRaised;
+
+    try {
+      if (nextHandState) {
+        await ConfMeetingSocketCommands.raiseHand({
+          roomId,
+          userId,
+          userName,
+        });
+      } else {
+        await ConfMeetingSocketCommands.lowerHand({
+          roomId,
+          userId,
+          userName,
+        });
+      }
+
+      set((state) => ({
+        isHandRaised: nextHandState,
+        participants: state.participants.map(
+          (participant) =>
+            participant.userId === userId
+              ? {
+                  ...participant,
+                  isHandRaised: nextHandState,
+                }
+              : participant,
+        ),
+      }));
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to update hand state.",
+        ),
+      });
+    }
   },
 
-  sendMessage: async (message: string) => {
-    const { roomId, userName, socketId } = get();
+  toggleScreenShare: async () => {
+    const {
+      userId,
+      userName,
+      isScreenSharing,
+    } = get();
+
+    if (!userId || !userName) {
+      return;
+    }
+
+    try {
+      if (isScreenSharing) {
+        await MediasoupClient.stopScreenShare();
+
+        set((state) => ({
+          isScreenSharing: false,
+          screenShareStream: null,
+          participants: state.participants.map(
+            (participant) =>
+              participant.userId === userId
+                ? {
+                    ...participant,
+                    isScreenSharing: false,
+                  }
+                : participant,
+          ),
+        }));
+
+        return;
+      }
+
+      const result =
+        await MediasoupClient.startScreenShare({
+          userId,
+          userName,
+        });
+
+      set((state) => ({
+        isScreenSharing: true,
+        screenShareStream: result.stream,
+        participants: state.participants.map(
+          (participant) =>
+            participant.userId === userId
+              ? {
+                  ...participant,
+                  isScreenSharing: true,
+                }
+              : participant,
+        ),
+        error: null,
+      }));
+    } catch (error) {
+      set({
+        isScreenSharing: false,
+        screenShareStream: null,
+        error: getErrorMessage(
+          error,
+          "Unable to start screen sharing.",
+        ),
+      });
+    }
+  },
+
+  sendMessage: async (message) => {
+    const {
+      roomId,
+      userName,
+      socketId,
+    } = get();
+
     const trimmedMessage = message.trim();
 
-    if (!roomId || !userName || !socketId || !trimmedMessage) return;
+    if (
+      !roomId ||
+      !userName ||
+      !socketId ||
+      !trimmedMessage
+    ) {
+      return;
+    }
 
     await ConfMeetingSocketCommands.sendMessage({
       roomId,
@@ -307,11 +573,21 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     });
   },
 
-  editMessage: async (messageId: string, newMessage: string) => {
+  editMessage: async (
+    messageId,
+    newMessage,
+  ) => {
     const { roomId, socketId } = get();
     const trimmedMessage = newMessage.trim();
 
-    if (!roomId || !socketId || !trimmedMessage) return;
+    if (
+      !roomId ||
+      !socketId ||
+      !messageId ||
+      !trimmedMessage
+    ) {
+      return;
+    }
 
     await ConfMeetingSocketCommands.editMessage({
       roomId,
@@ -321,9 +597,10 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     });
   },
 
-  deleteMessage: async (messageId: string) => {
+  deleteMessage: async (messageId) => {
     const { roomId } = get();
-    if (!roomId) return;
+
+    if (!roomId || !messageId) return;
 
     await ConfMeetingSocketCommands.deleteMessage({
       roomId,
@@ -332,50 +609,97 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
   },
 
   setLocalStream: (stream) => {
-    set({ localStream: stream });
+    set({
+      localStream: stream,
+    });
   },
 
-  addRemoteStream: (payload) => {
+  addRemoteStream: (remoteStream) => {
     set((state) => {
       const exists = state.remoteStreams.some(
-        (item) => item.producerId === payload.producerId
+        (item) =>
+          item.producerId === remoteStream.producerId,
       );
 
+      const nextStreams = exists
+        ? state.remoteStreams.map((item) =>
+            item.producerId === remoteStream.producerId
+              ? remoteStream
+              : item,
+          )
+        : [...state.remoteStreams, remoteStream];
+
       return {
-        remoteStreams: exists
-          ? state.remoteStreams.map((item) =>
-              item.producerId === payload.producerId ? payload : item
-            )
-          : [...state.remoteStreams, payload],
-        screenShareStream: payload.isScreen
-          ? payload.stream
+        remoteStreams: nextStreams,
+        screenShareStream: remoteStream.isScreen
+          ? remoteStream.stream
           : state.screenShareStream,
+        participants:
+          remoteStream.userId && remoteStream.isScreen
+            ? state.participants.map(
+                (participant) =>
+                  participant.userId === remoteStream.userId
+                    ? {
+                        ...participant,
+                        isScreenSharing: true,
+                      }
+                    : participant,
+              )
+            : state.participants,
       };
     });
   },
 
   removeRemoteStreamsByUser: (userId) => {
     set((state) => ({
-      remoteStreams: state.remoteStreams.filter((item) => item.userId !== userId),
+      remoteStreams: state.remoteStreams.filter(
+        (stream) => stream.userId !== userId,
+      ),
       screenShareStream: state.remoteStreams.some(
-        (item) => item.userId === userId && item.isScreen
+        (stream) =>
+          stream.userId === userId && stream.isScreen,
       )
         ? null
         : state.screenShareStream,
+      participants: state.participants.map(
+        (participant) =>
+          participant.userId === userId
+            ? {
+                ...participant,
+                isScreenSharing: false,
+              }
+            : participant,
+      ),
     }));
   },
 
   removeRemoteStreamByProducer: (producerId) => {
     set((state) => {
       const removed = state.remoteStreams.find(
-        (item) => item.producerId === producerId
+        (stream) =>
+          stream.producerId === producerId,
       );
 
       return {
         remoteStreams: state.remoteStreams.filter(
-          (item) => item.producerId !== producerId
+          (stream) =>
+            stream.producerId !== producerId,
         ),
-        screenShareStream: removed?.isScreen ? null : state.screenShareStream,
+        screenShareStream: removed?.isScreen
+          ? null
+          : state.screenShareStream,
+        participants:
+          removed?.isScreen && removed.userId
+            ? state.participants.map(
+                (participant) =>
+                  participant.userId === removed.userId
+                    ? {
+                        ...participant,
+                        isScreenSharing: false,
+                      }
+                    : participant,
+              )
+            : state.participants,
       };
     });
   },
@@ -383,79 +707,115 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
   addProducer: (producer) => {
     set((state) => {
       const exists = state.producers.some(
-        (item) => item.producerId === producer.producerId
+        (item) =>
+          item.producerId === producer.producerId,
       );
 
-      return {
-        producers: exists ? state.producers : [...state.producers, producer],
-      };
+      return exists
+        ? state
+        : {
+            producers: [
+              ...state.producers,
+              producer,
+            ],
+          };
     });
   },
 
   upsertParticipant: (participant) => {
     set((state) => {
       const exists = state.participants.some(
-        (item) => item.userId === participant.userId
+        (item) =>
+          item.userId === participant.userId,
       );
 
       return {
         participants: exists
           ? state.participants.map((item) =>
               item.userId === participant.userId
-                ? { ...item, ...participant }
-                : item
+                ? {
+                    ...item,
+                    ...participant,
+                  }
+                : item,
             )
-          : [...state.participants, participant],
+          : [
+              ...state.participants,
+              participant,
+            ],
       };
     });
   },
 
   removeParticipant: (userId) => {
+    get().removeRemoteStreamsByUser(userId);
+
     set((state) => ({
-      participants: state.participants.filter((item) => item.userId !== userId),
-      remoteStreams: state.remoteStreams.filter((item) => item.userId !== userId),
-      screenShareStream: state.remoteStreams.some(
-        (item) => item.userId === userId && item.isScreen
-      )
-        ? null
-        : state.screenShareStream,
+      participants: state.participants.filter(
+        (participant) =>
+          participant.userId !== userId,
+      ),
+      producers: state.producers.filter(
+        (producer) =>
+          producer.userId !== userId,
+      ),
     }));
   },
 
   upsertMessage: (message) => {
     set((state) => {
       const exists = state.messages.some(
-        (item) => item.messageId === message.messageId
+        (item) =>
+          item.messageId === message.messageId,
       );
 
       return {
         messages: exists
           ? state.messages.map((item) =>
-              item.messageId === message.messageId ? { ...item, ...message } : item
+              item.messageId === message.messageId
+                ? {
+                    ...item,
+                    ...message,
+                  }
+                : item,
             )
-          : [...state.messages, message],
+          : [
+              ...state.messages,
+              message,
+            ],
       };
     });
   },
 
-  markMessageEdited: (messageId, newMessage) => {
+  markMessageEdited: (
+    messageId,
+    newMessage,
+  ) => {
     set((state) => ({
-      messages: state.messages.map((item) =>
-        item.messageId === messageId
-          ? { ...item, message: newMessage, edited: true }
-          : item
+      messages: state.messages.map(
+        (message) =>
+          message.messageId === messageId
+            ? {
+                ...message,
+                message: newMessage,
+                edited: true,
+              }
+            : message,
       ),
     }));
   },
 
   removeMessage: (messageId) => {
     set((state) => ({
-      messages: state.messages.filter((item) => item.messageId !== messageId),
+      messages: state.messages.filter(
+        (message) =>
+          message.messageId !== messageId,
+      ),
     }));
   },
 
   resetMeeting: () => {
-    set(initialState);
+    set(createInitialState());
   },
 }));
 

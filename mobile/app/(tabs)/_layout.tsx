@@ -1,14 +1,39 @@
-// (tabs) layout.tsx 
+// tabs layout
+import React from "react";
+import { StyleSheet, View } from "react-native";
+import { BlurView } from "expo-blur";
 import { Redirect, Tabs } from "expo-router";
-import useAuthStore from "@/store/authStore";
-import { CalendarDays, Home, UserRound, Video } from "lucide-react-native";
+import {
+  CalendarDays,
+  Home,
+  UserRound,
+  Video,
+} from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { SCREEN, Spacing, verticalScale } from "@/constants/theme";
+import {
+  SCREEN,
+  Spacing,
+  verticalScale,
+} from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
+import useAuthStore from "@/store/authStore";
 
 export default function TabsLayout() {
-  const { colors } = useAppTheme();
-  const { isAuthenticated } = useAuthStore();
+  const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
+
+  const isAuthenticated = useAuthStore(
+    (state) => state.isAuthenticated,
+  );
+
+  const isHydrated = useAuthStore(
+    (state) => state.isHydrated,
+  );
+
+  if (!isHydrated) {
+    return null;
+  }
 
   if (!isAuthenticated) {
     return <Redirect href="/welcome" />;
@@ -16,30 +41,97 @@ export default function TabsLayout() {
 
   const iconSize = SCREEN.isSmallWidth ? 19 : 21;
 
+  // A fixed bottom inset keeps the bar's gap from the edge consistent
+  // across devices instead of letting a tiny safe-area collapse it.
+  const bottomInset = Math.max(insets.bottom, Spacing.three);
+
+  const renderTabIcon = (
+    Icon: React.ComponentType<any>,
+    focused: boolean,
+    color: string,
+  ) => (
+    <View
+      style={[
+        styles.iconWrap,
+        focused && {
+          backgroundColor: colors.primarySoft,
+        },
+      ]}
+    >
+      <Icon
+        color={color}
+        size={iconSize}
+        strokeWidth={focused ? 2.5 : 2}
+      />
+    </View>
+  );
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
+        tabBarHideOnKeyboard: true,
+
+        sceneStyle: {
+          backgroundColor: colors.background,
+        },
+
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.tabInactive,
+
+        tabBarBackground: () => (
+          <BlurView
+            tint={isDark ? "dark" : "light"}
+            intensity={90}
+            style={StyleSheet.absoluteFill}
+          />
+        ),
+
         tabBarStyle: {
-          backgroundColor: colors.card,
-          borderTopColor: colors.border,
-          height: SCREEN.isShortHeight ? verticalScale(78) : verticalScale(82),
-          paddingTop: Spacing.two,
-          paddingBottom: SCREEN.isShortHeight ? Spacing.three : Spacing.four,
+          position: "absolute",
+          left: Spacing.four,
+          right: Spacing.four,
+          bottom: bottomInset,
+          height: SCREEN.isShortHeight
+            ? verticalScale(66)
+            : verticalScale(72),
+          flexDirection: "row",
+          alignItems: "center",
+          paddingHorizontal: Spacing.two,
+          borderWidth: 1,
+          borderColor: colors.glassBorder,
+          borderRadius: 26,
+          backgroundColor: colors.glass,
+          overflow: "hidden",
+          shadowColor: "#071633",
+          shadowOpacity: isDark ? 0.22 : 0.1,
+          shadowRadius: 22,
+          shadowOffset: {
+            width: 0,
+            height: 10,
+          },
+          elevation: 8,
         },
+
         tabBarItemStyle: {
-          minHeight: 58,
-          paddingVertical: 2,
+          height: "100%",
+          borderRadius: 20,
+          marginHorizontal: 2,
+          alignItems: "center",
+          justifyContent: "center",
+          paddingTop: 0,
+          paddingBottom: 0,
         },
+
         tabBarIconStyle: {
-          marginBottom: 1,
+          marginBottom: 0,
         },
+
         tabBarLabelStyle: {
-          fontSize: SCREEN.isSmallWidth ? 11 : 12,
-          lineHeight: 15,
-          fontWeight: "600",
+          fontSize: SCREEN.isSmallWidth ? 10 : 11,
+          lineHeight: 13,
+          fontWeight: "700",
+          marginTop: 3,
         },
       }}
     >
@@ -47,7 +139,8 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: "Home",
-          tabBarIcon: ({ color }) => <Home color={color} size={iconSize} />,
+          tabBarIcon: ({ color, focused }) =>
+            renderTabIcon(Home, focused, color),
         }}
       />
 
@@ -55,7 +148,8 @@ export default function TabsLayout() {
         name="meetings"
         options={{
           title: "Meetings",
-          tabBarIcon: ({ color }) => <Video color={color} size={iconSize} />,
+          tabBarIcon: ({ color, focused }) =>
+            renderTabIcon(Video, focused, color),
         }}
       />
 
@@ -63,9 +157,8 @@ export default function TabsLayout() {
         name="scheduler"
         options={{
           title: "Schedule",
-          tabBarIcon: ({ color }) => (
-            <CalendarDays color={color} size={iconSize} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            renderTabIcon(CalendarDays, focused, color),
         }}
       />
 
@@ -73,12 +166,14 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <UserRound color={color} size={iconSize} />
-          ),
+          tabBarIcon: ({ color, focused }) =>
+            renderTabIcon(UserRound, focused, color),
         }}
       />
 
+      {/* Registered with href:null so it doesn't appear as a tab.
+          Nothing in the app currently navigates to it — confirm this
+          file is still needed, or it can likely be removed. */}
       <Tabs.Screen
         name="home"
         options={{
@@ -88,3 +183,13 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

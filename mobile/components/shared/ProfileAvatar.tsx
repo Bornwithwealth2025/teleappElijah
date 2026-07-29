@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Alert,
   Image,
   Pressable,
   StyleSheet,
@@ -7,7 +8,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { Camera } from "lucide-react-native";
+import { Camera, LoaderCircle } from "lucide-react-native";
 
 import { AppText } from "@/components/ui/AppText";
 import { Radius } from "@/constants/theme";
@@ -28,11 +29,17 @@ type ProfileAvatarProps = {
 };
 
 function getFileName(uri: string) {
-  return uri.split("/").pop() || `profile-${Date.now()}.jpg`;
+  const fileName = uri.split("/").pop();
+
+  return fileName || `profile-${Date.now()}.jpg`;
 }
 
 function getMimeType(uri: string) {
-  const extension = uri.split(".").pop()?.toLowerCase();
+  const extension = uri
+    .split("?")[0]
+    .split(".")
+    .pop()
+    ?.toLowerCase();
 
   if (extension === "png") return "image/png";
   if (extension === "webp") return "image/webp";
@@ -51,45 +58,77 @@ export function ProfileAvatar({
   onImageSelected,
 }: ProfileAvatarProps) {
   const { colors } = useAppTheme();
-  const [previewUri, setPreviewUri] = React.useState(imageUri ?? undefined);
+  const [previewUri, setPreviewUri] = React.useState<
+    string | undefined
+  >(imageUri ?? undefined);
 
   React.useEffect(() => {
     setPreviewUri(imageUri ?? undefined);
   }, [imageUri]);
 
-  const initial = name.trim().charAt(0).toUpperCase() || "U";
+  const initial =
+    name.trim().charAt(0).toUpperCase() || "U";
 
   async function handlePickImage() {
     if (!editable || uploading) return;
 
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    const permission =
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-    if (!permission.granted) return;
+    if (!permission.granted) {
+      Alert.alert(
+        "Permission required",
+        "Allow photo access to update your profile image.",
+      );
+      return;
+    }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.85,
-    });
+    const result =
+      await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ["images"],
+        allowsEditing: true,
+        allowsMultipleSelection: false,
+        aspect: [1, 1],
+        quality: 0.85,
+      });
 
-    if (result.canceled) return;
+    if (result.canceled || !result.assets?.[0]) {
+      return;
+    }
 
     const asset = result.assets[0];
+    const previousUri = previewUri;
 
     setPreviewUri(asset.uri);
 
-    await onImageSelected?.({
-      uri: asset.uri,
-      name: asset.fileName ?? getFileName(asset.uri),
-      type: asset.mimeType ?? getMimeType(asset.uri),
-    });
+    try {
+      await onImageSelected?.({
+        uri: asset.uri,
+        name: asset.fileName ?? getFileName(asset.uri),
+        type: asset.mimeType ?? getMimeType(asset.uri),
+      });
+    } catch (error) {
+      setPreviewUri(previousUri);
+
+      Alert.alert(
+        "Upload failed",
+        error instanceof Error
+          ? error.message
+          : "Unable to update your profile image.",
+      );
+    }
   }
 
   return (
     <Pressable
       onPress={handlePickImage}
       disabled={!editable || uploading}
+      accessibilityRole="button"
+      accessibilityLabel={
+        editable
+          ? "Change profile image"
+          : "Profile image"
+      }
       style={[
         styles.root,
         {
@@ -104,14 +143,31 @@ export function ProfileAvatar({
       ]}
     >
       {previewUri ? (
-        <Image source={{ uri: previewUri }} style={styles.image} />
+        <Image
+          source={{ uri: previewUri }}
+          style={styles.image}
+          accessibilityLabel={`${name} profile image`}
+        />
       ) : (
-        <AppText variant="subtitle" tone="primary">
+        <AppText
+          variant="subtitle"
+          tone="primary"
+          style={styles.initial}
+        >
           {initial}
         </AppText>
       )}
 
-      {editable ? (
+      {uploading ? (
+        <View
+          style={[
+            styles.uploadOverlay,
+            { backgroundColor: colors.primary },
+          ]}
+        >
+          <LoaderCircle color="#FFFFFF" size={18} />
+        </View>
+      ) : editable ? (
         <View
           style={[
             styles.cameraBadge,
@@ -140,14 +196,25 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: Radius.pill,
   },
+  initial: {
+    fontWeight: "900",
+  },
   cameraBadge: {
     position: "absolute",
     right: -2,
     bottom: -2,
-    width: 24,
-    height: 24,
+    width: 25,
+    height: 25,
     borderRadius: Radius.pill,
     borderWidth: 2,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  uploadOverlay: {
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
   },
