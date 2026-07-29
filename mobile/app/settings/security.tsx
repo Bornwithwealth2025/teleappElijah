@@ -1,89 +1,189 @@
-import { StyleSheet, Switch, View } from 'react-native';
-import { KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react-native';
+import React from "react";
+import { router } from "expo-router";
+import {
+  ArrowRight,
+  KeyRound,
+  LockKeyhole,
+  ShieldCheck,
+} from "lucide-react-native";
+import { StyleSheet, View } from "react-native";
 
-import { AppButton } from '@/components/ui/AppButton';
-import { AppCard } from '@/components/ui/AppCard';
-import { AppHeader } from '@/components/ui/AppHeader';
-import { AppScreen } from '@/components/ui/AppScreen';
-import { AppText } from '@/components/ui/AppText';
-import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Spacing } from '@/constants/theme';
-import { useAppTheme } from '@/hooks/use-app-themes';
+import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { AppHeader } from "@/components/ui/AppHeader";
+import { AppScreen } from "@/components/ui/AppScreen";
+import { AppText } from "@/components/ui/AppText";
+import { Radius, Spacing } from "@/constants/theme";
+import { useAppTheme } from "@/hooks/use-app-themes";
 
 export default function SecurityScreen() {
   const { colors } = useAppTheme();
 
   return (
-    <AppScreen>
+    <AppScreen contentStyle={styles.content}>
       <AppHeader
         eyebrow="SETTINGS"
         title="Security"
         subtitle="Protect your account and meeting access."
       />
 
-      <AppCard>
-        <View style={styles.securityHeader}>
-          <ShieldCheck color={colors.primary} size={22} />
+      <AppCard
+        variant="tinted"
+        style={styles.securityHeader}
+      >
+        <View
+          style={[
+            styles.iconBox,
+            { backgroundColor: colors.primary },
+          ]}
+        >
+          <ShieldCheck color="#FFFFFF" size={22} />
+        </View>
+
+        <View style={styles.copy}>
+          <AppText variant="bodyStrong">
+            Account protection
+          </AppText>
+
+          <AppText variant="caption" tone="muted">
+            Your account is protected by authenticated Telefya sessions.
+          </AppText>
+        </View>
+      </AppCard>
+
+      <AppCard style={styles.card}>
+        <View style={styles.sectionHeader}>
+          <View
+            style={[
+              styles.iconBox,
+              { backgroundColor: colors.primarySoft },
+            ]}
+          >
+            <LockKeyhole
+              color={colors.primary}
+              size={21}
+            />
+          </View>
+
           <View style={styles.copy}>
-            <AppText variant="bodyStrong">Account protection</AppText>
+            <AppText variant="bodyStrong">
+              Password and sign-in
+            </AppText>
+
             <AppText variant="caption" tone="muted">
-              Keep your Telifier workspace secure.
+              Use Telefya’s secure password reset flow to change your password.
             </AppText>
           </View>
         </View>
 
-        <View style={styles.fields}>
-          <AppTextInput
-            label="Current password"
-            placeholder="Enter current password"
-            secureTextEntry
-            leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
-          />
-          <AppTextInput
-            label="New password"
-            placeholder="Enter new password"
-            secureTextEntry
-            leftSlot={<KeyRound color={colors.textSoft} size={18} />}
-          />
-        </View>
+        <AppButton
+          title="Change password"
+          variant="secondary"
+          leftIcon={
+            <KeyRound
+              color={colors.primaryDeep}
+              size={18}
+            />
+          }
+          rightIcon={
+            <ArrowRight
+              color={colors.primaryDeep}
+              size={18}
+            />
+          }
+          onPress={() =>
+            router.push("/auth/forget-password")
+          }
+        />
+      </AppCard>
 
-        <View style={styles.optionRow}>
+      <AppCard
+        variant="soft"
+        style={styles.card}
+      >
+        <View style={styles.sectionHeader}>
+          <View
+            style={[
+              styles.iconBox,
+              { backgroundColor: colors.surfaceStrong },
+            ]}
+          >
+            <ShieldCheck
+              color={colors.textMuted}
+              size={21}
+            />
+          </View>
+
           <View style={styles.copy}>
-            <AppText variant="bodyStrong">Require room approval</AppText>
+            <AppText variant="bodyStrong">
+              Room approval
+            </AppText>
+
             <AppText variant="caption" tone="muted">
-              Review guests before they enter private rooms.
+              Room approval controls will become available when workspace
+              meeting policies are enabled.
             </AppText>
           </View>
-          <Switch value thumbColor={colors.primary} />
         </View>
 
-        <AppButton title="Update security" containerStyle={styles.action} />
+        <View
+          style={[
+            styles.statusPill,
+            {
+              backgroundColor: colors.surfaceStrong,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <AppText variant="caption" tone="muted">
+            Managed by workspace policy
+          </AppText>
+        </View>
       </AppCard>
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  securityHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
+  content: {
+    gap: Spacing.five,
   },
-  copy: {
-    flex: 1,
-  },
-  fields: {
-    gap: Spacing.three,
-    marginTop: Spacing.four,
-  },
-  optionRow: {
-    marginTop: Spacing.four,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+
+  card: {
     gap: Spacing.four,
   },
-  action: {
-    marginTop: Spacing.four,
+
+  securityHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+
+  iconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  copy: {
+    flex: 1,
+    minWidth: 0,
+    gap: Spacing.one,
+  },
+
+  statusPill: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
   },
 });

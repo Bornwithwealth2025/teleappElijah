@@ -1,8 +1,10 @@
 import { create } from "zustand";
 
 import AuthService from "@/api/auth.service";
+import UserService from "@/api/user.service";
 import { authStorage, STORAGE_KEYS } from "@/api/client";
 import { authEventEmitter } from "@/events/authEventEmitter";
+import useUserStore from "@/store/userStore";
 import {
   AuthUser,
   LoginRequest,
@@ -10,15 +12,16 @@ import {
   RequestPasswordResetRequest,
   ResendOtpRequest,
   ResetPasswordRequest,
+  SocialLoginRequest,
   VerifyEmailRequest,
 } from "@/types/auth.types";
-import { SocialLoginRequest } from "@/types/auth.types";
 
 interface AuthState {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isHydrated: boolean;
   error: string | null;
   pendingEmail: string | null;
 
@@ -26,7 +29,9 @@ interface AuthState {
   login: (payload: LoginRequest) => Promise<void>;
   verifyEmail: (payload: VerifyEmailRequest) => Promise<void>;
   resendOtp: (payload: ResendOtpRequest) => Promise<void>;
-  requestPasswordReset: (payload: RequestPasswordResetRequest) => Promise<void>;
+  requestPasswordReset: (
+    payload: RequestPasswordResetRequest,
+  ) => Promise<void>;
   resetPassword: (payload: ResetPasswordRequest) => Promise<void>;
   logout: () => Promise<void>;
   socialLogin: (payload: SocialLoginRequest) => Promise<void>;
@@ -34,67 +39,77 @@ interface AuthState {
   clearError: () => void;
 }
 
-function getErrorMessage(error: any, fallback: string) {
-  return (
+function getErrorMessage(error: any, fallback: string): string {
+  const message =
     error?.response?.data?.message ??
     error?.response?.data?.error ??
-    error?.message ??
-    fallback
-  );
+    error?.message;
+
+  return typeof message === "string" && message.trim() ? message : fallback;
 }
 
 function normalizeUser(
   user: Partial<AuthUser> & Record<string, any>,
+  fallbackEmail = "",
 ): AuthUser {
-  const normalizedId = String(
-    user.id ?? user.user_id ?? user._id ?? user.email ?? "",
-  );
+  const rawId = user.id ?? user.user_id ?? user._id;
+  const email = String(user.email ?? fallbackEmail ?? "").trim();
+  const id = String(rawId ?? "").trim() || email;
 
   return {
     ...(user as AuthUser),
-    id: normalizedId,
-    user_id: user.user_id ?? normalizedId,
+    id,
+    user_id: id,
+    email,
   };
 }
 
-function findValueByKeys(source: any, keys: string[]): any {
-  if (!source || typeof source !== "object") return null;
-
-  for (const key of keys) {
-    if (source[key]) return source[key];
-  }
-
-  for (const value of Object.values(source)) {
-    if (value && typeof value === "object") {
-      const found = findValueByKeys(value, keys);
-      if (found) return found;
-    }
-  }
-
-  return null;
+function getResponseData(response: any) {
+  return response?.data?.user ?? response?.data ?? response?.user ?? response;
 }
 
-function getAuthPayload(res: any, email?: string) {
-  const token = findValueByKeys(res, [
-    "accessToken",
-    "access_token",
-    "token",
-    "authToken",
-    "jwt",
-  ]);
+function getLoginToken(response: any): string | null {
+  return (
+    response?.accessToken ??
+    response?.access_token ??
+    response?.token ??
+    response?.data?.accessToken ??
+    response?.data?.access_token ??
+    response?.data?.token ??
+    response?.data?.data?.accessToken ??
+    null
+  );
+}
 
-  const user = findValueByKeys(res, ["user", "authUser", "profile", "account"]);
+function getLoginUser(response: any, email: string): AuthUser {
+  const data = getResponseData(response);
 
-  return {
-    token: token ?? `local-session-${Date.now()}`,
-    user:
-      user ??
-      ({
-        id: email ?? "local-user",
-        user_id: email ?? "local-user",
-        email: email ?? "",
-      } as AuthUser),
-  };
+  const fullName = String(data?.name ?? response?.name ?? "").trim();
+  const [firstName = "", ...lastNameParts] = fullName.split(/\s+/);
+
+  return normalizeUser(
+    {
+      id: data?.id ?? response?.id,
+      user_id: data?.user_id ?? response?.user_id ?? response?.id,
+      email: data?.email ?? response?.email ?? email,
+      first_name: data?.first_name ?? response?.first_name ?? firstName,
+      last_name:
+        data?.last_name ?? response?.last_name ?? lastNameParts.join(" "),
+    },
+    email,
+  );
+}
+
+function getProfileUser(response: any, fallbackUser: AuthUser): AuthUser {
+  const profile = getResponseData(response);
+
+  return normalizeUser(
+    {
+      ...fallbackUser,
+      ...(profile && typeof profile === "object" ? profile : {}),
+    },
+    fallbackUser.email,
+  );
 }
 
 async function persistAuthSession(token: string, user: AuthUser) {
@@ -107,12 +122,19 @@ async function clearAuthSession() {
   await authStorage.deleteItem(STORAGE_KEYS.USER);
 }
 
-async function getRegisteredProfiles() {
+async function getRegisteredProfiles(): Promise<Record<string, any>> {
   const raw = await authStorage.getItem(STORAGE_KEYS.REGISTERED_PROFILES);
-  return raw ? JSON.parse(raw) : {};
+
+  if (!raw) return {};
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
 }
 
-async function saveRegisteredProfile(email: string, profile: any) {
+async function saveRegisteredProfile(email: string, profile: Record<string, any>) {
   const profiles = await getRegisteredProfiles();
 
   profiles[email.toLowerCase()] = {
@@ -127,21 +149,16 @@ async function saveRegisteredProfile(email: string, profile: any) {
   );
 }
 
-async function getRegisteredProfile(email?: string | null) {
-  if (!email) return null;
-
-  const profiles = await getRegisteredProfiles();
-
-  return profiles[email.toLowerCase()] ?? null;
-}
-
 const useAuthStore = create<AuthState>((set) => {
   authEventEmitter.on("logout", () => {
+    useUserStore.getState().clearProfile();
+
     set({
       user: null,
       token: null,
       isAuthenticated: false,
       isLoading: false,
+      isHydrated: true,
       error: null,
       pendingEmail: null,
     });
@@ -152,13 +169,24 @@ const useAuthStore = create<AuthState>((set) => {
     token: null,
     isAuthenticated: false,
     isLoading: false,
+    isHydrated: false,
     error: null,
     pendingEmail: null,
 
     loadSession: async () => {
+      set({
+        isLoading: true,
+        error: null,
+      });
+
       try {
-        const token = await authStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-        const userRaw = await authStorage.getItem(STORAGE_KEYS.USER);
+        const token = await authStorage.getItem(
+          STORAGE_KEYS.ACCESS_TOKEN,
+        );
+
+        const userRaw = await authStorage.getItem(
+          STORAGE_KEYS.USER,
+        );
 
         if (!token || !userRaw) {
           set({
@@ -166,17 +194,20 @@ const useAuthStore = create<AuthState>((set) => {
             token: null,
             isAuthenticated: false,
             isLoading: false,
+            isHydrated: true,
           });
+
           return;
         }
 
-        const user = normalizeUser(JSON.parse(userRaw));
+        const parsedUser = JSON.parse(userRaw);
 
         set({
           token,
-          user,
+          user: normalizeUser(parsedUser),
           isAuthenticated: true,
           isLoading: false,
+          isHydrated: true,
           error: null,
         });
       } catch {
@@ -187,6 +218,7 @@ const useAuthStore = create<AuthState>((set) => {
           token: null,
           isAuthenticated: false,
           isLoading: false,
+          isHydrated: true,
           error: null,
         });
       }
@@ -196,10 +228,10 @@ const useAuthStore = create<AuthState>((set) => {
       set({ isLoading: true, error: null });
 
       try {
-        const res = await AuthService.register(payload);
+        const response = await AuthService.register(payload);
 
-        if (res?.success === false) {
-          throw new Error(res.message || "Registration failed.");
+        if (response?.success === false) {
+          throw new Error(response.message || "Registration failed.");
         }
 
         await saveRegisteredProfile(payload.email, {
@@ -219,13 +251,13 @@ const useAuthStore = create<AuthState>((set) => {
           isLoading: false,
           error: null,
         });
-      } catch (err: any) {
+      } catch (error) {
         set({
           isLoading: false,
-          error: getErrorMessage(err, "Registration failed."),
+          error: getErrorMessage(error, "Registration failed."),
         });
 
-        throw err;
+        throw error;
       }
     },
 
@@ -233,22 +265,34 @@ const useAuthStore = create<AuthState>((set) => {
       set({ isLoading: true, error: null });
 
       try {
-        const res = await AuthService.login(payload);
+        const response = await AuthService.login(payload);
 
-        if (res?.success === false) {
-          throw new Error(res.message || "Login failed.");
+        if (response?.success === false) {
+          throw new Error(response.message || "Login failed.");
         }
 
-        const { token, user: rawUser } = getAuthPayload(res, payload.email);
-        const savedProfile = await getRegisteredProfile(payload.email);
+        const token = getLoginToken(response);
 
-        const user = normalizeUser({
-          ...(savedProfile ?? {}),
-          ...(rawUser ?? {}),
-          email: rawUser?.email ?? savedProfile?.email ?? payload.email,
-        });
+        if (!token) {
+          throw new Error("The server did not return an access token.");
+        }
 
-        await persistAuthSession(token, user);
+        const fallbackUser = getLoginUser(response, payload.email);
+
+        // Save the token before requesting /user/profile because that route
+        // requires Authorization: Bearer <accessToken>.
+        await persistAuthSession(token, fallbackUser);
+
+        let user = fallbackUser;
+
+        try {
+          const profileResponse = await UserService.getProfile();
+          user = getProfileUser(profileResponse, fallbackUser);
+          await persistAuthSession(token, user);
+        } catch {
+          // Login remains valid if profile loading fails temporarily.
+          // The app can retry profile loading on the profile screen.
+        }
 
         set({
           token,
@@ -258,7 +302,7 @@ const useAuthStore = create<AuthState>((set) => {
           error: null,
           pendingEmail: null,
         });
-      } catch (err: any) {
+      } catch (error) {
         await clearAuthSession();
 
         set({
@@ -266,10 +310,10 @@ const useAuthStore = create<AuthState>((set) => {
           token: null,
           isAuthenticated: false,
           isLoading: false,
-          error: getErrorMessage(err, "Login failed."),
+          error: getErrorMessage(error, "Login failed."),
         });
 
-        throw err;
+        throw error;
       }
     },
 
@@ -277,10 +321,10 @@ const useAuthStore = create<AuthState>((set) => {
       set({ isLoading: true, error: null });
 
       try {
-        const res = await AuthService.verifyEmail(payload);
+        const response = await AuthService.verifyEmail(payload);
 
-        if (res?.success === false) {
-          throw new Error(res.message || "Email verification failed.");
+        if (response?.success === false) {
+          throw new Error(response.message || "Email verification failed.");
         }
 
         set({
@@ -288,13 +332,13 @@ const useAuthStore = create<AuthState>((set) => {
           pendingEmail: null,
           error: null,
         });
-      } catch (err: any) {
+      } catch (error) {
         set({
           isLoading: false,
-          error: getErrorMessage(err, "Email verification failed."),
+          error: getErrorMessage(error, "Email verification failed."),
         });
 
-        throw err;
+        throw error;
       }
     },
 
@@ -302,23 +346,20 @@ const useAuthStore = create<AuthState>((set) => {
       set({ isLoading: true, error: null });
 
       try {
-        const res = await AuthService.resendOtp(payload);
+        const response = await AuthService.resendOtp(payload);
 
-        if (res?.success === false) {
-          throw new Error(res.message || "Unable to resend OTP.");
+        if (response?.success === false) {
+          throw new Error(response.message || "Unable to resend OTP.");
         }
 
+        set({ isLoading: false, error: null });
+      } catch (error) {
         set({
           isLoading: false,
-          error: null,
-        });
-      } catch (err: any) {
-        set({
-          isLoading: false,
-          error: getErrorMessage(err, "Unable to resend OTP."),
+          error: getErrorMessage(error, "Unable to resend OTP."),
         });
 
-        throw err;
+        throw error;
       }
     },
 
@@ -326,10 +367,10 @@ const useAuthStore = create<AuthState>((set) => {
       set({ isLoading: true, error: null });
 
       try {
-        const res = await AuthService.requestPasswordReset(payload);
+        const response = await AuthService.requestPasswordReset(payload);
 
-        if (res?.success === false) {
-          throw new Error(res.message || "Unable to request password reset.");
+        if (response?.success === false) {
+          throw new Error(response.message || "Unable to request password reset.");
         }
 
         set({
@@ -337,13 +378,13 @@ const useAuthStore = create<AuthState>((set) => {
           pendingEmail: payload.email,
           error: null,
         });
-      } catch (err: any) {
+      } catch (error) {
         set({
           isLoading: false,
-          error: getErrorMessage(err, "Unable to request password reset."),
+          error: getErrorMessage(error, "Unable to request password reset."),
         });
 
-        throw err;
+        throw error;
       }
     },
 
@@ -351,10 +392,10 @@ const useAuthStore = create<AuthState>((set) => {
       set({ isLoading: true, error: null });
 
       try {
-        const res = await AuthService.resetPassword(payload);
+        const response = await AuthService.resetPassword(payload);
 
-        if (res?.success === false) {
-          throw new Error(res.message || "Unable to reset password.");
+        if (response?.success === false) {
+          throw new Error(response.message || "Unable to reset password.");
         }
 
         set({
@@ -362,13 +403,13 @@ const useAuthStore = create<AuthState>((set) => {
           pendingEmail: null,
           error: null,
         });
-      } catch (err: any) {
+      } catch (error) {
         set({
           isLoading: false,
-          error: getErrorMessage(err, "Unable to reset password."),
+          error: getErrorMessage(error, "Unable to reset password."),
         });
 
-        throw err;
+        throw error;
       }
     },
 
@@ -376,37 +417,17 @@ const useAuthStore = create<AuthState>((set) => {
       set({ isLoading: true, error: null });
 
       try {
-        const res = await AuthService.socialLogin(payload);
-
-        if (res?.success === false) {
-          throw new Error(res.message || "Social login failed.");
-        }
-
-        const { token, user: rawUser } = getAuthPayload(res);
-        const user = normalizeUser(rawUser);
-
-        await persistAuthSession(token, user);
-
+        await AuthService.socialLogin(payload);
+      } catch (error) {
         set({
-          token,
-          user,
-          isAuthenticated: true,
           isLoading: false,
-          error: null,
-          pendingEmail: null,
-        });
-      } catch (err: any) {
-        await clearAuthSession();
-
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          isLoading: false,
-          error: getErrorMessage(err, "Social login failed."),
+          error: getErrorMessage(
+            error,
+            "Google and Apple sign-in are not available yet.",
+          ),
         });
 
-        throw err;
+        throw error;
       }
     },
 
@@ -416,14 +437,17 @@ const useAuthStore = create<AuthState>((set) => {
       try {
         await AuthService.logout();
       } catch {
+        // Clear the local session even if the network request fails.
       } finally {
         await clearAuthSession();
+        useUserStore.getState().clearProfile();
 
         set({
           user: null,
           token: null,
           isAuthenticated: false,
           isLoading: false,
+          isHydrated: true,
           error: null,
           pendingEmail: null,
         });

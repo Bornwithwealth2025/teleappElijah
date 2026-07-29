@@ -1,33 +1,53 @@
-import { router, useLocalSearchParams, type Href } from 'expo-router';
+import { router, useLocalSearchParams, type Href } from "expo-router";
 import {
   CheckCircle2,
+  ChevronLeft,
   Circle,
   Eye,
   EyeOff,
   KeyRound,
   LockKeyhole,
-} from 'lucide-react-native';
-import React, { useState } from 'react';
-import { StyleSheet, TouchableOpacity, View } from 'react-native';
+  Mail,
+} from "lucide-react-native";
+import React from "react";
+import {
+  Animated,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-import { AppButton } from '@/components/ui/AppButton';
-import { AppScreen } from '@/components/ui/AppScreen';
-import { AppText } from '@/components/ui/AppText';
-import { AppTextInput } from '@/components/ui/AppTextInput';
-import { Radius, Spacing } from '@/constants/theme';
-import { useAppTheme } from '@/hooks/use-app-themes';
-import useAuthStore from '@/store/authStore';
+import { TelifierLogo } from "@/components/shared/TelifierLogo";
+import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
+import { AppScreen } from "@/components/ui/AppScreen";
+import { AppText } from "@/components/ui/AppText";
+import { AppTextInput } from "@/components/ui/AppTextInput";
+import { Radius, Spacing } from "@/constants/theme";
+import { useAppTheme } from "@/hooks/use-app-themes";
+import useAuthStore from "@/store/authStore";
 
-// ─── Password Rule Row ────────────────────────────────────────────────────────
-function PasswordRule({ passed, label }: { passed: boolean; label: string }) {
+function firstParam(value?: string | string[]) {
+  return Array.isArray(value) ? value[0] ?? "" : value ?? "";
+}
+
+function PasswordRule({
+  passed,
+  label,
+}: {
+  passed: boolean;
+  label: string;
+}) {
   const { colors } = useAppTheme();
+
   return (
-    <View style={ruleStyles.row}>
+    <View style={styles.ruleRow}>
       {passed ? (
-        <CheckCircle2 color={colors.success} size={15} />
+        <CheckCircle2 color={colors.success} size={16} />
       ) : (
-        <Circle color={colors.textSoft} size={15} />
+        <Circle color={colors.textSoft} size={16} />
       )}
+
       <AppText
         variant="caption"
         style={{ color: passed ? colors.success : colors.textMuted }}
@@ -38,44 +58,57 @@ function PasswordRule({ passed, label }: { passed: boolean; label: string }) {
   );
 }
 
-// ─── Success State ────────────────────────────────────────────────────────────
-function SuccessView({ colors }: { colors: any }) {
-  return (
-    <View style={successStyles.container}>
-      <View style={[successStyles.iconWrap, { backgroundColor: colors.primarySoft }]}>
-        <CheckCircle2 color={colors.primary} size={44} strokeWidth={1.5} />
-      </View>
-
-      <View style={successStyles.copy}>
-        <AppText variant="display" style={successStyles.title}>
-          Password updated!
-        </AppText>
-        <AppText variant="body" tone="muted" style={successStyles.body}>
-          Your password has been reset successfully. You can now sign in with your new password.
-        </AppText>
-      </View>
-
-      <AppButton
-        title="Sign in now"
-        onPress={() => router.replace('/auth/login' as Href)}
-        style={successStyles.btn}
-      />
-    </View>
-  );
-}
-
-// ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function ResetPasswordScreen() {
   const { colors } = useAppTheme();
-  const { email } = useLocalSearchParams<{ email: string }>();
-  const { resetPassword, isLoading, error, clearError } = useAuthStore();
+  const params = useLocalSearchParams<{
+    email?: string | string[];
+    token?: string | string[];
+    resetToken?: string | string[];
+  }>();
 
-  const [token, setToken] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [done, setDone] = useState(false);
+  const initialEmail = firstParam(params.email);
+  const initialToken =
+    firstParam(params.token) || firstParam(params.resetToken);
+
+  const {
+    resetPassword,
+    isLoading,
+    error,
+    clearError,
+  } = useAuthStore();
+
+  const [email, setEmail] = React.useState(initialEmail);
+  const [token, setToken] = React.useState(initialToken);
+  const [password, setPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirm, setShowConfirm] = React.useState(false);
+  const [completed, setCompleted] = React.useState(false);
+
+  const screenOpacity = React.useRef(
+    new Animated.Value(0),
+  ).current;
+
+  const screenTranslateY = React.useRef(
+    new Animated.Value(18),
+  ).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(screenOpacity, {
+        toValue: 1,
+        duration: 420,
+        useNativeDriver: true,
+      }),
+      Animated.spring(screenTranslateY, {
+        toValue: 0,
+        damping: 17,
+        stiffness: 150,
+        mass: 0.8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [screenOpacity, screenTranslateY]);
 
   const rules = {
     length: password.length >= 8,
@@ -85,223 +118,282 @@ export default function ResetPasswordScreen() {
     match: password.length > 0 && password === confirmPassword,
   };
 
-  const allRulesPassed = Object.values(rules).every(Boolean);
-  const canSubmit = token.trim().length > 0 && allRulesPassed;
+  const canSubmit =
+    email.trim().length > 0 &&
+    token.trim().length > 0 &&
+    Object.values(rules).every(Boolean) &&
+    !isLoading;
 
   const handleReset = async () => {
     if (!canSubmit) return;
+
     try {
       await resetPassword({
-        email: email ?? '',
+        email: email.trim().toLowerCase(),
         token: token.trim(),
         password,
       });
-      setDone(true);
+
+      setCompleted(true);
     } catch {
-      // error shown via store
+      // Error is provided by the auth store.
     }
   };
 
-  if (done) {
+  if (completed) {
     return (
-      <AppScreen contentStyle={styles.content}>
-        <SuccessView colors={colors} />
+      <AppScreen scroll={false} contentStyle={styles.successScreen}>
+        <TelifierLogo size="md" />
+
+        <View
+          style={[
+            styles.successIcon,
+            { backgroundColor: colors.primarySoft },
+          ]}
+        >
+          <CheckCircle2 color={colors.primary} size={46} />
+        </View>
+
+        <AppText variant="display" style={styles.successTitle}>
+          Password updated
+        </AppText>
+
+        <AppText
+          variant="body"
+          tone="muted"
+          style={styles.successDescription}
+        >
+          Your password has been reset successfully. You can now sign in with
+          your new password.
+        </AppText>
+
+        <AppButton
+          title="Sign in now"
+          onPress={() => router.replace("/auth/login" as Href)}
+          containerStyle={styles.fullWidth}
+        />
       </AppScreen>
     );
   }
 
   return (
-    <AppScreen contentStyle={styles.content}>
-      {/* Back button */}
-      <TouchableOpacity
-        onPress={() => router.back()}
-        style={[styles.backBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        activeOpacity={0.75}
+    <AppScreen contentStyle={styles.screen}>
+      <Animated.View
+        style={{
+          width: "100%",
+          opacity: screenOpacity,
+          transform: [{ translateY: screenTranslateY }],
+        }}
       >
-        <AppText style={[styles.backArrow, { color: colors.text }]}>←</AppText>
-      </TouchableOpacity>
+        <View style={styles.topBar}>
+          <TelifierLogo size="sm" />
 
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={[styles.iconWrap, { backgroundColor: colors.primarySoft }]}>
-          <KeyRound color={colors.primary} size={28} strokeWidth={1.5} />
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.75}
+            style={[
+              styles.backButton,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <ChevronLeft color={colors.text} size={22} />
+          </TouchableOpacity>
         </View>
-        <AppText variant="display" style={styles.title}>
-          Reset password
-        </AppText>
-        <AppText variant="caption" tone="muted" style={styles.subtitle}>
-          Enter the reset token from your email and choose a new password.
-        </AppText>
-      </View>
 
-      {/* Error */}
-      {error ? (
-        <View style={[styles.errorBox, { backgroundColor: colors.surface, borderColor: colors.danger }]}>
-          <AppText variant="caption" style={{ color: colors.danger }}>
-            {error}
+        <View style={styles.heading}>
+          <AppText variant="label" tone="primary">
+            ACCOUNT RECOVERY
+          </AppText>
+
+          <AppText variant="display" style={styles.title}>
+            Reset your password
+          </AppText>
+
+          <AppText variant="body" tone="muted" style={styles.subtitle}>
+            Enter the reset token from your email and create a new secure
+            password.
           </AppText>
         </View>
-      ) : null}
 
-      {/* Fields */}
-      <View style={styles.fields}>
-        {/* Token */}
-        <View style={styles.fieldGroup}>
-          <AppText variant="caption" style={[styles.label, { color: colors.textSoft }]}>
-            RESET TOKEN
-          </AppText>
+        {error ? (
+          <View
+            style={[
+              styles.errorBox,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.danger,
+              },
+            ]}
+          >
+            <AppText variant="caption" style={{ color: colors.danger }}>
+              {error}
+            </AppText>
+          </View>
+        ) : null}
+
+        <AppCard variant="soft" style={styles.formCard}>
           <AppTextInput
-            placeholder="Paste token from your email"
+            label="Email address"
+            placeholder="you@example.com"
+            value={email}
             autoCapitalize="none"
             autoCorrect={false}
+            keyboardType="email-address"
+            onChangeText={(value) => {
+              setEmail(value);
+              clearError();
+            }}
+            leftSlot={<Mail color={colors.textSoft} size={18} />}
+          />
+
+          <AppTextInput
+            label="Reset token"
+            placeholder="Paste token from your email"
             value={token}
-            onChangeText={(v) => { setToken(v); clearError(); }}
+            autoCapitalize="none"
+            autoCorrect={false}
+            onChangeText={(value) => {
+              setToken(value);
+              clearError();
+            }}
             leftSlot={<KeyRound color={colors.textSoft} size={18} />}
-            containerStyle={styles.inputContainer}
-            style={styles.input}
           />
-        </View>
 
-        {/* New password */}
-        <View style={styles.fieldGroup}>
-          <AppText variant="caption" style={[styles.label, { color: colors.textSoft }]}>
-            NEW PASSWORD
-          </AppText>
           <AppTextInput
+            label="New password"
             placeholder="Create a strong password"
-            secureTextEntry={!showPassword}
             value={password}
-            onChangeText={(v) => { setPassword(v); clearError(); }}
+            secureTextEntry={!showPassword}
+            onChangeText={(value) => {
+              setPassword(value);
+              clearError();
+            }}
             leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
             rightSlot={
-              <TouchableOpacity onPress={() => setShowPassword((p) => !p)} activeOpacity={0.75}>
-                {showPassword
-                  ? <EyeOff color={colors.textSoft} size={18} />
-                  : <Eye color={colors.textSoft} size={18} />
-                }
+              <TouchableOpacity
+                onPress={() => setShowPassword((value) => !value)}
+                activeOpacity={0.75}
+              >
+                {showPassword ? (
+                  <EyeOff color={colors.textSoft} size={19} />
+                ) : (
+                  <Eye color={colors.textSoft} size={19} />
+                )}
               </TouchableOpacity>
             }
-            containerStyle={styles.inputContainer}
-            style={styles.input}
           />
-        </View>
 
-        {/* Confirm password */}
-        <View style={styles.fieldGroup}>
-          <AppText variant="caption" style={[styles.label, { color: colors.textSoft }]}>
-            CONFIRM PASSWORD
-          </AppText>
           <AppTextInput
+            label="Confirm password"
             placeholder="Repeat your new password"
-            secureTextEntry={!showConfirm}
             value={confirmPassword}
-            onChangeText={(v) => { setConfirmPassword(v); clearError(); }}
+            secureTextEntry={!showConfirm}
+            onChangeText={(value) => {
+              setConfirmPassword(value);
+              clearError();
+            }}
             leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
             rightSlot={
-              <TouchableOpacity onPress={() => setShowConfirm((p) => !p)} activeOpacity={0.75}>
-                {showConfirm
-                  ? <EyeOff color={colors.textSoft} size={18} />
-                  : <Eye color={colors.textSoft} size={18} />
-                }
+              <TouchableOpacity
+                onPress={() => setShowConfirm((value) => !value)}
+                activeOpacity={0.75}
+              >
+                {showConfirm ? (
+                  <EyeOff color={colors.textSoft} size={19} />
+                ) : (
+                  <Eye color={colors.textSoft} size={19} />
+                )}
               </TouchableOpacity>
             }
-            containerStyle={styles.inputContainer}
-            style={styles.input}
           />
-        </View>
-      </View>
 
-      {/* Password rules panel */}
-      <View style={[styles.rulesPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        <AppText variant="caption" style={[styles.rulesTitle, { color: colors.text }]}>
-          Password must include:
-        </AppText>
-        <View style={styles.rulesGrid}>
-          <PasswordRule passed={rules.length} label="8+ characters" />
-          <PasswordRule passed={rules.uppercase} label="Uppercase letter" />
-          <PasswordRule passed={rules.number} label="Number" />
-          <PasswordRule passed={rules.special} label="Special character" />
-          <PasswordRule passed={rules.match} label="Passwords match" />
-        </View>
-      </View>
+          <View
+            style={[
+              styles.rulesPanel,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <AppText variant="bodyStrong">Password requirements</AppText>
 
-      {/* Submit */}
-      <AppButton
-        title="Reset password"
-        onPress={handleReset}
-        disabled={!canSubmit || isLoading}
-        loading={isLoading}
-        style={styles.primaryButton}
-      />
+            <View style={styles.rulesGrid}>
+              <PasswordRule passed={rules.length} label="8+ characters" />
+              <PasswordRule passed={rules.uppercase} label="Uppercase letter" />
+              <PasswordRule passed={rules.number} label="Number" />
+              <PasswordRule passed={rules.special} label="Special character" />
+              <PasswordRule passed={rules.match} label="Passwords match" />
+            </View>
+          </View>
+
+          <AppButton
+            title="Reset password"
+            onPress={handleReset}
+            loading={isLoading}
+            disabled={!canSubmit}
+          />
+        </AppCard>
+
+        <View style={styles.footer}>
+          <AppText variant="caption" tone="muted">
+            Remember your password?
+          </AppText>
+
+          <TouchableOpacity
+            onPress={() => router.replace("/auth/login" as Href)}
+            activeOpacity={0.75}
+          >
+            <AppText variant="caption" tone="primary" style={styles.footerLink}>
+              Sign in
+            </AppText>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
     </AppScreen>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  content: {
-    justifyContent: 'center',
+  screen: {
     gap: Spacing.four,
     paddingHorizontal: Spacing.five,
   },
-  backBtn: {
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  backButton: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: Radius.medium,
     borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'flex-start',
-    marginLeft: -Spacing.two,
-    marginBottom: Spacing.two,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  backArrow: {
-    fontSize: 22,
-    fontWeight: '700',
-    lineHeight: 24,
-  },
-  header: {
+  heading: {
     gap: Spacing.two,
   },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: Radius.medium,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.two,
-  },
   title: {
-    fontSize: 29,
-    lineHeight: 36,
-    fontWeight: '800',
+    fontSize: 32,
+    lineHeight: 38,
   },
   subtitle: {
-    maxWidth: 320,
-    lineHeight: 20,
+    maxWidth: 360,
+    lineHeight: 22,
   },
   errorBox: {
     borderWidth: 1,
+    borderLeftWidth: 3,
     borderRadius: Radius.medium,
     padding: Spacing.three,
-    borderLeftWidth: 3,
   },
-  fields: {
+  formCard: {
     gap: Spacing.three,
-  },
-  fieldGroup: {
-    gap: Spacing.two,
-  },
-  label: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.8,
-  },
-  inputContainer: {
-    borderRadius: 14,
-  },
-  input: {
-    fontSize: 15,
   },
   rulesPanel: {
     borderWidth: 1,
@@ -309,58 +401,46 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     gap: Spacing.two,
   },
-  rulesTitle: {
-    fontWeight: '700',
-  },
   rulesGrid: {
     gap: Spacing.two,
   },
-  primaryButton: {
-    minHeight: 56,
-    borderRadius: 999,
-  },
-});
-
-const ruleStyles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  ruleRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.two,
   },
-});
-
-const successStyles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
+  footer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 5,
+    paddingBottom: Spacing.two,
+  },
+  footerLink: {
+    fontWeight: "800",
+  },
+  successScreen: {
+    alignItems: "center",
+    justifyContent: "center",
     gap: Spacing.four,
+    paddingHorizontal: Spacing.five,
   },
-  iconWrap: {
-    width: 88,
-    height: 88,
+  successIcon: {
+    width: 90,
+    height: 90,
     borderRadius: Radius.large,
-    alignItems: 'center',
-    justifyContent: 'center',
-    alignSelf: 'center',
-    marginBottom: Spacing.two,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: Spacing.five,
   },
-  copy: {
-    alignItems: 'center',
-    gap: Spacing.two,
+  successTitle: {
+    textAlign: "center",
   },
-  title: {
-    fontSize: 29,
-    lineHeight: 36,
-    fontWeight: '800',
-    textAlign: 'center',
-  },
-  body: {
-    textAlign: 'center',
+  successDescription: {
+    maxWidth: 340,
+    textAlign: "center",
     lineHeight: 22,
-    maxWidth: 300,
   },
-  btn: {
-    minHeight: 56,
-    borderRadius: 999,
+  fullWidth: {
+    width: "100%",
   },
 });

@@ -1,3 +1,4 @@
+// app/index.tsx
 import { router, type Href } from 'expo-router';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, View } from 'react-native';
@@ -56,7 +57,7 @@ export default function StartupScreen() {
   }, [opacity, scale]);
 
   return (
-    <AppScreen scroll={false} contentStyle={styles.content}>
+    <AppScreen scroll={false} tone="aurora" contentStyle={styles.content}>
       <View style={styles.center}>
         <Animated.View style={{ opacity, transform: [{ scale }] }}>
           <TelifierLogo size="lg" />

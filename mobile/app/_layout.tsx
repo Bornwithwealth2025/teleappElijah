@@ -1,39 +1,48 @@
+// app layout
 import "@/styles/global.css";
 
 import React, { useEffect, useLayoutEffect } from "react";
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import {
+  DarkTheme,
+  DefaultTheme,
+  Stack,
+  ThemeProvider,
+} from "expo-router";
 import * as NavigationBar from "expo-navigation-bar";
-import { Platform, StatusBar } from "react-native";
+import * as SystemUI from "expo-system-ui";
+import { Platform, StatusBar, StyleSheet } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { FeedbackProvider } from "@/contexts/feedback-context";
 import { ThemeModeProvider } from "@/contexts/theme-mode-context";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useAuthStore from "@/store/authStore";
 
-const FALLBACK_DARK_BACKGROUND = "#070A12";
-const FALLBACK_LIGHT_BACKGROUND = "#FFFFFF";
+async function applySystemBars(
+  backgroundColor: string,
+  isDark: boolean,
+) {
+  try {
+    await SystemUI.setBackgroundColorAsync(backgroundColor);
+  } catch {}
 
-async function applySystemBars(backgroundColor: string, isDark: boolean) {
   if (Platform.OS !== "android") return;
-
-  const nav = NavigationBar as any;
 
   try {
     StatusBar.setTranslucent(true);
     StatusBar.setBackgroundColor("transparent");
-    StatusBar.setBarStyle(isDark ? "light-content" : "dark-content");
+    StatusBar.setBarStyle(
+      isDark ? "light-content" : "dark-content",
+    );
 
-    if (nav.setPositionAsync) {
-      await nav.setPositionAsync("relative");
-    }
+    const navigationBar = NavigationBar as any;
 
-    if (nav.setBackgroundColorAsync) {
-      await nav.setBackgroundColorAsync(backgroundColor);
-    }
-
-    if (nav.setButtonStyleAsync) {
-      await nav.setButtonStyleAsync(isDark ? "light" : "dark");
-    }
+    await navigationBar.setPositionAsync?.("relative");
+    await navigationBar.setBackgroundColorAsync?.(backgroundColor);
+    await navigationBar.setButtonStyleAsync?.(
+      isDark ? "light" : "dark",
+    );
   } catch {}
 }
 
@@ -42,27 +51,23 @@ function AppNavigator() {
   const { mode, colors, isDark } = useAppTheme();
 
   useLayoutEffect(() => {
-    void applySystemBars(
-      isDark ? FALLBACK_DARK_BACKGROUND : FALLBACK_LIGHT_BACKGROUND,
-      isDark,
-    );
-  }, [isDark]);
+    void applySystemBars(colors.background, isDark);
+  }, [colors.background, isDark]);
 
   useEffect(() => {
     void loadSession();
   }, [loadSession]);
 
   useEffect(() => {
-    void applySystemBars(colors.background, isDark);
-
     const timer = setTimeout(() => {
       void applySystemBars(colors.background, isDark);
-    }, 350);
+    }, 250);
 
     return () => clearTimeout(timer);
   }, [colors.background, isDark]);
 
-  const baseTheme = mode === "dark" ? DarkTheme : DefaultTheme;
+  const baseTheme =
+    mode === "dark" ? DarkTheme : DefaultTheme;
 
   const navigationTheme = {
     ...baseTheme,
@@ -80,14 +85,15 @@ function AppNavigator() {
   return (
     <ThemeProvider value={navigationTheme}>
       <StatusBar
-        barStyle={isDark ? "light-content" : "dark-content"}
         translucent
         backgroundColor="transparent"
+        barStyle={isDark ? "light-content" : "dark-content"}
       />
 
       <Stack
         screenOptions={{
           headerShown: false,
+          animation: "fade",
           contentStyle: {
             backgroundColor: colors.background,
           },
@@ -99,10 +105,20 @@ function AppNavigator() {
 
 export default function RootLayout() {
   return (
-    <ThemeModeProvider>
-      <FeedbackProvider>
-        <AppNavigator />
-      </FeedbackProvider>
-    </ThemeModeProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <ThemeModeProvider>
+          <FeedbackProvider>
+            <AppNavigator />
+          </FeedbackProvider>
+        </ThemeModeProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});

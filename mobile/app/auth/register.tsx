@@ -1,8 +1,7 @@
 import React from "react";
 import useAuthStore from "@/store/authStore";
-import { FontAwesome } from "@expo/vector-icons";
 import DateTimePicker, {
-  DateTimePickerEvent,
+  type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { Link, router, type Href } from "expo-router";
 import countries from "world-countries";
@@ -22,6 +21,7 @@ import {
   UserRound,
 } from "lucide-react-native";
 import {
+  Animated,
   FlatList,
   Image,
   Modal,
@@ -34,12 +34,13 @@ import {
   View,
 } from "react-native";
 import { City as CSCity, State as CSState } from "country-state-city";
-import { useSocialAuth } from "@/hooks/useSocialAuth";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
+import { AppCard } from "@/components/ui/AppCard";
+import { TelifierLogo } from "@/components/shared/TelifierLogo";
 import { Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
@@ -111,14 +112,6 @@ function FlagImage({ isoCode, size = 24 }: { isoCode: string; size?: number }) {
   );
 }
 
-function GoogleLogo() {
-  return <FontAwesome name="google" size={20} color="#4285F4" />;
-}
-
-function AppleLogo({ color }: { color: string }) {
-  return <FontAwesome name="apple" size={22} color={color} />;
-}
-
 function PasswordRule({ passed, label }: { passed: boolean; label: string }) {
   const { colors } = useAppTheme();
 
@@ -183,6 +176,30 @@ function StepIndicator({ step, colors }: { step: 1 | 2; colors: any }) {
   );
 }
 
+function FieldGroup({
+  label,
+  style,
+  children,
+}: {
+  label: string;
+  style?: any;
+  children: React.ReactNode;
+}) {
+  const { colors } = useAppTheme();
+
+  return (
+    <View style={[styles.fieldGroup, style]}>
+      <AppText
+        variant="caption"
+        style={[styles.fieldLabel, { color: colors.textMuted }]}
+      >
+        {label}
+      </AppText>
+      {children}
+    </View>
+  );
+}
+
 function SelectField({
   label,
   value,
@@ -201,29 +218,21 @@ function SelectField({
   const { colors } = useAppTheme();
 
   return (
-    <TouchableOpacity
-      activeOpacity={0.75}
-      disabled={disabled}
-      onPress={onPress}
-      style={[
-        styles.selectField,
-        {
-          borderColor: colors.border,
-          backgroundColor: disabled ? colors.surface : colors.card,
-          opacity: disabled ? 0.55 : 1,
-        },
-      ]}
-    >
-      <View style={styles.selectLeft}>
-        {leftSlot}
-
-        <View style={styles.selectTextWrap}>
-          <AppText
-            variant="caption"
-            style={[styles.selectLabel, { color: colors.textMuted }]}
-          >
-            {label}
-          </AppText>
+    <FieldGroup label={label}>
+      <TouchableOpacity
+        activeOpacity={0.75}
+        disabled={disabled}
+        onPress={onPress}
+        style={[
+          styles.selectField,
+          {
+            backgroundColor: disabled ? colors.border + "22" : colors.surface,
+            opacity: disabled ? 0.55 : 1,
+          },
+        ]}
+      >
+        <View style={styles.selectLeft}>
+          {leftSlot}
 
           <AppText
             numberOfLines={1}
@@ -235,10 +244,10 @@ function SelectField({
             {value || placeholder}
           </AppText>
         </View>
-      </View>
 
-      <ChevronDown color={colors.textSoft} size={18} />
-    </TouchableOpacity>
+        <ChevronDown color={colors.textSoft} size={18} />
+      </TouchableOpacity>
+    </FieldGroup>
   );
 }
 
@@ -303,7 +312,7 @@ function WebDatePickerModal({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
@@ -311,6 +320,8 @@ function WebDatePickerModal({
           style={[styles.modalSheet, { backgroundColor: colors.card }]}
           onPress={(event) => event.stopPropagation()}
         >
+          <View style={styles.modalGrabber} />
+
           <View style={styles.modalHeader}>
             <AppText variant="bodyStrong" style={{ color: colors.text }}>
               Select date of birth
@@ -398,7 +409,7 @@ function DateColumn<T>({
                 styles.dateOption,
                 {
                   backgroundColor: selected ? colors.primary : colors.surface,
-                  borderColor: selected ? colors.primary : colors.border,
+                  borderColor: selected ? colors.primary : "transparent",
                 },
               ]}
             >
@@ -455,7 +466,7 @@ function CountryOptionModal({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
@@ -463,6 +474,8 @@ function CountryOptionModal({
           style={[styles.modalSheet, { backgroundColor: colors.card }]}
           onPress={(event) => event.stopPropagation()}
         >
+          <View style={styles.modalGrabber} />
+
           <View style={styles.modalHeader}>
             <AppText variant="bodyStrong" style={{ color: colors.text }}>
               Select country
@@ -478,7 +491,7 @@ function CountryOptionModal({
           <View
             style={[
               styles.searchBox,
-              { borderColor: colors.border, backgroundColor: colors.surface },
+              { backgroundColor: colors.surface },
             ]}
           >
             <Search color={colors.textSoft} size={17} />
@@ -577,7 +590,7 @@ function OptionModal({
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
     >
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
@@ -585,6 +598,8 @@ function OptionModal({
           style={[styles.modalSheet, { backgroundColor: colors.card }]}
           onPress={(event) => event.stopPropagation()}
         >
+          <View style={styles.modalGrabber} />
+
           <View style={styles.modalHeader}>
             <AppText variant="bodyStrong" style={{ color: colors.text }}>
               {title}
@@ -600,7 +615,7 @@ function OptionModal({
           <View
             style={[
               styles.searchBox,
-              { borderColor: colors.border, backgroundColor: colors.surface },
+              { backgroundColor: colors.surface },
             ]}
           >
             <Search color={colors.textSoft} size={17} />
@@ -686,13 +701,31 @@ export default function RegisterScreen() {
   const [city, setCity] = React.useState("");
   const [dateOfBirth, setDateOfBirth] = React.useState<Date | null>(null);
   const [dob, setDob] = React.useState("");
-  const { googleReady, appleAvailable, signInWithGoogle, signInWithApple } =
-    useSocialAuth();
 
   const [countryPickerOpen, setCountryPickerOpen] = React.useState(false);
   const [statePickerOpen, setStatePickerOpen] = React.useState(false);
   const [cityPickerOpen, setCityPickerOpen] = React.useState(false);
   const [datePickerOpen, setDatePickerOpen] = React.useState(false);
+
+  const formOpacity = React.useRef(new Animated.Value(0)).current;
+  const formTranslateY = React.useRef(new Animated.Value(22)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(formOpacity, {
+        toValue: 1,
+        duration: 460,
+        useNativeDriver: true,
+      }),
+      Animated.spring(formTranslateY, {
+        toValue: 0,
+        damping: 17,
+        stiffness: 150,
+        mass: 0.8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [formOpacity, formTranslateY]);
 
   const maximumBirthDate = React.useMemo(() => {
     const date = new Date();
@@ -806,398 +839,375 @@ export default function RegisterScreen() {
         isCompact ? styles.contentCompact : undefined,
       ]}
     >
-      <TouchableOpacity
-        onPress={() => (step === 2 ? setStep(1) : router.back())}
-        style={[
-          styles.backBtn,
-          { backgroundColor: colors.surface, borderColor: colors.border },
-        ]}
-        activeOpacity={0.75}
+      <Animated.View
+        style={{
+          opacity: formOpacity,
+          transform: [{ translateY: formTranslateY }],
+        }}
       >
-        <ChevronLeft color={colors.text} size={22} />
-      </TouchableOpacity>
-
-      <View style={styles.header}>
-        <StepIndicator step={step} colors={colors} />
-
-        <AppText
-          variant="display"
-          style={[styles.title, isCompact && styles.titleCompact]}
-        >
-          {step === 1 ? "Create account" : "Profile details"}
-        </AppText>
-
-        <AppText variant="caption" tone="muted" style={styles.subtitle}>
-          {step === 1
-            ? "Set up your login details."
-            : "Complete your contact and location profile."}
-        </AppText>
-      </View>
-
-      {step === 1 ? (
-        <>
-          <View style={styles.fields}>
-            <View style={[styles.nameRow, isCompact && styles.stackRow]}>
-              <AppTextInput
-                placeholder="First name"
-                autoCapitalize="words"
-                value={firstName}
-                onChangeText={(v) => {
-                  setFirstName(v);
-                  clearError();
-                }}
-                leftSlot={<UserRound color={colors.textSoft} size={18} />}
-                containerStyle={[styles.inputContainer, styles.nameInput]}
-                style={styles.input}
-              />
-
-              <AppTextInput
-                placeholder="Last name"
-                autoCapitalize="words"
-                value={lastName}
-                onChangeText={(v) => {
-                  setLastName(v);
-                  clearError();
-                }}
-                leftSlot={<UserRound color={colors.textSoft} size={18} />}
-                containerStyle={[styles.inputContainer, styles.nameInput]}
-                style={styles.input}
-              />
-            </View>
-
-            <AppTextInput
-              placeholder="Email address"
-              autoCapitalize="none"
-              keyboardType="email-address"
-              value={email}
-              onChangeText={(v) => {
-                setEmail(v);
-                clearError();
-              }}
-              leftSlot={<Mail color={colors.textSoft} size={18} />}
-              containerStyle={styles.inputContainer}
-              style={styles.input}
-            />
-
-            <AppTextInput
-              placeholder="Password"
-              value={password}
-              onChangeText={(v) => {
-                setPassword(v);
-                clearError();
-              }}
-              secureTextEntry={!showPassword}
-              leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
-              rightSlot={
-                <TouchableOpacity
-                  onPress={() => setShowPassword((v) => !v)}
-                  activeOpacity={0.75}
-                >
-                  {showPassword ? (
-                    <EyeOff color={colors.textSoft} size={18} />
-                  ) : (
-                    <Eye color={colors.textSoft} size={18} />
-                  )}
-                </TouchableOpacity>
-              }
-              containerStyle={styles.inputContainer}
-              style={styles.input}
-            />
-
-            <AppTextInput
-              placeholder="Confirm password"
-              value={confirmPassword}
-              onChangeText={(v) => {
-                setConfirmPassword(v);
-                clearError();
-              }}
-              secureTextEntry={!showConfirmPassword}
-              leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
-              rightSlot={
-                <TouchableOpacity
-                  onPress={() => setShowConfirmPassword((v) => !v)}
-                  activeOpacity={0.75}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff color={colors.textSoft} size={18} />
-                  ) : (
-                    <Eye color={colors.textSoft} size={18} />
-                  )}
-                </TouchableOpacity>
-              }
-              containerStyle={styles.inputContainer}
-              style={styles.input}
-            />
-          </View>
-
-          <View
-            style={[
-              styles.passwordPanel,
-              { backgroundColor: colors.surface, borderColor: colors.border },
-            ]}
-          >
-            <AppText
-              variant="caption"
-              style={[styles.passwordTitle, { color: colors.text }]}
-            >
-              Password must include:
-            </AppText>
-
-            <View style={styles.rulesGrid}>
-              <PasswordRule
-                passed={passwordRules.length}
-                label="8+ characters"
-              />
-              <PasswordRule
-                passed={passwordRules.uppercase}
-                label="Uppercase letter"
-              />
-              <PasswordRule passed={passwordRules.number} label="Number" />
-              <PasswordRule
-                passed={passwordRules.special}
-                label="Special character"
-              />
-              <PasswordRule
-                passed={passwordRules.match}
-                label="Passwords match"
-              />
-            </View>
-          </View>
-
-          {error ? (
-            <AppText
-              variant="caption"
-              style={{ color: colors.danger, textAlign: "center" }}
-            >
-              {error}
-            </AppText>
-          ) : null}
-
-          <AppButton
-            title="Continue"
-            disabled={!step1Valid}
-            onPress={handleNext}
-            style={styles.primaryButton}
-          />
-        </>
-      ) : (
-        <>
-          <View style={styles.fields}>
-            <View style={[styles.phoneRow, isCompact && styles.stackRow]}>
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={() => setCountryPickerOpen(true)}
-                style={[
-                  styles.countryCodeButton,
-                  isCompact && styles.countryCodeCompact,
-                  { backgroundColor: colors.card, borderColor: colors.border },
-                ]}
-              >
-                <FlagImage isoCode={countryIso} size={24} />
-
-                <AppText
-                  numberOfLines={1}
-                  style={[styles.countryCodeText, { color: colors.text }]}
-                >
-                  {countryCode}
-                </AppText>
-
-                <ChevronDown color={colors.textSoft} size={16} />
-              </TouchableOpacity>
-
-              <AppTextInput
-                placeholder="Phone number"
-                value={phone}
-                onChangeText={(v) => {
-                  setPhone(v);
-                  clearError();
-                }}
-                keyboardType="phone-pad"
-                leftSlot={<Phone color={colors.textSoft} size={18} />}
-                containerStyle={[styles.inputContainer, styles.phoneInput]}
-                style={styles.input}
-              />
-            </View>
-
-            <SelectField
-              label="Date of birth"
-              value={dob}
-              placeholder="Select date"
-              leftSlot={<Calendar color={colors.textSoft} size={18} />}
-              onPress={() => setDatePickerOpen(true)}
-            />
-
-            {datePickerOpen && Platform.OS !== "web" ? (
-              <DateTimePicker
-                value={dateOfBirth ?? maximumBirthDate}
-                mode="date"
-                display={Platform.OS === "ios" ? "spinner" : "default"}
-                maximumDate={maximumBirthDate}
-                onChange={handleNativeDateChange}
-              />
-            ) : null}
-
-            <SelectField
-              label="Country"
-              value={country}
-              placeholder="Select country"
-              leftSlot={<FlagImage isoCode={countryIso} size={24} />}
-              onPress={() => setCountryPickerOpen(true)}
-            />
-
-            <SelectField
-              label="State / Region"
-              value={state}
-              placeholder={
-                country ? "Select state or region" : "Select country first"
-              }
-              disabled={!country}
-              leftSlot={<MapPin color={colors.textSoft} size={18} />}
-              onPress={() => setStatePickerOpen(true)}
-            />
-
-            <SelectField
-              label="City"
-              value={city}
-              placeholder={state ? "Select city" : "Select state first"}
-              disabled={!state}
-              leftSlot={<MapPin color={colors.textSoft} size={18} />}
-              onPress={() => setCityPickerOpen(true)}
-            />
-          </View>
-
-          <WebDatePickerModal
-            visible={datePickerOpen && Platform.OS === "web"}
-            value={dateOfBirth}
-            maximumDate={maximumBirthDate}
-            onClose={() => setDatePickerOpen(false)}
-            onSelect={handleWebDateSelect}
-          />
-
-          <CountryOptionModal
-            visible={countryPickerOpen}
-            options={countryOptions}
-            value={country}
-            onClose={() => setCountryPickerOpen(false)}
-            onSelect={(option) => {
-              handleCountrySelect(option);
-              setCountryPickerOpen(false);
-            }}
-          />
-
-          <OptionModal
-            title="Select state or region"
-            visible={statePickerOpen}
-            options={stateOptions}
-            value={state}
-            emptyText="No states found for this country."
-            onClose={() => setStatePickerOpen(false)}
-            onSelect={(option) => {
-              setState(option.name);
-              setStateCode(option.code);
-              setCity("");
-              clearError();
-              setStatePickerOpen(false);
-            }}
-          />
-
-          <OptionModal
-            title="Select city"
-            visible={cityPickerOpen}
-            options={cityOptions}
-            value={city}
-            emptyText="No cities found for this state."
-            onClose={() => setCityPickerOpen(false)}
-            onSelect={(option) => {
-              setCity(option.name);
-              clearError();
-              setCityPickerOpen(false);
-            }}
-          />
-
-          {error ? (
-            <AppText
-              variant="caption"
-              style={{ color: colors.danger, textAlign: "center" }}
-            >
-              {error}
-            </AppText>
-          ) : null}
-
-          <AppButton
-            title="Create account"
-            disabled={!step2Valid || isLoading}
-            onPress={handleRegister}
-            loading={isLoading}
-            style={styles.primaryButton}
-          />
-        </>
-      )}
-
-      <View style={styles.dividerRow}>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <AppText variant="caption" tone="muted" style={styles.dividerLabel}>
-          Or continue with
-        </AppText>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      </View>
-
-      <View style={styles.socialStack}>
-        <TouchableOpacity
-          style={[
-            styles.socialBtn,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-          activeOpacity={0.75}
-          disabled={!googleReady || isLoading}
-          onPress={signInWithGoogle}
-        >
-          <GoogleLogo />
-          <AppText
-            variant="bodyStrong"
-            style={[styles.socialLabel, { color: colors.text }]}
-          >
-            Continue with Google
-          </AppText>
-        </TouchableOpacity>
-
-        {appleAvailable ? (
+        <View style={styles.topBar}>
           <TouchableOpacity
+            onPress={() => (step === 2 ? setStep(1) : router.back())}
             style={[
-              styles.socialBtn,
-              { backgroundColor: colors.card, borderColor: colors.border },
+              styles.backBtn,
+              {
+                backgroundColor: colors.surface,
+              },
             ]}
             activeOpacity={0.75}
-            disabled={isLoading}
-            onPress={signInWithApple}
           >
-            <AppleLogo color={colors.text} />
-            <AppText
-              variant="bodyStrong"
-              style={[styles.socialLabel, { color: colors.text }]}
-            >
-              Continue with Apple
-            </AppText>
+            <ChevronLeft color={colors.text} size={22} />
           </TouchableOpacity>
-        ) : null}
-      </View>
 
-      <View style={styles.footer}>
-        <AppText variant="caption" tone="muted">
-          Already have an account?
-        </AppText>
+          <TelifierLogo size="sm" />
+        </View>
 
-        <Link href="/auth/login" asChild>
-          <TouchableOpacity activeOpacity={0.75}>
-            <AppText
-              variant="caption"
-              style={[styles.authLink, { color: colors.primary }]}
-            >
-              Sign In.
-            </AppText>
-          </TouchableOpacity>
-        </Link>
-      </View>
+       <View style={styles.header}>
+          <StepIndicator step={step} colors={colors} />
+
+          <AppText variant="display" style={styles.title}>
+            {step === 1 ? "Create your account." : "Complete your profile."}
+          </AppText>
+
+          <AppText variant="body" tone="muted" style={styles.subtitle}>
+            {step === 1
+              ? "Sign up to get started with Telefya."
+              : "Just a few more details."}
+          </AppText>
+        </View>
+
+        {step === 1 ? (
+          <>
+            <View style={styles.fields}>
+              <View style={[styles.nameRow, isCompact && styles.stackRow]}>
+                <FieldGroup label="First name" style={styles.nameInput}>
+                  <AppTextInput
+                    placeholder="Enter first name"
+                    autoCapitalize="words"
+                    value={firstName}
+                    onChangeText={(v) => {
+                      setFirstName(v);
+                      clearError();
+                    }}
+                    leftSlot={<UserRound color={colors.textSoft} size={18} />}
+                    containerStyle={styles.inputContainer}
+                    style={styles.input}
+                  />
+                </FieldGroup>
+
+                <FieldGroup label="Last name" style={styles.nameInput}>
+                  <AppTextInput
+                    placeholder="Enter last name"
+                    autoCapitalize="words"
+                    value={lastName}
+                    onChangeText={(v) => {
+                      setLastName(v);
+                      clearError();
+                    }}
+                    leftSlot={<UserRound color={colors.textSoft} size={18} />}
+                    containerStyle={styles.inputContainer}
+                    style={styles.input}
+                  />
+                </FieldGroup>
+              </View>
+
+              <FieldGroup label="Email address">
+                <AppTextInput
+                  placeholder="you@example.com"
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={(v) => {
+                    setEmail(v);
+                    clearError();
+                  }}
+                  leftSlot={<Mail color={colors.textSoft} size={18} />}
+                  containerStyle={styles.inputContainer}
+                  style={styles.input}
+                />
+              </FieldGroup>
+
+              <FieldGroup label="Password">
+                <AppTextInput
+                  placeholder="Create a password"
+                  value={password}
+                  onChangeText={(v) => {
+                    setPassword(v);
+                    clearError();
+                  }}
+                  secureTextEntry={!showPassword}
+                  leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
+                  rightSlot={
+                    <TouchableOpacity
+                      onPress={() => setShowPassword((v) => !v)}
+                      activeOpacity={0.75}
+                    >
+                      {showPassword ? (
+                        <EyeOff color={colors.textSoft} size={18} />
+                      ) : (
+                        <Eye color={colors.textSoft} size={18} />
+                      )}
+                    </TouchableOpacity>
+                  }
+                  containerStyle={styles.inputContainer}
+                  style={styles.input}
+                />
+              </FieldGroup>
+
+              <FieldGroup label="Confirm password">
+                <AppTextInput
+                  placeholder="Re-enter your password"
+                  value={confirmPassword}
+                  onChangeText={(v) => {
+                    setConfirmPassword(v);
+                    clearError();
+                  }}
+                  secureTextEntry={!showConfirmPassword}
+                  leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
+                  rightSlot={
+                    <TouchableOpacity
+                      onPress={() => setShowConfirmPassword((v) => !v)}
+                      activeOpacity={0.75}
+                    >
+                      {showConfirmPassword ? (
+                        <EyeOff color={colors.textSoft} size={18} />
+                      ) : (
+                        <Eye color={colors.textSoft} size={18} />
+                      )}
+                    </TouchableOpacity>
+                  }
+                  containerStyle={styles.inputContainer}
+                  style={styles.input}
+                />
+              </FieldGroup>
+            </View>
+
+            <AppCard variant="soft" compact style={styles.passwordPanel}>
+              <AppText
+                variant="caption"
+                style={[styles.passwordTitle, { color: colors.text }]}
+              >
+                Password must include:
+              </AppText>
+
+              <View style={styles.rulesGrid}>
+                <PasswordRule
+                  passed={passwordRules.length}
+                  label="8+ characters"
+                />
+                <PasswordRule
+                  passed={passwordRules.uppercase}
+                  label="Uppercase letter"
+                />
+                <PasswordRule passed={passwordRules.number} label="Number" />
+                <PasswordRule
+                  passed={passwordRules.special}
+                  label="Special character"
+                />
+                <PasswordRule
+                  passed={passwordRules.match}
+                  label="Passwords match"
+                />
+              </View>
+            </AppCard>
+
+            {error ? (
+              <AppText
+                variant="caption"
+                style={{ color: colors.danger, textAlign: "center" }}
+              >
+                {error}
+              </AppText>
+            ) : null}
+
+            <AppButton
+              title="Continue"
+              disabled={!step1Valid}
+              onPress={handleNext}
+              containerStyle={styles.primaryButtonContainer}
+              style={styles.primaryButton}
+            />
+          </>
+        ) : (
+          <>
+            <View style={styles.fields}>
+              <View style={[styles.phoneRow, isCompact && styles.stackRow]}>
+                <FieldGroup
+                  label="Country code"
+                  style={isCompact ? styles.stackRow : styles.countryCodeGroup}
+                >
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    onPress={() => setCountryPickerOpen(true)}
+                    style={[
+                      styles.countryCodeButton,
+                      isCompact && styles.countryCodeCompact,
+                      { backgroundColor: colors.surface },
+                    ]}
+                  >
+                    <FlagImage isoCode={countryIso} size={24} />
+
+                    <AppText
+                      numberOfLines={1}
+                      style={[styles.countryCodeText, { color: colors.text }]}
+                    >
+                      {countryCode}
+                    </AppText>
+
+                    <ChevronDown color={colors.textSoft} size={16} />
+                  </TouchableOpacity>
+                </FieldGroup>
+
+                <FieldGroup label="Phone number" style={styles.phoneInput}>
+                  <AppTextInput
+                    placeholder="Enter phone number"
+                    value={phone}
+                    onChangeText={(v) => {
+                      setPhone(v);
+                      clearError();
+                    }}
+                    keyboardType="phone-pad"
+                    leftSlot={<Phone color={colors.textSoft} size={18} />}
+                    containerStyle={styles.inputContainer}
+                    style={styles.input}
+                  />
+                </FieldGroup>
+              </View>
+
+              <SelectField
+                label="Date of birth"
+                value={dob}
+                placeholder="Select date"
+                leftSlot={<Calendar color={colors.textSoft} size={18} />}
+                onPress={() => setDatePickerOpen(true)}
+              />
+
+              {datePickerOpen && Platform.OS !== "web" ? (
+                <DateTimePicker
+                  value={dateOfBirth ?? maximumBirthDate}
+                  mode="date"
+                  display={Platform.OS === "ios" ? "spinner" : "default"}
+                  maximumDate={maximumBirthDate}
+                  onChange={handleNativeDateChange}
+                />
+              ) : null}
+
+              <SelectField
+                label="Country"
+                value={country}
+                placeholder="Select country"
+                leftSlot={<FlagImage isoCode={countryIso} size={24} />}
+                onPress={() => setCountryPickerOpen(true)}
+              />
+
+              <SelectField
+                label="State / Region"
+                value={state}
+                placeholder={
+                  country ? "Select state or region" : "Select country first"
+                }
+                disabled={!country}
+                leftSlot={<MapPin color={colors.textSoft} size={18} />}
+                onPress={() => setStatePickerOpen(true)}
+              />
+
+              <SelectField
+                label="City"
+                value={city}
+                placeholder={state ? "Select city" : "Select state first"}
+                disabled={!state}
+                leftSlot={<MapPin color={colors.textSoft} size={18} />}
+                onPress={() => setCityPickerOpen(true)}
+              />
+            </View>
+
+            <WebDatePickerModal
+              visible={datePickerOpen && Platform.OS === "web"}
+              value={dateOfBirth}
+              maximumDate={maximumBirthDate}
+              onClose={() => setDatePickerOpen(false)}
+              onSelect={handleWebDateSelect}
+            />
+
+            <CountryOptionModal
+              visible={countryPickerOpen}
+              options={countryOptions}
+              value={country}
+              onClose={() => setCountryPickerOpen(false)}
+              onSelect={(option) => {
+                handleCountrySelect(option);
+                setCountryPickerOpen(false);
+              }}
+            />
+
+            <OptionModal
+              title="Select state or region"
+              visible={statePickerOpen}
+              options={stateOptions}
+              value={state}
+              emptyText="No states found for this country."
+              onClose={() => setStatePickerOpen(false)}
+              onSelect={(option) => {
+                setState(option.name);
+                setStateCode(option.code);
+                setCity("");
+                clearError();
+                setStatePickerOpen(false);
+              }}
+            />
+
+            <OptionModal
+              title="Select city"
+              visible={cityPickerOpen}
+              options={cityOptions}
+              value={city}
+              emptyText="No cities found for this state."
+              onClose={() => setCityPickerOpen(false)}
+              onSelect={(option) => {
+                setCity(option.name);
+                clearError();
+                setCityPickerOpen(false);
+              }}
+            />
+
+            {error ? (
+              <AppText
+                variant="caption"
+                style={{ color: colors.danger, textAlign: "center" }}
+              >
+                {error}
+              </AppText>
+            ) : null}
+
+            <AppButton
+              title="Create account"
+              disabled={!step2Valid || isLoading}
+              onPress={handleRegister}
+              loading={isLoading}
+              containerStyle={styles.primaryButtonContainer}
+              style={styles.primaryButton}
+            />
+          </>
+        )}
+
+        <View style={styles.footer}>
+          <AppText variant="caption" tone="muted">
+            Already have a Telefya account?
+          </AppText>
+
+          <Link href="/auth/login" asChild>
+            <TouchableOpacity activeOpacity={0.75}>
+              <AppText
+                variant="caption"
+                tone="primary"
+                style={styles.authLink}
+              >
+                Sign in
+              </AppText>
+            </TouchableOpacity>
+          </Link>
+        </View>
+      </Animated.View>
     </AppScreen>
   );
 }
@@ -1217,17 +1227,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingTop: Spacing.four,
   },
+  topBar: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
   backBtn: {
-    width: 48,
-    height: 48,
+    width: 46,
+    height: 46,
     borderRadius: 16,
-    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "flex-start",
   },
   header: {
     gap: Spacing.three,
+    marginTop: Spacing.four,
   },
   stepWrap: {
     gap: Spacing.two,
@@ -1256,13 +1271,10 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   title: {
-    fontSize: 36,
-    lineHeight: 42,
-    fontWeight: "900",
-  },
-  titleCompact: {
-    fontSize: 31,
-    lineHeight: 37,
+    fontSize: 32,
+    lineHeight: 38,
+    fontWeight: "800",
+    letterSpacing: -0.7,
   },
   subtitle: {
     maxWidth: 430,
@@ -1271,6 +1283,16 @@ const styles = StyleSheet.create({
   fields: {
     width: "100%",
     gap: Spacing.three,
+    marginTop: Spacing.four,
+  },
+  fieldGroup: {
+    width: "100%",
+    gap: 7,
+  },
+  fieldLabel: {
+    fontSize: 12,
+    fontWeight: "800",
+    marginLeft: 2,
   },
   nameRow: {
     flexDirection: "column",
@@ -1286,11 +1308,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: Spacing.three,
   },
-  countryCodeButton: {
+  countryCodeGroup: {
     width: 126,
-    minHeight: 62,
-    borderRadius: 18,
-    borderWidth: 1,
+  },
+  countryCodeButton: {
+    minHeight: 58,
+    borderRadius: 16,
     paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
@@ -1312,16 +1335,16 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     width: "100%",
-    minHeight: 62,
-    borderRadius: 18,
+    minHeight: 58,
+    borderRadius: 16,
+    borderWidth: 0,
   },
   input: {
     fontSize: 16,
   },
   selectField: {
-    minHeight: 62,
-    borderRadius: 18,
-    borderWidth: 1,
+    minHeight: 58,
+    borderRadius: 16,
     paddingHorizontal: Spacing.four,
     flexDirection: "row",
     alignItems: "center",
@@ -1335,16 +1358,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.three,
   },
-  selectTextWrap: {
+  selectValue: {
     flex: 1,
     minWidth: 0,
-  },
-  selectLabel: {
-    marginBottom: 3,
-    fontSize: 11,
-    fontWeight: "900",
-  },
-  selectValue: {
     fontSize: 15,
     fontWeight: "700",
   },
@@ -1353,10 +1369,9 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(148, 163, 184, 0.18)",
   },
   passwordPanel: {
-    borderWidth: 1,
-    borderRadius: 20,
-    padding: Spacing.four,
     gap: Spacing.three,
+    marginTop: Spacing.three,
+    borderRadius: 18,
   },
   passwordTitle: {
     fontWeight: "900",
@@ -1369,47 +1384,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.two,
   },
+  primaryButtonContainer: {
+    width: "100%",
+    maxWidth: 340,
+    alignSelf: "center",
+    marginTop: Spacing.four,
+  },
   primaryButton: {
-    minHeight: 60,
-    borderRadius: 999,
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.three,
-  },
-  divider: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  dividerLabel: {
-    flexShrink: 0,
-  },
-  socialStack: {
-    gap: Spacing.three,
-  },
-  socialBtn: {
-    minHeight: 58,
+    minHeight: 54,
     borderRadius: 18,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.four,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.three,
-  },
-  socialLabel: {
-    flexShrink: 1,
-    fontSize: 15,
   },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 4,
+    alignItems: "center",
+    gap: 5,
     flexWrap: "wrap",
+    marginTop: Spacing.five,
   },
   authLink: {
-    fontWeight: "900",
+    fontWeight: "800",
   },
   modalBackdrop: {
     flex: 1,
@@ -1418,10 +1412,18 @@ const styles = StyleSheet.create({
   },
   modalSheet: {
     maxHeight: "86%",
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     padding: Spacing.four,
     gap: Spacing.three,
+  },
+  modalGrabber: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "rgba(148, 163, 184, 0.35)",
+    marginBottom: 2,
   },
   modalHeader: {
     minHeight: 36,
@@ -1433,9 +1435,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   searchBox: {
-    minHeight: 52,
-    borderRadius: 18,
-    borderWidth: 1,
+    minHeight: 50,
+    borderRadius: 16,
     paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",

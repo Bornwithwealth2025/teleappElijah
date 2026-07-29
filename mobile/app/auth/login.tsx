@@ -1,32 +1,26 @@
+// app/auth/login.tsx
 import React from "react";
-import useAuthStore from "@/store/authStore";
-import { FontAwesome } from "@expo/vector-icons";
-import { Link, router, type Href } from "expo-router";
+import { router, type Href } from "expo-router";
 import {
+  ArrowLeft,
   Check,
-  ChevronLeft,
   Eye,
   EyeOff,
   LockKeyhole,
   Mail,
+  ShieldCheck,
 } from "lucide-react-native";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, View, Animated } from "react-native";
 
+import { TelifierLogo } from "@/components/shared/TelifierLogo";
 import { AppButton } from "@/components/ui/AppButton";
+import { AppCard } from "@/components/ui/AppCard";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
-import { useSocialAuth } from "@/hooks/useSocialAuth";
-
-function GoogleLogo() {
-  return <FontAwesome name="google" size={20} color="#4285F4" />;
-}
-
-function AppleLogo({ color }: { color: string }) {
-  return <FontAwesome name="apple" size={22} color={color} />;
-}
+import useAuthStore from "@/store/authStore";
 
 function Checkbox({
   checked,
@@ -38,29 +32,57 @@ function Checkbox({
   const { colors } = useAppTheme();
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
-      <View
-        style={[
-          styles.checkboxBox,
-          { borderColor: checked ? colors.primary : colors.border },
-          checked && { backgroundColor: colors.primary },
-        ]}
-      >
-        {checked ? <Check color="#FFFFFF" size={12} strokeWidth={3} /> : null}
-      </View>
-    </TouchableOpacity>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      style={[
+        styles.checkboxBox,
+        {
+          borderColor: checked ? colors.primary : colors.border,
+          backgroundColor: checked ? colors.primary : "transparent",
+        },
+      ]}
+    >
+      {checked ? <Check color="#FFFFFF" size={13} strokeWidth={3} /> : null}
+    </Pressable>
   );
 }
 
 export default function LoginScreen() {
   const { colors } = useAppTheme();
-  const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
-  const [savePassword, setSavePassword] = React.useState(false);
-  const [showPassword, setShowPassword] = React.useState(false);
+
+  const login = useAuthStore((state) => state.login);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const error = useAuthStore((state) => state.error);
+  const clearError = useAuthStore((state) => state.clearError);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
-  const { googleReady, appleAvailable, signInWithGoogle, signInWithApple } =
-    useSocialAuth();
+  const [rememberDevice, setRememberDevice] = React.useState(true);
+  const [showPassword, setShowPassword] = React.useState(false);
+
+  const introOpacity = React.useRef(new Animated.Value(0)).current;
+
+  const introTranslateY = React.useRef(new Animated.Value(18)).current;
+
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(introOpacity, {
+        toValue: 1,
+        duration: 420,
+        useNativeDriver: true,
+      }),
+      Animated.spring(introTranslateY, {
+        toValue: 0,
+        damping: 17,
+        stiffness: 150,
+        mass: 0.8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [introOpacity, introTranslateY]);
 
   React.useEffect(() => {
     if (isAuthenticated) {
@@ -68,185 +90,190 @@ export default function LoginScreen() {
     }
   }, [isAuthenticated]);
 
-  const handleLogin = async () => {
+  async function handleLogin() {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !password) return;
+
     try {
       await login({
-        email: email.trim().toLowerCase(),
+        email: normalizedEmail,
         password,
       });
 
       router.replace("/(tabs)");
-    } catch {}
-  };
+    } catch {
+      // AuthStore exposes the backend error to the screen.
+    }
+  }
 
   return (
-    <AppScreen contentStyle={styles.content}>
-      <TouchableOpacity
-        onPress={() => router.back()}
+    <AppScreen keyboardShouldPersistTaps="always" contentStyle={styles.content}>
+      <View style={styles.topRow}>
+        <Pressable
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace("/welcome");
+            }
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={[
+            styles.backButton,
+            {
+              backgroundColor: colors.surface,
+            },
+          ]}
+        >
+          <ArrowLeft color={colors.text} size={20} />
+        </Pressable>
+
+        <TelifierLogo size="sm" />
+      </View>
+
+      <Animated.View
         style={[
-          styles.backBtn,
-          { backgroundColor: colors.surface, borderColor: colors.border },
+          styles.intro,
+          {
+            opacity: introOpacity,
+            transform: [{ translateY: introTranslateY }],
+          },
         ]}
-        activeOpacity={0.75}
       >
-        <ChevronLeft color={colors.text} size={23} />
-      </TouchableOpacity>
-
-      <View style={styles.header}>
-        <AppText variant="display" style={[styles.title, { color: colors.text }]}>
-          Welcome back
+        <AppText variant="overline" tone="primary">
+          TELEFYA WORKSPACE
         </AppText>
 
-        <AppText variant="caption" tone="muted" style={styles.subtitle}>
-          Sign in to continue managing secure meetings, rooms, and connections.
+        <AppText variant="display" style={styles.title}>
+          Welcome back.
         </AppText>
-      </View>
 
-      <View style={styles.fields}>
-        <AppTextInput
-          placeholder="Email address"
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={email}
-          onChangeText={(value) => {
-            setEmail(value);
-            clearError();
-          }}
-          leftSlot={<Mail color={colors.textSoft} size={20} />}
-          containerStyle={styles.inputContainer}
-          style={styles.input}
-        />
+        <AppText variant="body" tone="muted" style={styles.subtitle}>
+          Sign in to manage secure meetings, rooms, and connections.
+        </AppText>
+      </Animated.View>
 
-        <AppTextInput
-          placeholder="Password"
-          secureTextEntry={!showPassword}
-          value={password}
-          onChangeText={(value) => {
-            setPassword(value);
-            clearError();
-          }}
-          leftSlot={<LockKeyhole color={colors.textSoft} size={20} />}
-          rightSlot={
-            <TouchableOpacity
-              onPress={() => setShowPassword((value) => !value)}
-              activeOpacity={0.75}
-            >
-              {showPassword ? (
-                <EyeOff color={colors.textSoft} size={20} />
-              ) : (
-                <Eye color={colors.textSoft} size={20} />
-              )}
-            </TouchableOpacity>
-          }
-          containerStyle={styles.inputContainer}
-          style={styles.input}
-        />
-      </View>
-
-      <View style={styles.metaRow}>
-        <View style={styles.rememberRow}>
-          <Checkbox
-            checked={savePassword}
-            onPress={() => setSavePassword((value) => !value)}
-          />
-          <AppText variant="caption" tone="muted">
-            Save password
+      <AppCard variant="default" elevated style={styles.formCard}>
+        <View style={styles.trustRow}>
+          <ShieldCheck color={colors.success} size={17} />
+          <AppText variant="caption" tone="success">
+            Secure workspace access
           </AppText>
         </View>
 
-        <TouchableOpacity
-          activeOpacity={0.75}
-          onPress={() => router.push("/auth/forgot-password" as Href)}
-        >
-          <AppText
-            variant="caption"
-            style={[styles.forgotLink, { color: colors.primary }]}
+        <View style={styles.fields}>
+          <AppTextInput
+            label="Email address"
+            placeholder="you@company.com"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            value={email}
+            onChangeText={(value) => {
+              setEmail(value);
+              clearError();
+            }}
+            leftSlot={<Mail color={colors.textSoft} size={19} />}
+            containerStyle={styles.inputContainer}
+          />
+
+          <AppTextInput
+            label="Password"
+            placeholder="Enter your password"
+            secureTextEntry={!showPassword}
+            textContentType="password"
+            value={password}
+            onChangeText={(value) => {
+              setPassword(value);
+              clearError();
+            }}
+            leftSlot={<LockKeyhole color={colors.textSoft} size={19} />}
+            rightSlot={
+              <Pressable
+                onPress={() => setShowPassword((value) => !value)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showPassword ? "Hide password" : "Show password"
+                }
+                hitSlop={8}
+              >
+                {showPassword ? (
+                  <EyeOff color={colors.textSoft} size={19} />
+                ) : (
+                  <Eye color={colors.textSoft} size={19} />
+                )}
+              </Pressable>
+            }
+            containerStyle={styles.inputContainer}
+          />
+        </View>
+
+        <View style={styles.metaRow}>
+          <Pressable
+            onPress={() => setRememberDevice((value) => !value)}
+            style={styles.rememberRow}
           >
-            Forgot password?
-          </AppText>
-        </TouchableOpacity>
-      </View>
-
-      {error ? (
-        <AppText
-          variant="caption"
-          style={[styles.errorText, { color: colors.danger }]}
-        >
-          {error}
-        </AppText>
-      ) : null}
-
-      <AppButton
-        title="Sign In"
-        onPress={handleLogin}
-        loading={isLoading}
-        disabled={!email.trim() || !password || isLoading}
-        style={styles.primaryButton}
-      />
-
-      <View style={styles.dividerRow}>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-        <AppText variant="caption" tone="muted" style={styles.dividerLabel}>
-          Or continue with
-        </AppText>
-        <View style={[styles.divider, { backgroundColor: colors.border }]} />
-      </View>
-
-      <View style={styles.socialStack}>
-        <TouchableOpacity
-          style={[
-            styles.socialBtn,
-            { backgroundColor: colors.card, borderColor: colors.border },
-          ]}
-          activeOpacity={0.75}
-          disabled={!googleReady || isLoading}
-          onPress={signInWithGoogle}
-        >
-          <GoogleLogo />
-          <AppText
-            variant="bodyStrong"
-            style={[styles.socialLabel, { color: colors.text }]}
-          >
-            Continue with Google
-          </AppText>
-        </TouchableOpacity>
-
-        {appleAvailable ? (
-          <TouchableOpacity
-            style={[
-              styles.socialBtn,
-              { backgroundColor: colors.card, borderColor: colors.border },
-            ]}
-            activeOpacity={0.75}
-            disabled={isLoading}
-            onPress={signInWithApple}
-          >
-            <AppleLogo color={colors.text} />
-            <AppText
-              variant="bodyStrong"
-              style={[styles.socialLabel, { color: colors.text }]}
-            >
-              Continue with Apple
+            <Checkbox
+              checked={rememberDevice}
+              onPress={() => setRememberDevice((value) => !value)}
+            />
+            <AppText variant="caption" tone="muted">
+              Keep me signed in
             </AppText>
-          </TouchableOpacity>
+          </Pressable>
+
+          <Pressable
+            onPress={() => router.push("/auth/forget-password" as Href)}
+            hitSlop={8}
+          >
+            <AppText variant="caption" tone="primary" style={styles.link}>
+              Forgot password?
+            </AppText>
+          </Pressable>
+        </View>
+
+        {error ? (
+          <View
+            style={[
+              styles.errorBox,
+              {
+                backgroundColor: colors.surface,
+                borderColor: colors.danger,
+              },
+            ]}
+          >
+            <AppText variant="caption" tone="danger">
+              {error}
+            </AppText>
+          </View>
         ) : null}
-      </View>
+
+        <AppButton
+          title="Sign in"
+          loading={isLoading}
+          disabled={!email.trim() || !password || isLoading}
+          onPress={handleLogin}
+          containerStyle={styles.buttonContainer}
+          style={styles.button}
+        />
+      </AppCard>
 
       <View style={styles.footer}>
         <AppText variant="caption" tone="muted">
-          Don&apos;t have an account?
+          Don't have a Telefya account?
         </AppText>
 
-        <Link href="/auth/register" asChild>
-          <TouchableOpacity activeOpacity={0.75}>
-            <AppText
-              variant="caption"
-              style={[styles.authLink, { color: colors.primary }]}
-            >
-              Sign Up.
-            </AppText>
-          </TouchableOpacity>
-        </Link>
+        <Pressable
+          onPress={() => router.push("/auth/register" as Href)}
+          hitSlop={8}
+        >
+          <AppText variant="caption" tone="primary" style={styles.link}>
+            Create one
+          </AppText>
+        </Pressable>
       </View>
     </AppScreen>
   );
@@ -257,43 +284,58 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: "center",
     gap: Spacing.five,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.five,
+    paddingTop: Spacing.four,
     paddingBottom: Spacing.six,
   },
-  backBtn: {
-    width: 48,
-    height: 48,
+
+  topRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  backButton: {
+    width: 46,
+    height: 46,
     borderRadius: 16,
-    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
-    alignSelf: "flex-start",
   },
-  header: {
+
+  intro: {
     gap: Spacing.two,
   },
+
   title: {
-    fontSize: 36,
-    lineHeight: 42,
-    fontWeight: "900",
+    letterSpacing: -1,
   },
+
   subtitle: {
-    maxWidth: 430,
-    lineHeight: 22,
+    maxWidth: 390,
+    lineHeight: 23,
   },
+
+  formCard: {
+    gap: Spacing.four,
+    borderRadius: 22,
+  },
+
+  trustRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+
   fields: {
-    width: "100%",
     gap: Spacing.three,
   },
+
   inputContainer: {
-    width: "100%",
-    minHeight: 62,
-    borderRadius: 18,
+    borderRadius: 16,
+    borderWidth: 0,
   },
-  input: {
-    fontSize: 16,
-  },
+
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -301,11 +343,13 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     flexWrap: "wrap",
   },
+
   rememberRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
   },
+
   checkboxBox: {
     width: 20,
     height: 20,
@@ -314,53 +358,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  forgotLink: {
+
+  link: {
     fontWeight: "800",
   },
-  errorText: {
-    textAlign: "center",
-    fontWeight: "700",
-  },
-  primaryButton: {
-    minHeight: 60,
-    borderRadius: 999,
-  },
-  dividerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.three,
-  },
-  divider: {
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  dividerLabel: {
-    flexShrink: 0,
-  },
-  socialStack: {
-    gap: Spacing.three,
-  },
-  socialBtn: {
-    minHeight: 58,
-    borderRadius: 18,
+
+  errorBox: {
     borderWidth: 1,
-    paddingHorizontal: Spacing.four,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.three,
+    borderRadius: Radius.small,
+    padding: Spacing.three,
   },
-  socialLabel: {
-    flexShrink: 1,
-    fontSize: 15,
+
+  buttonContainer: {
+    width: "100%",
+    maxWidth: 340,
+    alignSelf: "center",
+    marginTop: Spacing.one,
   },
+
+  button: {
+    minHeight: 54,
+    borderRadius: 18,
+  },
+
   footer: {
     flexDirection: "row",
     justifyContent: "center",
-    gap: 4,
+    alignItems: "center",
+    gap: 5,
     flexWrap: "wrap",
-  },
-  authLink: {
-    fontWeight: "900",
   },
 });

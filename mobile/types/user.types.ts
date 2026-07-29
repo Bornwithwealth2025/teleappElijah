@@ -1,44 +1,57 @@
-export interface ApiResponse<T = undefined> {
+export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;
-  status: number;
+  status?: number;
   error?: string | boolean;
   data?: T;
 }
 
 export interface UserProfile {
+  id?: string | number;
   user_id: string;
   first_name: string;
   last_name: string;
   email: string;
-  phone_number: string;
-  country: string;
-  state: string;
-  city: string;
-  date_of_birth: string;
-  profile_image: string | null;
-  is_verified: number;
+  phone_number?: string | null;
+  country?: string | null;
+  state?: string | null;
+  city?: string | null;
+  date_of_birth?: string | null;
+  profile_image?: string | null;
+  is_verified: number | boolean;
+  role?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ScheduledMeeting {
-  id: number;
+  id: number | string;
   meeting_url: string;
-  shedular_user_id: string;
-  time_zone: string;
-  created_at: string;
-  updated_at: string;
+  shedular_user_id?: string;
+  scheduler_user_id?: string;
+  time_zone?: string;
+  des?: string;
+  created_at?: string;
+  updated_at?: string;
   date?: string;
+  title?: string;
+  status?: string;
 }
 
 export interface ScheduleMeetingRequest {
   date: string;
   timeZone: string;
-  meeting_url: string;
+  path: string;
+  des?: string;
 }
 
 export interface ScheduleMeetingData {
+  id?: number | string;
   meeting_url: string;
-  time_zone: string;
+  time_zone?: string;
+  shedular_user_id?: string;
+  des?: string;
+  created_at?: string;
 }
 
 export interface DeleteMeetingRequest {
@@ -47,13 +60,24 @@ export interface DeleteMeetingRequest {
 
 export interface UploadProfileImageResponse {
   success: boolean;
-  error: boolean | string;
+  error?: boolean | string;
   message: string;
-  image: string;
-  status: number;
+  image?: string;
+  status?: number;
+  data?: {
+    image?: string;
+    profile_image?: string;
+  };
 }
 
-export type GetProfileResponse = ApiResponse<UserProfile>;
-export type ScheduleMeetingResponse = ApiResponse<ScheduleMeetingData>;
-export type GetMeetingsResponse = ApiResponse<ScheduledMeeting[]>;
-export type DeleteMeetingsResponse = ApiResponse;
+export type GetProfileResponse =
+  ApiResponse<UserProfile>;
+
+export type ScheduleMeetingResponse =
+  ApiResponse<ScheduleMeetingData>;
+
+export type GetMeetingsResponse =
+  ApiResponse<ScheduledMeeting[]>;
+
+export type DeleteMeetingsResponse =
+  ApiResponse<undefined>;

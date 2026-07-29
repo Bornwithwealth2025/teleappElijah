@@ -1,18 +1,35 @@
 export type MediaKind = "audio" | "video";
 export type TransportDirection = "send" | "recv";
-
 export type JsonRecord = Record<string, unknown>;
+
+export interface MeetingParticipant {
+  userId: string;
+  userName: string;
+  micOn?: boolean;
+  cameraOn?: boolean;
+  isHost?: boolean;
+}
 
 export interface JoinRoomRequest {
   roomId: string;
   userId: string;
   userName: string;
+  isHost?: boolean;
+  isBot?: boolean;
+  micOn?: boolean;
+  cameraOn?: boolean;
 }
 
 export interface JoinRoomResponse {
   success: boolean;
-  rtpCapabilities: JsonRecord;
+  roomId: string;
+  userId: string;
+  userName: string;
   isHost: boolean;
+  rtpCapabilities: JsonRecord;
+  participants: MeetingParticipant[];
+  billing?: JsonRecord;
+  error?: string;
 }
 
 export interface CreateTransportRequest {
@@ -20,8 +37,10 @@ export interface CreateTransportRequest {
 }
 
 export interface CreateTransportResponse {
+  success?: boolean;
   transportParams: JsonRecord;
-  direction: string;
+  direction: TransportDirection;
+  error?: string;
 }
 
 export interface ConnectTransportRequest {
@@ -37,9 +56,9 @@ export interface ProduceRequest {
 }
 
 export interface ProduceResponse {
-  id?: string;
-  producerId?: string;
-  [key: string]: unknown;
+  success?: boolean;
+  producerId: string;
+  error?: string;
 }
 
 export interface ConsumeRequest {
@@ -50,26 +69,32 @@ export interface ConsumeRequest {
 }
 
 export interface ConsumeResponse {
-  id?: string;
-  consumerId?: string;
-  producerId?: string;
-  kind?: MediaKind;
-  rtpParameters?: JsonRecord;
-  [key: string]: unknown;
+  success?: boolean;
+  producerId: string;
+  consumer: {
+    id: string;
+    producerId: string;
+    kind: MediaKind;
+    rtpParameters: JsonRecord;
+    appData?: JsonRecord;
+  };
+  appData?: JsonRecord;
+  error?: string;
 }
 
 export interface LeaveRoomRequest {
-  roomId: string;
-  userId: string;
+  roomId?: string;
+  userId?: string;
 }
 
 export interface ResumeConsumeRequest {
   consumerId: string;
-  userId: string;
 }
 
 export interface ResumeConsumeResponse {
+  success?: boolean;
   consumerId: string;
+  error?: string;
 }
 
 export interface MuteAllRequest {
@@ -79,8 +104,9 @@ export interface MuteAllRequest {
 }
 
 export interface RaiseHandRequest {
+  roomId: string;
   userId: string;
-  handup: boolean;
+  userName: string;
 }
 
 export interface StopMyScreenShareConsumerRequest {
@@ -89,21 +115,18 @@ export interface StopMyScreenShareConsumerRequest {
 
 export interface StopMyScreenShareConsumerResponse {
   userId: string;
+  error?: string;
 }
 
 export interface StopScreenShareRequest {
   userId: string;
-  screenProducerIds: string[];
+  screenProducerIds?: string[];
 }
 
 export interface StopScreenShareResponse {
   userId: string;
-  message: string;
-}
-
-export interface DisconnectResponse {
-  userId: string;
-  message: string;
+  message?: string;
+  error?: string;
 }
 
 export interface SendMessageRequest {

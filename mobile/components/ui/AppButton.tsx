@@ -1,20 +1,39 @@
+import React, { useRef } from "react";
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   StyleSheet,
   View,
   type GestureResponderEvent,
   type PressableProps,
+  type StyleProp,
   type ViewStyle,
 } from "react-native";
 
-import { Radius, Spacing, verticalScale } from "@/constants/theme";
+import {
+  FontFamily,
+  FontSize,
+  FontWeight,
+  Motion,
+  Radius,
+  Shadows,
+  Spacing,
+  verticalScale,
+} from "@/constants/theme";
 import { useFeedback } from "@/contexts/feedback-context";
 import { useAppTheme } from "@/hooks/use-app-themes";
+
 import { AppText } from "./AppText";
 
-type AppButtonVariant = "primary" | "secondary" | "ghost" | "danger";
-type AppButtonSize = "md" | "lg";
+type AppButtonVariant =
+  | "primary"
+  | "secondary"
+  | "outline"
+  | "ghost"
+  | "danger";
+
+type AppButtonSize = "sm" | "md" | "lg";
 
 type AppButtonProps = PressableProps & {
   title: string;
@@ -23,7 +42,7 @@ type AppButtonProps = PressableProps & {
   loading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
-  containerStyle?: ViewStyle;
+  containerStyle?: StyleProp<ViewStyle>;
 };
 
 export function AppButton({
@@ -37,73 +56,128 @@ export function AppButton({
   containerStyle,
   style,
   onPress,
+  onPressIn,
+  onPressOut,
+  accessibilityLabel,
   ...props
 }: AppButtonProps) {
   const { colors } = useAppTheme();
   const feedback = useFeedback();
-  const isDisabled = disabled || loading;
+  const scale = useRef(new Animated.Value(1)).current;
 
-  const variantStyle = {
+  const isDisabled = disabled || loading;
+  const isStrong = variant === "primary" || variant === "danger";
+
+  const palette = {
     primary: {
       backgroundColor: colors.primary,
       borderColor: colors.primary,
+      textColor: "#FFFFFF",
     },
     secondary: {
-      backgroundColor: colors.secondarySoft,
-      borderColor: colors.border,
+      backgroundColor: colors.primarySoft,
+      borderColor: colors.primarySoft,
+      textColor: colors.primaryDeep,
+    },
+    outline: {
+      backgroundColor: colors.card,
+      borderColor: colors.borderStrong,
+      textColor: colors.text,
     },
     ghost: {
       backgroundColor: "transparent",
-      borderColor: colors.border,
+      borderColor: "transparent",
+      textColor: colors.primary,
     },
     danger: {
       backgroundColor: colors.danger,
       borderColor: colors.danger,
+      textColor: "#FFFFFF",
     },
   }[variant];
 
-  const textColor =
-    variant === "primary" || variant === "danger" ? "#FFFFFF" : colors.text;
+  function animateTo(value: number) {
+    Animated.spring(scale, {
+      toValue: value,
+      damping: Motion.spring.damping,
+      stiffness: Motion.spring.stiffness,
+      mass: Motion.spring.mass,
+      useNativeDriver: true,
+    }).start();
+  }
 
   function handlePress(event: GestureResponderEvent) {
-    if (!isDisabled) {
-      feedback.tap();
-      onPress?.(event);
-    }
+    if (isDisabled) return;
+
+    feedback.tap();
+    onPress?.(event);
   }
 
   return (
     <View style={[styles.container, containerStyle]}>
       <Pressable
         {...props}
-        onPress={handlePress}
         disabled={isDisabled}
-        style={({ pressed }) => [
-          styles.base,
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? title}
+        onPress={handlePress}
+        onPressIn={(event) => {
+          animateTo(0.975);
+          onPressIn?.(event);
+        }}
+        onPressOut={(event) => {
+          animateTo(1);
+          onPressOut?.(event);
+        }}
+        style={[
+          styles.pressable,
           styles[size],
-          variantStyle,
+          {
+            borderColor: palette.borderColor,
+            backgroundColor: palette.backgroundColor,
+          },
+          isStrong && Shadows.soft,
           isDisabled && styles.disabled,
-          pressed && !isDisabled && styles.pressed,
           typeof style === "function"
-            ? style({ pressed, hovered: false })
+            ? style({
+                pressed: false,
+                hovered: false,
+                focused: false,
+              })
             : style,
         ]}
       >
-        {loading ? (
-          <ActivityIndicator color={textColor} />
-        ) : (
-          <>
-            {leftIcon}
-            <AppText
-              variant="bodyStrong"
-              numberOfLines={1}
-              style={[styles.title, { color: textColor }]}
-            >
-              {title}
-            </AppText>
-            {rightIcon}
-          </>
-        )}
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              transform: [{ scale }],
+            },
+          ]}
+        >
+          {loading ? (
+            <ActivityIndicator color={palette.textColor} />
+          ) : (
+            <>
+              {leftIcon}
+
+              <AppText
+                variant="button"
+                numberOfLines={1}
+                style={[
+                  styles.title,
+                  {
+                    color: palette.textColor,
+                  },
+                ]}
+              >
+                {title}
+              </AppText>
+
+              {rightIcon}
+            </>
+          )}
+        </Animated.View>
       </Pressable>
     </View>
   );
@@ -113,30 +187,39 @@ const styles = StyleSheet.create({
   container: {
     width: "100%",
   },
-  base: {
+  pressable: {
+    overflow: "hidden",
     borderWidth: 1,
     borderRadius: Radius.medium,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
+  },
+  sm: {
+    minHeight: verticalScale(40),
   },
   md: {
-    minHeight: verticalScale(44),
+    minHeight: verticalScale(48),
   },
   lg: {
-    minHeight: verticalScale(52),
+    minHeight: verticalScale(56),
+  },
+  content: {
+    flex: 1,
+    minHeight: "100%",
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    paddingHorizontal: Spacing.five,
   },
   title: {
-    textAlign: "center",
     flexShrink: 1,
-  },
-  pressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.99 }],
+    fontFamily: FontFamily.bold,
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.bold,
+    letterSpacing: 0.1,
+    textAlign: "center",
   },
   disabled: {
-    opacity: 0.55,
+    opacity: 0.48,
   },
 });
