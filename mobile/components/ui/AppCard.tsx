@@ -2,13 +2,12 @@ import React, { useEffect, useRef } from "react";
 import {
   Animated,
   StyleSheet,
-  View,
   type ViewProps,
 } from "react-native";
 
+import { cn } from "@/lib/cn";
 import {
   Motion,
-  Radius,
   Shadows,
   Spacing,
 } from "@/constants/theme";
@@ -26,6 +25,7 @@ type AppCardProps = ViewProps & {
   compact?: boolean;
   animated?: boolean;
   variant?: AppCardVariant;
+  className?: string;
 };
 
 export function AppCard({
@@ -34,6 +34,7 @@ export function AppCard({
   compact = false,
   animated = true,
   variant = "default",
+  className,
   style,
   children,
   ...props
@@ -46,7 +47,14 @@ export function AppCard({
   ).current;
 
   useEffect(() => {
-    if (!animated) return;
+    if (!animated) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      return;
+    }
+
+    opacity.setValue(0);
+    translateY.setValue(8);
 
     Animated.parallel([
       Animated.timing(opacity, {
@@ -87,13 +95,13 @@ export function AppCard({
   return (
     <Animated.View
       {...props}
+      className={cn(
+        "overflow-hidden border rounded-card",
+        padded && (compact ? "p-3" : "p-5"),
+        className,
+      )}
       style={[
-        styles.base,
         surfaceStyle,
-        padded &&
-          (compact
-            ? styles.compactPadded
-            : styles.padded),
         elevated && !isDark && Shadows.card,
         {
           opacity,
@@ -106,17 +114,3 @@ export function AppCard({
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  base: {
-    overflow: "hidden",
-    borderWidth: 1,
-    borderRadius: Radius.card,
-  },
-  padded: {
-    padding: Spacing.five,
-  },
-  compactPadded: {
-    padding: Spacing.three,
-  },
-});

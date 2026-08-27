@@ -307,7 +307,7 @@ export default function RecordingDetailScreen() {
             {recording.thumbnailUrl ? (
               <Image
                 source={{ uri: recording.thumbnailUrl }}
-                style={StyleSheet.absoluteFillObject}
+                style={StyleSheet.absoluteFill}
                 resizeMode="cover"
               />
             ) : (
@@ -510,7 +510,7 @@ const styles = StyleSheet.create({
   },
 
   previewOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(3, 10, 24, 0.3)",
   },
 

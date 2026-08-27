@@ -1,4 +1,3 @@
-// components/ui/AppTextInput.tsx
 import React, { useRef, useState, type ReactNode } from "react";
 import {
   Pressable,
@@ -11,8 +10,14 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { Radius, Spacing, verticalScale } from "@/constants/theme";
+import { cn } from "@/lib/cn";
+import {
+  Radius,
+  Spacing,
+  verticalScale,
+} from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
+
 import { AppText } from "./AppText";
 
 type AppTextInputProps = TextInputProps & {
@@ -22,6 +27,8 @@ type AppTextInputProps = TextInputProps & {
   rightSlot?: ReactNode;
   containerStyle?: StyleProp<ViewStyle>;
   style?: StyleProp<TextStyle>;
+  className?: string;
+  inputClassName?: string;
 };
 
 export function AppTextInput({
@@ -31,6 +38,8 @@ export function AppTextInput({
   rightSlot,
   containerStyle,
   style,
+  className,
+  inputClassName,
   placeholderTextColor,
   editable = true,
   multiline = false,
@@ -42,16 +51,16 @@ export function AppTextInput({
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
 
-  const focusInput = () => {
+  function focusInput() {
     if (editable) {
       inputRef.current?.focus();
     }
-  };
+  }
 
   return (
-    <View style={[styles.root, containerStyle]}>
+    <View className={cn("gap-2", className)} style={containerStyle}>
       {label ? (
-        <AppText variant="caption" tone="muted" style={styles.label}>
+        <AppText variant="caption" tone="muted">
           {label}
         </AppText>
       ) : null}
@@ -59,22 +68,34 @@ export function AppTextInput({
       <Pressable
         onPress={focusInput}
         accessible={false}
+        className={cn(
+          "flex-row items-center border rounded-ui px-4",
+          multiline && "items-start py-3",
+          !editable && "opacity-65",
+        )}
         style={[
-          styles.shell,
-          multiline && styles.multilineShell,
           {
+            minHeight: multiline
+              ? verticalScale(116)
+              : verticalScale(54),
             backgroundColor: editable ? colors.card : colors.surface,
             borderColor: error
               ? colors.danger
               : focused
                 ? colors.primary
                 : colors.border,
-            opacity: editable ? 1 : 0.65,
           },
-          focused && { shadowColor: colors.focusRing, ...styles.focused },
+          focused && {
+            shadowColor: colors.focusRing,
+            ...styles.focused,
+          },
         ]}
       >
-        {leftSlot ? <View style={styles.leftSlot}>{leftSlot}</View> : null}
+        {leftSlot ? (
+          <View className="items-center justify-center mr-3">
+            {leftSlot}
+          </View>
+        ) : null}
 
         <TextInput
           ref={inputRef}
@@ -92,19 +113,35 @@ export function AppTextInput({
           placeholderTextColor={placeholderTextColor ?? colors.textSoft}
           selectionColor={colors.primary}
           cursorColor={colors.primary}
+          className={cn(
+            "flex-1 min-w-0 text-base leading-[22px] py-0",
+            multiline && "min-h-[90px] pt-1 text-top",
+            inputClassName,
+          )}
           style={[
-            styles.input,
-            multiline && styles.multilineInput,
-            { color: colors.text },
+            {
+              minHeight: multiline
+                ? verticalScale(90)
+                : verticalScale(52),
+              color: colors.text,
+            },
             style,
           ]}
         />
 
-        {rightSlot ? <View style={styles.rightSlot}>{rightSlot}</View> : null}
+        {rightSlot ? (
+          <View className="items-center justify-center ml-3">
+            {rightSlot}
+          </View>
+        ) : null}
       </Pressable>
 
       {error ? (
-        <AppText variant="caption" tone="danger" style={styles.error}>
+        <AppText
+          variant="caption"
+          tone="danger"
+          style={{ marginTop: -Spacing.one }}
+        >
           {error}
         </AppText>
       ) : null}
@@ -113,60 +150,10 @@ export function AppTextInput({
 }
 
 const styles = StyleSheet.create({
-  root: {
-    gap: Spacing.two,
-  },
-  label: {
-    fontWeight: "600",
-  },
-  shell: {
-    minHeight: verticalScale(54),
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: Spacing.four,
-  },
-  multilineShell: {
-    minHeight: verticalScale(116),
-    alignItems: "flex-start",
-    paddingVertical: Spacing.three,
-  },
   focused: {
     shadowOpacity: 0.6,
     shadowRadius: 4,
     shadowOffset: { width: 0, height: 0 },
     elevation: 1,
-  },
-  input: {
-    flex: 1,
-    minWidth: 0,
-    minHeight: verticalScale(52),
-    fontSize: 16,
-    lineHeight: 22,
-    paddingVertical: 0,
-    includeFontPadding: false,
-  },
-  multilineInput: {
-    minHeight: verticalScale(90),
-    paddingTop: Spacing.one,
-    textAlignVertical: "top",
-  },
-  leftSlot: {
-    minWidth: 20,
-    minHeight: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: Spacing.three,
-  },
-  rightSlot: {
-    minWidth: 20,
-    minHeight: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: Spacing.three,
-  },
-  error: {
-    marginTop: -Spacing.one,
   },
 });

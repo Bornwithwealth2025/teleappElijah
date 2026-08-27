@@ -45,10 +45,7 @@ export function MeetingActionPanel() {
   }
 
   return (
-    <AppCard
-      elevated
-      style={styles.card}
-    >
+    <AppCard elevated style={styles.card}>
       <View style={styles.topRow}>
         <View
           style={[
@@ -59,31 +56,19 @@ export function MeetingActionPanel() {
             },
           ]}
         >
-          <Video
-            color={colors.primary}
-            size={23}
-          />
+          <Video color={colors.primary} size={21} />
         </View>
 
         <View style={styles.copyWrap}>
           <View style={styles.liveRow}>
-            <CircleCheck
-              color={colors.success}
-              size={14}
-            />
+            <CircleCheck color={colors.success} size={13} />
 
-            <AppText
-              variant="overline"
-              tone="primary"
-            >
+            <AppText variant="overline" tone="primary">
               READY WHEN YOU ARE
             </AppText>
           </View>
 
-          <AppText
-            variant="sectionTitle"
-            style={styles.title}
-          >
+          <AppText variant="sectionTitle" style={styles.title}>
             Meet with confidence.
           </AppText>
 
@@ -92,7 +77,7 @@ export function MeetingActionPanel() {
             tone="muted"
             style={styles.copy}
           >
-            Start a secure room now or schedule a shareable link for later.
+            Start now or schedule a shareable link for later.
           </AppText>
         </View>
       </View>
@@ -102,24 +87,21 @@ export function MeetingActionPanel() {
           title="Start instant meeting"
           size={SCREEN.isShortHeight ? "md" : "lg"}
           onPress={handleStartMeeting}
-          leftIcon={
-            <Plus
-              color="#FFFFFF"
-              size={19}
-            />
-          }
+          leftIcon={<Plus color="#FFFFFF" size={19} />}
         />
 
         <View style={styles.secondaryActions}>
           <AppButton
-            title="Schedule meeting"
+            title="Schedule"
             variant="secondary"
             size="md"
+            fullWidth={false}
+            containerStyle={styles.secondaryAction}
             onPress={handleCreateLink}
             leftIcon={
               <CalendarPlus
                 color={colors.primaryDeep}
-                size={18}
+                size={17}
               />
             }
           />
@@ -128,12 +110,11 @@ export function MeetingActionPanel() {
             title="Create link"
             variant="outline"
             size="md"
+            fullWidth={false}
+            containerStyle={styles.secondaryAction}
             onPress={handleCreateLink}
             leftIcon={
-              <Link2
-                color={colors.text}
-                size={18}
-              />
+              <Link2 color={colors.text} size={17} />
             }
           />
         </View>
@@ -144,53 +125,48 @@ export function MeetingActionPanel() {
 
 const styles = StyleSheet.create({
   card: {
-    gap: SCREEN.isShortHeight
-      ? Spacing.three
-      : Spacing.four,
+    gap: Spacing.three,
   },
-
   topRow: {
     flexDirection: "row",
     alignItems: "flex-start",
     gap: Spacing.three,
   },
-
   iconShell: {
-    width: 48,
-    height: 48,
+    width: 46,
+    height: 46,
     borderWidth: 1,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
-
   copyWrap: {
     flex: 1,
     minWidth: 0,
   },
-
   liveRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.one,
   },
-
   title: {
     marginTop: Spacing.one,
   },
-
   copy: {
-    marginTop: Spacing.one,
+    marginTop: 2,
     maxWidth: 300,
-    lineHeight: 20,
+    lineHeight: 19,
   },
-
   actions: {
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
-
   secondaryActions: {
     flexDirection: "row",
+    width: "100%",
     gap: Spacing.two,
+  },
+  secondaryAction: {
+    flex: 1,
+    minWidth: 0,
   },
 });

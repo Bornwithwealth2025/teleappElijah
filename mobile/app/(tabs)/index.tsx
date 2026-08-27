@@ -98,6 +98,7 @@ export default function HomeScreen() {
   return (
     <AppScreen contentStyle={styles.content}>
       <AppHeader
+        size="page"
         leftSlot={
           <TelifierLogo
             size={SCREEN.isSmallWidth ? "sm" : "md"}
@@ -215,9 +216,13 @@ export default function HomeScreen() {
                   meeting?.created_at,
               )}
               participants={
-                meeting?.participants_count ??
-                meeting?.participants ??
-                1
+                Array.isArray(meeting?.participants)
+                  ? meeting.participants.length
+                  : Number(
+                      meeting?.participants_count ??
+                        meeting?.participants ??
+                        1,
+                    )
               }
               status="scheduled"
             />
@@ -288,16 +293,16 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: SCREEN.isShortHeight
-      ? Spacing.three
-      : Spacing.five,
+      ? Spacing.two
+      : Spacing.three,
   },
 
   meetingList: {
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
 
   loadingCard: {
-    minHeight: 86,
+    minHeight: 78,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -305,7 +310,7 @@ const styles = StyleSheet.create({
   },
 
   emptyCard: {
-    minHeight: 86,
+    minHeight: 78,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,

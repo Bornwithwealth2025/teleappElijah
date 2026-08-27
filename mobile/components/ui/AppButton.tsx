@@ -43,6 +43,7 @@ type AppButtonProps = PressableProps & {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   containerStyle?: StyleProp<ViewStyle>;
+  fullWidth?: boolean;
 };
 
 export function AppButton({
@@ -54,6 +55,7 @@ export function AppButton({
   rightIcon,
   disabled,
   containerStyle,
+  fullWidth = true,
   style,
   onPress,
   onPressIn,
@@ -65,7 +67,7 @@ export function AppButton({
   const feedback = useFeedback();
   const scale = useRef(new Animated.Value(1)).current;
 
-  const isDisabled = disabled || loading;
+  const isDisabled = Boolean(disabled || loading);
   const isStrong = variant === "primary" || variant === "danger";
 
   const palette = {
@@ -107,14 +109,21 @@ export function AppButton({
   }
 
   function handlePress(event: GestureResponderEvent) {
-    if (isDisabled) return;
+    if (isDisabled) {
+      return;
+    }
 
     feedback.tap();
     onPress?.(event);
   }
 
   return (
-    <View style={[styles.container, containerStyle]}>
+    <View
+      style={[
+        fullWidth && styles.container,
+        containerStyle,
+      ]}
+    >
       <Pressable
         {...props}
         disabled={isDisabled}
@@ -142,7 +151,7 @@ export function AppButton({
             ? style({
                 pressed: false,
                 hovered: false,
-                focused: false,
+                    // focused: false, // Removed focused property
               })
             : style,
         ]}

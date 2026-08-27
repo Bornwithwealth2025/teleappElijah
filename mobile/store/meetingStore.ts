@@ -13,6 +13,9 @@ import type {
   MeetingParticipant,
   MeetingProducerInfo,
   MeetingStatus,
+  WaitingRoomDecisionPayload,
+  WaitingRoomRequest,
+  WaitingRoomStatus,
 } from "@/types/meeting.types";
 
 export type RemoteStream = {
@@ -66,6 +69,11 @@ function createInitialState() {
     socketId: null as string | null,
     isHost: false,
 
+    waitingRoomStatus: "idle" as WaitingRoomStatus,
+    waitingRoomMessage: null as string | null,
+    pendingJoinRequests: [] as WaitingRoomRequest[],
+    isHandlingWaitingRoomAction: false,
+
     isMuted: false,
     isCameraOff: false,
     isHandRaised: false,
@@ -85,6 +93,7 @@ type MeetingState = ReturnType<typeof createInitialState>;
 
 type MeetingStore = MeetingState & {
   joinMeeting: (params: JoinMeetingParams) => Promise<void>;
+  requestMeetingAccess: (params: JoinMeetingParams) => Promise<void>;
   leaveMeeting: () => Promise<void>;
 
   startLocalMedia: () => Promise<void>;
@@ -94,6 +103,13 @@ type MeetingStore = MeetingState & {
   toggleCamera: () => Promise<void>;
   toggleHand: () => Promise<void>;
   toggleScreenShare: () => Promise<void>;
+  muteAllParticipants: () => Promise<void>;
+  applyHostMuteAll: (payload: {
+    roomId?: string;
+    byUserId?: string;
+    mutedUserIds?: string[];
+    mute?: boolean;
+  }) => Promise<void>;
 
   sendMessage: (message: string) => Promise<void>;
   editMessage: (
@@ -101,6 +117,25 @@ type MeetingStore = MeetingState & {
     newMessage: string,
   ) => Promise<void>;
   deleteMessage: (messageId: string) => Promise<void>;
+
+  respondToWaitingRoomRequest: (
+    requestId: string,
+    decision: "approve" | "decline",
+  ) => Promise<void>;
+  admitAllWaitingParticipants: () => Promise<void>;
+  receiveWaitingRoomRequest: (
+    request: WaitingRoomRequest,
+  ) => void;
+  syncWaitingRoomRequests: (
+    roomId: string,
+    requests: WaitingRoomRequest[],
+  ) => void;
+  resolveWaitingRoomRequest: (
+    requestId: string,
+  ) => void;
+  handleWaitingRoomDecision: (
+    payload: WaitingRoomDecisionPayload,
+  ) => Promise<void>;
 
   setLocalStream: (stream: unknown | null) => void;
   addRemoteStream: (stream: RemoteStream) => void;
@@ -166,6 +201,7 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
       roomId,
       userId,
       userName,
+      isHost: Boolean(isHost),
     });
 
     try {
@@ -224,6 +260,8 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
         userName,
         socketId: socket.id ?? null,
         isHost: Boolean(joined.isHost),
+        waitingRoomStatus: "idle",
+        waitingRoomMessage: null,
         participants: hasCurrentUser
           ? backendParticipants
           : [...backendParticipants, currentUser],
@@ -243,6 +281,91 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     }
   },
 
+  requestMeetingAccess: async ({
+    roomId,
+    userId,
+    userName,
+    isBot,
+  }) => {
+    if (!roomId || !userId || !userName) {
+      set({
+        status: "error",
+        error: "Meeting room information is incomplete.",
+      });
+      return;
+    }
+
+    set({
+      ...createInitialState(),
+      roomId,
+      userId,
+      userName,
+      status: "waiting",
+      waitingRoomStatus: "requesting",
+      waitingRoomMessage: "Requesting access to the meeting...",
+      error: null,
+    });
+
+    try {
+      const response =
+        await ConfMeetingSocketCommands.requestWaitingRoomAccess({
+          roomId,
+          userId,
+          userName,
+        });
+
+      if (response.status === "host" || response.status === "approved") {
+        set({
+          waitingRoomStatus: "approved",
+          waitingRoomMessage:
+            response.message || "Joining the meeting...",
+          isHost: response.status === "host",
+        });
+
+        await get().joinMeeting({
+          roomId,
+          userId,
+          userName,
+          isHost: response.status === "host",
+          isBot,
+        });
+
+        if (get().status === "joined") {
+          await get().startLocalMedia();
+        }
+
+        return;
+      }
+
+      if (response.status === "pending") {
+        set({
+          status: "waiting",
+          waitingRoomStatus: "pending",
+          waitingRoomMessage:
+            response.message ||
+            "Waiting for the host to admit you.",
+        });
+
+        return;
+      }
+
+      throw new Error(
+        response.message ||
+          "Unable to request access to this meeting.",
+      );
+    } catch (error) {
+      set({
+        status: "error",
+        waitingRoomStatus: "idle",
+        waitingRoomMessage: null,
+        error: getErrorMessage(
+          error,
+          "Unable to request access to this meeting.",
+        ),
+      });
+    }
+  },
+
   leaveMeeting: async () => {
     const { roomId, userId, status } = get();
 
@@ -254,7 +377,7 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     });
 
     try {
-      if (roomId && userId) {
+      if (roomId && userId && status === "joined") {
         await ConfMeetingSocketCommands.leave({
           roomId,
           userId,
@@ -545,6 +668,65 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     }
   },
 
+  muteAllParticipants: async () => {
+    const { roomId, isHost } = get();
+
+    if (!roomId || !isHost) {
+      return;
+    }
+
+    try {
+      await ConfMeetingSocketCommands.muteAll({
+        roomId,
+      });
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to mute all participants.",
+        ),
+      });
+    }
+  },
+
+  applyHostMuteAll: async (payload) => {
+    const { roomId, userId } = get();
+
+    if (
+      !payload?.mute ||
+      !roomId ||
+      payload.roomId !== roomId ||
+      !userId
+    ) {
+      return;
+    }
+
+    const mutedUserIds = new Set(payload.mutedUserIds ?? []);
+    const shouldMuteCurrentUser = mutedUserIds.has(userId);
+
+    if (shouldMuteCurrentUser) {
+      try {
+        MediasoupClient.setTrackEnabled("audio", false);
+
+        await ConfMeetingSocketCommands.toggleMic({
+          userId,
+          isMicMuted: true,
+        });
+      } catch {
+        // The UI state still updates from the host event.
+      }
+    }
+
+    set((state) => ({
+      isMuted: shouldMuteCurrentUser ? true : state.isMuted,
+      participants: state.participants.map((participant) =>
+        mutedUserIds.has(participant.userId)
+          ? { ...participant, isMuted: true }
+          : participant,
+      ),
+    }));
+  },
+
   sendMessage: async (message) => {
     const {
       roomId,
@@ -606,6 +788,222 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
       roomId,
       messageId,
     });
+  },
+
+  respondToWaitingRoomRequest: async (
+    requestId,
+    decision,
+  ) => {
+    const { roomId, isHost } = get();
+
+    if (!roomId || !isHost || !requestId) {
+      return;
+    }
+
+    set({
+      isHandlingWaitingRoomAction: true,
+      error: null,
+    });
+
+    try {
+      await ConfMeetingSocketCommands.respondToWaitingRoomRequest({
+        roomId,
+        requestId,
+        decision,
+      });
+
+      get().resolveWaitingRoomRequest(requestId);
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to update this join request.",
+        ),
+      });
+    } finally {
+      set({
+        isHandlingWaitingRoomAction: false,
+      });
+    }
+  },
+
+  admitAllWaitingParticipants: async () => {
+    const { roomId, isHost, pendingJoinRequests } = get();
+
+    if (!roomId || !isHost || !pendingJoinRequests.length) {
+      return;
+    }
+
+    set({
+      isHandlingWaitingRoomAction: true,
+      error: null,
+    });
+
+    try {
+      const response =
+        await ConfMeetingSocketCommands.admitAllWaitingParticipants({
+          roomId,
+        });
+
+      const approvedIds = new Set(
+        response.approvedRequestIds ?? [],
+      );
+
+      set((state) => ({
+        pendingJoinRequests:
+          approvedIds.size > 0
+            ? state.pendingJoinRequests.filter(
+                (request) =>
+                  !approvedIds.has(request.requestId),
+              )
+            : state.pendingJoinRequests,
+      }));
+
+      if (response.remainingCount && response.remainingCount > 0) {
+        set({
+          error:
+            response.message ||
+            "Some participants remain in the waiting room.",
+        });
+      }
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to admit waiting participants.",
+        ),
+      });
+    } finally {
+      set({
+        isHandlingWaitingRoomAction: false,
+      });
+    }
+  },
+
+  receiveWaitingRoomRequest: (request) => {
+    if (!request?.requestId || !request?.roomId) {
+      return;
+    }
+
+    set((state) => {
+      if (
+        !state.isHost ||
+        state.roomId !== request.roomId
+      ) {
+        return state;
+      }
+
+      const exists = state.pendingJoinRequests.some(
+        (item) => item.requestId === request.requestId,
+      );
+
+      return {
+        pendingJoinRequests: exists
+          ? state.pendingJoinRequests.map((item) =>
+              item.requestId === request.requestId
+                ? request
+                : item,
+            )
+          : [...state.pendingJoinRequests, request],
+      };
+    });
+  },
+
+  syncWaitingRoomRequests: (roomId, requests) => {
+    set((state) => {
+      if (!state.isHost || state.roomId !== roomId) {
+        return state;
+      }
+
+      return {
+        pendingJoinRequests: requests
+          .filter(
+            (request) =>
+              request?.requestId &&
+              request.roomId === roomId,
+          )
+          .sort(
+            (first, second) =>
+              new Date(first.requestedAt).getTime() -
+              new Date(second.requestedAt).getTime(),
+          ),
+      };
+    });
+  },
+
+  resolveWaitingRoomRequest: (requestId) => {
+    if (!requestId) return;
+
+    set((state) => ({
+      pendingJoinRequests: state.pendingJoinRequests.filter(
+        (request) => request.requestId !== requestId,
+      ),
+    }));
+  },
+
+  handleWaitingRoomDecision: async (payload) => {
+    const {
+      roomId,
+      userId,
+      userName,
+      status,
+    } = get();
+
+    if (
+      !payload?.requestId ||
+      !payload?.status ||
+      payload.roomId !== roomId
+    ) {
+      return;
+    }
+
+    if (payload.status === "declined") {
+      set({
+        status: "waiting",
+        waitingRoomStatus: "declined",
+        waitingRoomMessage:
+          payload.message ||
+          "The host declined your request to join.",
+      });
+
+      return;
+    }
+
+    if (
+      !roomId ||
+      !userId ||
+      !userName ||
+      status !== "waiting"
+    ) {
+      return;
+    }
+
+    set({
+      waitingRoomStatus: "approved",
+      waitingRoomMessage:
+        payload.message || "Joining the meeting...",
+      error: null,
+    });
+
+    await get().joinMeeting({
+      roomId,
+      userId,
+      userName,
+      isHost: false,
+    });
+
+    if (get().status === "joined") {
+      try {
+        await get().startLocalMedia();
+      } catch (error) {
+        set({
+          error: getErrorMessage(
+            error,
+            "You joined the meeting, but camera access is unavailable.",
+          ),
+        });
+      }
+    }
   },
 
   setLocalStream: (stream) => {
@@ -726,7 +1124,7 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     set((state) => {
       const exists = state.participants.some(
         (item) =>
-          item.userId === participant.userId,
+          item.userId === participant.userId
       );
 
       return {

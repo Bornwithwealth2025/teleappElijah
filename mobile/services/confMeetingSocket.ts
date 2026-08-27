@@ -182,6 +182,42 @@ export const ConfMeetingSocketCommands = {
   join: <TResponse>(payload: JoinPayload) =>
     emitWithAck<TResponse, JoinPayload>("join", payload),
 
+  requestWaitingRoomAccess: (payload: {
+    roomId: string;
+    userId: string;
+    userName: string;
+  }) =>
+    emitWithAck<{
+      success: boolean;
+      status?: "host" | "pending" | "approved";
+      requestId?: string;
+      hostIsConnected?: boolean;
+      code?: string;
+      message?: string;
+    }>("waiting-room:request", payload),
+
+  respondToWaitingRoomRequest: (payload: {
+    roomId: string;
+    requestId: string;
+    decision: "approve" | "decline";
+  }) =>
+    emitWithAck<{
+      success: boolean;
+      requestId?: string;
+      status?: "approved" | "declined";
+      message?: string;
+    }>("waiting-room:respond", payload),
+
+  admitAllWaitingParticipants: (payload: { roomId: string }) =>
+    emitWithAck<{
+      success: boolean;
+      approvedRequestIds?: string[];
+      approvedCount?: number;
+      remainingCount?: number;
+      code?: string;
+      message?: string;
+    }>("waiting-room:admit-all", payload),
+
   createTransport: (payload: { direction: "send" | "recv" }) =>
     emitWithAck("create-transport", payload),
 
@@ -238,8 +274,12 @@ export const ConfMeetingSocketCommands = {
   lowerHand: (payload: { roomId: string; userId: string; userName: string }) =>
     emitWithAck<{ success: boolean }>("lower-hand", payload),
 
-  muteAll: (payload: { roomId: string; userId: string; mute: boolean }) =>
-    emitFireAndForget("mute-all", payload),
+  muteAll: (payload: { roomId: string }) =>
+    emitWithAck<{
+      success: boolean;
+      mutedUserIds?: string[];
+      message?: string;
+    }>("mute-all", payload),
 
   toggleMic: (payload: { userId: string; isMicMuted: boolean }) =>
     emitFireAndForget("user-toggle-mic", payload),

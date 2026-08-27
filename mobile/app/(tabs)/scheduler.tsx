@@ -89,9 +89,6 @@ export default function SchedulerScreen() {
   const fetchMeetings = useSchedulerStore((state) => state.fetchMeetings);
 
   const error = useSchedulerStore((state) => state.error);
-  const isCreating = useSchedulerStore((state) => state.isCreating);
-  const isDeleting = useSchedulerStore((state) => state.isDeleting);
-
   React.useEffect(() => {
     void fetchMeetings();
   }, [fetchMeetings]);
@@ -153,10 +150,7 @@ export default function SchedulerScreen() {
         </AppCard>
       ) : null}
 
-      <ScheduleForm
-        loading={isCreating}
-        disabled={isCreating || isDeleting}
-      />
+      <ScheduleForm />
 
       <SectionHeader
         title="Scheduled meetings"
@@ -237,17 +231,17 @@ export default function SchedulerScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    gap: Spacing.five,
+    gap: Spacing.three,
   },
 
   list: {
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
 
   emptyCard: {
     alignItems: "center",
-    gap: Spacing.three,
-    paddingVertical: Spacing.eight,
+    gap: Spacing.two,
+    paddingVertical: Spacing.six,
   },
 
   emptyIcon: {

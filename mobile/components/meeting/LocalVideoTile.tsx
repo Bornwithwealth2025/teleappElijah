@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
   },
 
   gradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     top: "42%",
   },
 

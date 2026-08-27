@@ -195,16 +195,42 @@ const useAuthStore = create<AuthState>((set) => {
             isAuthenticated: false,
             isLoading: false,
             isHydrated: true,
+            error: null,
           });
 
           return;
         }
 
-        const parsedUser = JSON.parse(userRaw);
+        const storedUser = normalizeUser(JSON.parse(userRaw));
+        let user = storedUser;
+
+        try {
+          const profileResponse = await UserService.getProfile();
+          user = getProfileUser(profileResponse, storedUser);
+
+          await persistAuthSession(token, user);
+        } catch {
+          const activeToken = await authStorage.getItem(
+            STORAGE_KEYS.ACCESS_TOKEN,
+          );
+
+          if (!activeToken) {
+            set({
+              user: null,
+              token: null,
+              isAuthenticated: false,
+              isLoading: false,
+              isHydrated: true,
+              error: null,
+            });
+
+            return;
+          }
+        }
 
         set({
           token,
-          user: normalizeUser(parsedUser),
+          user,
           isAuthenticated: true,
           isLoading: false,
           isHydrated: true,

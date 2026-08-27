@@ -88,7 +88,10 @@ export function IconButton({
         pressed && !disabled && styles.pressed,
         containerStyle,
         typeof style === "function"
-          ? style({ pressed, hovered: false, focused: false })
+          ? style({
+              pressed,
+              hovered: false,
+            })
           : style,
       ]}
     >

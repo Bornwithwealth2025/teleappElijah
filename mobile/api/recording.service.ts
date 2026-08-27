@@ -20,7 +20,6 @@ export type Recording = {
   durationSeconds?: number;
   sizeBytes?: number;
   createdAt?: string;
-  stoppedAt?: string;
 };
 
 type RecordingListResponse =

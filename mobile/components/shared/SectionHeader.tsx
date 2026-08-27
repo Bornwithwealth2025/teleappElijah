@@ -1,9 +1,13 @@
-import React, { useEffect, useRef } from "react";
+import React, {
+  useEffect,
+  useRef,
+  type ReactNode,
+} from "react";
+
 import {
   Animated,
   StyleSheet,
   View,
-  type ReactNode,
   type StyleProp,
   type ViewStyle,
 } from "react-native";

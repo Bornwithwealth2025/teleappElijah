@@ -17,6 +17,7 @@ export type RecordingState = {
   startedAt?: string;
   stoppedAt?: string;
   status: RecordingStatus;
+  finalizing?: boolean;
   error: string | null;
 };
 

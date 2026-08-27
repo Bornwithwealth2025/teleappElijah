@@ -1,15 +1,21 @@
 export type MeetingMediaKind = "audio" | "video";
 
-export type MeetingTransportDirection =
-  | "send"
-  | "recv";
+export type MeetingTransportDirection = "send" | "recv";
 
 export type MeetingStatus =
   | "idle"
   | "joining"
+  | "waiting"
   | "joined"
   | "leaving"
   | "error";
+
+export type WaitingRoomStatus =
+  | "idle"
+  | "requesting"
+  | "pending"
+  | "approved"
+  | "declined";
 
 export type AnyRecord = Record<string, unknown>;
 
@@ -23,6 +29,39 @@ export type MeetingParticipant = {
   isCameraOff?: boolean;
   isHandRaised?: boolean;
   isScreenSharing?: boolean;
+};
+
+export type WaitingRoomRequest = {
+  requestId: string;
+  roomId: string;
+  userId: string;
+  userName: string;
+  requestedAt: string;
+};
+
+export type WaitingRoomAccessResponse = {
+  success: boolean;
+  status?: "host" | "pending" | "approved";
+  requestId?: string;
+  hostIsConnected?: boolean;
+  code?: string;
+  message?: string;
+};
+
+export type WaitingRoomDecisionPayload = {
+  requestId: string;
+  roomId: string;
+  status: "approved" | "declined";
+  message?: string;
+};
+
+export type WaitingRoomAdmitAllResponse = {
+  success: boolean;
+  approvedRequestIds?: string[];
+  approvedCount?: number;
+  remainingCount?: number;
+  code?: string;
+  message?: string;
 };
 
 export type BackendMeetingParticipant = {

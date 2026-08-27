@@ -113,6 +113,31 @@ function clearExpiredSession() {
   return sessionClearPromise;
 }
 
+function isExpiredTokenResponse(error: any) {
+  const status = error?.response?.status;
+
+  if (status === 401) {
+    return true;
+  }
+
+  if (status !== 403) {
+    return false;
+  }
+
+  const message = String(
+    error?.response?.data?.message ??
+      error?.response?.data?.error ??
+      error?.message ??
+      "",
+  ).toLowerCase();
+
+  return (
+    message.includes("invalid token") ||
+    message.includes("expired token") ||
+    message.includes("invalid or expired token")
+  );
+}
+
 apiClient.interceptors.response.use(
   (response: AxiosResponse) => response,
   async (error) => {
@@ -121,7 +146,7 @@ apiClient.interceptors.response.use(
       | undefined;
 
     if (
-      error.response?.status === 401 &&
+      isExpiredTokenResponse(error) &&
       originalRequest &&
       !originalRequest._handledUnauthorized &&
       !isPublicAuthRequest(originalRequest.url)

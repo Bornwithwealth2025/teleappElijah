@@ -345,7 +345,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   content: {
-    gap: Spacing.five,
+    gap: Spacing.three,
   },
   profileCard: {
     flexDirection: "row",
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
   },
   statsGrid: {
     flexDirection: "row",
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
   recordingsCard: {
     flexDirection: "row",

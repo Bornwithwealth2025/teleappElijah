@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { cn } from "@/lib/cn";
 import { Layout } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
@@ -22,6 +23,7 @@ type AppScreenProps = {
   immersive?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
   safeAreaStyle?: StyleProp<ViewStyle>;
+  className?: string;
   tone?: "aurora" | "plain";
 } & Pick<
   ScrollViewProps,
@@ -36,6 +38,7 @@ export function AppScreen({
   immersive = false,
   contentStyle,
   safeAreaStyle,
+  className,
   tone = "plain",
   keyboardShouldPersistTaps = "always",
   keyboardDismissMode = "none",
@@ -56,12 +59,12 @@ export function AppScreen({
       }
     : {
         paddingTop: topInset + Layout.screenTopPadding,
-        paddingBottom: insets.bottom + Layout.screenBottomPadding,
+        paddingBottom: insets.bottom + Layout.bottomTabInset,
       };
 
-  const content = scroll ? (
+  const screenContent = scroll ? (
     <ScrollView
-      style={styles.scroll}
+      className="flex-1 w-full"
       refreshControl={refreshControl}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps={keyboardShouldPersistTaps}
@@ -77,6 +80,7 @@ export function AppScreen({
     </ScrollView>
   ) : (
     <View
+      className="flex-1 w-full"
       style={[
         styles.content,
         styles.staticContent,
@@ -89,76 +93,54 @@ export function AppScreen({
     </View>
   );
 
-  const background =
-    tone === "plain" ? (
-      <View
-        style={[
-          styles.background,
-          { backgroundColor: colors.background },
-        ]}
-      >
-        <KeyboardAvoidingView
-          style={styles.keyboard}
-          behavior={
-            Platform.OS === "ios" ? "padding" : "height"
-          }
-        >
-          {content}
-        </KeyboardAvoidingView>
-      </View>
-    ) : (
-      <LinearGradient
-        colors={[colors.primarySoft, colors.background]}
-        locations={[0, 0.35]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-        style={styles.background}
-      >
-        <KeyboardAvoidingView
-          style={styles.keyboard}
-          behavior={
-            Platform.OS === "ios" ? "padding" : "height"
-          }
-        >
-          {content}
-        </KeyboardAvoidingView>
-      </LinearGradient>
-    );
-
   return (
-    <View style={[styles.root, safeAreaStyle]}>
+    <View
+      className={cn("flex-1 w-full", className)}
+      style={safeAreaStyle}
+    >
       <StatusBar
         barStyle={isDark ? "light-content" : "dark-content"}
         backgroundColor="transparent"
         translucent
       />
 
-      {background}
+      {tone === "plain" ? (
+        <View
+          className="flex-1 w-full"
+          style={{ backgroundColor: colors.background }}
+        >
+          <KeyboardAvoidingView
+            className="flex-1 w-full"
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            {screenContent}
+          </KeyboardAvoidingView>
+        </View>
+      ) : (
+        <LinearGradient
+          colors={[colors.primarySoft, colors.background]}
+          locations={[0, 0.35]}
+          start={{ x: 0, y: 1 }}
+          end={{ x: 0, y: 0 }}
+          style={styles.gradient}
+        >
+          <KeyboardAvoidingView
+            className="flex-1 w-full"
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+          >
+            {screenContent}
+          </KeyboardAvoidingView>
+        </LinearGradient>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
+  gradient: {
     flex: 1,
     width: "100%",
   },
-
-  background: {
-    flex: 1,
-    width: "100%",
-  },
-
-  keyboard: {
-    flex: 1,
-    width: "100%",
-  },
-
-  scroll: {
-    flex: 1,
-    width: "100%",
-  },
-
   content: {
     width: "100%",
     maxWidth: Layout.maxContentWidth,
@@ -166,14 +148,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.screenPadding,
     gap: Layout.compactGap,
   },
-
   immersiveContent: {
     flex: 1,
     maxWidth: undefined,
     paddingHorizontal: 0,
     gap: 0,
   },
-
   staticContent: {
     flex: 1,
   },

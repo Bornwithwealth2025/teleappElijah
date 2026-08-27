@@ -1,10 +1,20 @@
 import { create } from "zustand";
 
 import RecordingService, {
-  Recording,
-  RecordingStatus,
+  type Recording,
+  type RecordingStatus,
 } from "@/api/recording.service";
 import { ConfMeetingSocketCommands } from "@/services/confMeetingSocket";
+
+type RecordingSocketData = {
+  recordingId?: string;
+  roomId?: string;
+  fileName?: string;
+  mimeType?: string;
+  startedAt?: string;
+  stoppedAt?: string;
+  finalizing?: boolean;
+};
 
 type RecordingState = {
   status: RecordingStatus | "idle";
@@ -22,8 +32,8 @@ type RecordingState = {
 
   startRecording: (roomId: string) => Promise<void>;
   stopRecording: (roomId: string) => Promise<void>;
-  setRecordingStarted: (payload: any) => void;
-  setRecordingStopped: (payload: any) => void;
+  setRecordingStarted: (payload: RecordingSocketData) => void;
+  setRecordingStopped: (payload: RecordingSocketData) => void;
   setRecordingFailed: (message: string) => void;
   fetchRecordings: () => Promise<void>;
   fetchRecording: (recordingId: string) => Promise<Recording | null>;
@@ -42,7 +52,7 @@ const initialState = {
   error: null,
   isStarting: false,
   isStopping: false,
-  recordings: [],
+  recordings: [] as Recording[],
   isLoading: false,
 };
 
@@ -50,6 +60,19 @@ function getMessage(error: unknown, fallback: string) {
   return error instanceof Error && error.message
     ? error.message
     : fallback;
+}
+
+function getData(payload: unknown): RecordingSocketData {
+  if (!payload || typeof payload !== "object") {
+    return {};
+  }
+
+  const value = payload as {
+    data?: RecordingSocketData;
+    recording?: RecordingSocketData;
+  };
+
+  return value.data ?? value.recording ?? (payload as RecordingSocketData);
 }
 
 const useRecordingStore = create<RecordingState>((set) => ({
@@ -69,16 +92,12 @@ const useRecordingStore = create<RecordingState>((set) => ({
         roomId,
       });
 
-      if (!response?.success) {
-        throw new Error(response?.message || "Unable to start recording.");
-      }
-
-      const data = response.data ?? {};
+      const data = getData(response);
 
       set({
         status: "recording",
         recordingId: data.recordingId ?? null,
-        roomId,
+        roomId: data.roomId ?? roomId,
         fileName: data.fileName ?? null,
         mimeType: data.mimeType ?? "video/mp4",
         startedAt: data.startedAt ?? new Date().toISOString(),
@@ -109,19 +128,15 @@ const useRecordingStore = create<RecordingState>((set) => ({
         roomId,
       });
 
-      if (!response?.success) {
-        throw new Error(response?.message || "Unable to stop recording.");
-      }
-
-      const data = response.data ?? {};
+      const data = getData(response);
 
       set({
         status: "processing",
-        recordingId: data.recordingId ?? undefined,
-        roomId,
-        fileName: data.fileName ?? undefined,
+        recordingId: data.recordingId ?? null,
+        roomId: data.roomId ?? roomId,
+        fileName: data.fileName ?? null,
         mimeType: data.mimeType ?? "video/mp4",
-        stoppedAt: new Date().toISOString(),
+        stoppedAt: data.stoppedAt ?? new Date().toISOString(),
         error: null,
       });
     } catch (error) {
@@ -136,7 +151,7 @@ const useRecordingStore = create<RecordingState>((set) => ({
   },
 
   setRecordingStarted: (payload) => {
-    const data = payload?.data ?? payload ?? {};
+    const data = getData(payload);
 
     set({
       status: "recording",
@@ -151,7 +166,7 @@ const useRecordingStore = create<RecordingState>((set) => ({
   },
 
   setRecordingStopped: (payload) => {
-    const data = payload?.data ?? payload ?? {};
+    const data = getData(payload);
 
     set({
       status: "processing",
@@ -175,16 +190,7 @@ const useRecordingStore = create<RecordingState>((set) => ({
     set({ isLoading: true, error: null });
 
     try {
-      const response = await RecordingService.listRecordings();
-
-      if (!response?.success) {
-        throw new Error(response?.message || "Unable to load recordings.");
-      }
-
-      const recordings =
-        response.data?.recordings ??
-        response.data ??
-        [];
+      const recordings = await RecordingService.listRecordings();
 
       set({
         recordings: Array.isArray(recordings) ? recordings : [],
@@ -200,13 +206,7 @@ const useRecordingStore = create<RecordingState>((set) => ({
 
   fetchRecording: async (recordingId) => {
     try {
-      const response = await RecordingService.getRecording(recordingId);
-
-      if (!response?.success) {
-        throw new Error(response?.message || "Unable to load recording.");
-      }
-
-      return response.data ?? null;
+      return await RecordingService.getRecording(recordingId);
     } catch (error) {
       set({
         error: getMessage(error, "Unable to load recording."),

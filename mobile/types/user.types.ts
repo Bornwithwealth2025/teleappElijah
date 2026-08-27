@@ -13,12 +13,18 @@ export interface UserProfile {
   last_name: string;
   email: string;
   phone_number?: string | null;
+  profileImage?: string | null;
+  avatar?: string | null;
+  phoneNumber?: string | null;
+  phone?: string | null;
   country?: string | null;
   state?: string | null;
   city?: string | null;
   date_of_birth?: string | null;
+  dateOfBirth?: string | null;
   profile_image?: string | null;
   is_verified: number | boolean;
+  isVerified?: boolean | number;
   role?: string;
   created_at?: string;
   updated_at?: string;
@@ -36,6 +42,10 @@ export interface ScheduledMeeting {
   date?: string;
   title?: string;
   status?: string;
+  scheduled_at?: string;
+  start_time?: string;
+  participants_count?: number;
+  participants?: unknown[] | number;
 }
 
 export interface ScheduleMeetingRequest {

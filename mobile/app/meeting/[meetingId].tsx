@@ -1,7 +1,9 @@
 import React from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import {
+  Clock3,
   Copy,
+  LogIn,
   MessageCircle,
   Send,
   Share2,
@@ -24,7 +26,9 @@ import {
 
 import { MeetingControls } from "@/components/meeting/MeetingControls";
 import { MeetingGrid } from "@/components/meeting/MeetingGrid";
+import { MeetingParticipantSheet } from "@/components/meeting/MeetingParticipantSheet";
 import { MeetingPermissionGate } from "@/components/meeting/MeetingPermissionGate";
+import { HostJoinRequestBanner } from "@/components/meeting/HostJoinRequestBanner";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppScreen } from "@/components/ui/AppScreen";
@@ -68,6 +72,18 @@ export default function MeetingRoomScreen() {
   const status = useMeetingStore((state) => state.status);
   const error = useMeetingStore((state) => state.error);
   const isHost = useMeetingStore((state) => state.isHost);
+  const waitingRoomStatus = useMeetingStore(
+    (state) => state.waitingRoomStatus,
+  );
+  const waitingRoomMessage = useMeetingStore(
+    (state) => state.waitingRoomMessage,
+  );
+  const pendingJoinRequests = useMeetingStore(
+    (state) => state.pendingJoinRequests,
+  );
+  const isHandlingWaitingRoomAction = useMeetingStore(
+    (state) => state.isHandlingWaitingRoomAction,
+  );
   const isMuted = useMeetingStore((state) => state.isMuted);
   const isCameraOff = useMeetingStore((state) => state.isCameraOff);
   const isHandRaised = useMeetingStore((state) => state.isHandRaised);
@@ -78,6 +94,9 @@ export default function MeetingRoomScreen() {
   const remoteStreams = useMeetingStore((state) => state.remoteStreams);
 
   const joinMeeting = useMeetingStore((state) => state.joinMeeting);
+  const requestMeetingAccess = useMeetingStore(
+    (state) => state.requestMeetingAccess,
+  );
   const leaveMeeting = useMeetingStore((state) => state.leaveMeeting);
   const startLocalMedia = useMeetingStore((state) => state.startLocalMedia);
   const toggleMute = useMeetingStore((state) => state.toggleMute);
@@ -85,6 +104,15 @@ export default function MeetingRoomScreen() {
   const toggleHand = useMeetingStore((state) => state.toggleHand);
   const toggleScreenShare = useMeetingStore((state) => state.toggleScreenShare);
   const sendMessage = useMeetingStore((state) => state.sendMessage);
+  const muteAllParticipants = useMeetingStore(
+    (state) => state.muteAllParticipants,
+  );
+  const respondToWaitingRoomRequest = useMeetingStore(
+    (state) => state.respondToWaitingRoomRequest,
+  );
+  const admitAllWaitingParticipants = useMeetingStore(
+    (state) => state.admitAllWaitingParticipants,
+  );
 
   useConfMeetingSocketEvents();
 
@@ -108,6 +136,8 @@ export default function MeetingRoomScreen() {
 
   const [chatOpen, setChatOpen] = React.useState(false);
   const [chatVisible, setChatVisible] = React.useState(false);
+  const [participantsVisible, setParticipantsVisible] =
+    React.useState(false);
   const [chatText, setChatText] = React.useState("");
   const chatInputRef = React.useRef<TextInput | null>(null);
 
@@ -136,7 +166,7 @@ export default function MeetingRoomScreen() {
     ]).start();
   }, [backdropOpacity, chatTranslateY]);
 
-const closeChat = React.useCallback(() => {
+  const closeChat = React.useCallback(() => {
     setChatOpen(false);
     Keyboard.dismiss();
     chatInputRef.current?.blur();
@@ -162,22 +192,11 @@ const closeChat = React.useCallback(() => {
   const userId = getUserId(user);
 
   const handleJoin = async () => {
-    await joinMeeting({ roomId: roomCode, userId, userName });
-
-    if (useMeetingStore.getState().status !== "joined") {
-      return;
-    }
-
-    try {
-      await startLocalMedia();
-    } catch (mediaError) {
-      Alert.alert(
-        "Camera unavailable",
-        mediaError instanceof Error
-          ? mediaError.message
-          : "Unable to access camera or microphone.",
-      );
-    }
+    await requestMeetingAccess({
+      roomId: roomCode,
+      userId,
+      userName,
+    });
   };
 
   const handleLeave = async () => {
@@ -268,6 +287,22 @@ const closeChat = React.useCallback(() => {
             </View>
           </View>
 
+          {isHost && pendingJoinRequests.length > 0 ? (
+            <HostJoinRequestBanner
+              requests={pendingJoinRequests}
+              busy={isHandlingWaitingRoomAction}
+              onApprove={(requestId) => {
+                void respondToWaitingRoomRequest(requestId, "approve");
+              }}
+              onDecline={(requestId) => {
+                void respondToWaitingRoomRequest(requestId, "decline");
+              }}
+              onAdmitAll={() => {
+                void admitAllWaitingParticipants();
+              }}
+            />
+          ) : null}
+
           {error ? (
             <View
               style={[
@@ -340,6 +375,11 @@ const closeChat = React.useCallback(() => {
             onToggleHand={() => void toggleHand()}
             onToggleScreenShare={() => void toggleScreenShare()}
             onOpenChat={openChat}
+            participantCount={participants.length}
+            pendingRequestCount={pendingJoinRequests.length}
+            onOpenParticipants={() => {
+              setParticipantsVisible(true);
+            }}
             onLeave={() => void handleLeave()}
           />
         </Animated.View>
@@ -440,6 +480,19 @@ const closeChat = React.useCallback(() => {
             </Animated.View>
           </View>
         ) : null}
+
+        <MeetingParticipantSheet
+          visible={participantsVisible}
+          participants={participants}
+          pendingRequestCount={pendingJoinRequests.length}
+          isHost={isHost}
+          onClose={() => {
+            setParticipantsVisible(false);
+          }}
+          onMuteAll={() => {
+            void muteAllParticipants();
+          }}
+        />
       </AppScreen>
     );
   }
@@ -518,29 +571,77 @@ const closeChat = React.useCallback(() => {
             ) : null}
           </View>
 
-          <View style={styles.preJoinActions}>
-            <AppButton
-              title={joining ? "Joining..." : "Join meeting"}
-              loading={joining}
-              disabled={joining || leaving}
-              onPress={() => void handleJoin()}
-              containerStyle={styles.joinButton}
-            />
+          {waitingRoomStatus === "pending" ||
+          waitingRoomStatus === "requesting" ? (
+            <View
+              style={[
+                styles.waitingCard,
+                {
+                  backgroundColor: colors.primarySoft,
+                  borderColor: colors.border,
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.waitingIcon,
+                  { backgroundColor: `${colors.primary}20` },
+                ]}
+              >
+                <Clock3 color={colors.primary} size={22} />
+              </View>
 
-            <IconButton
-              icon={<Copy color={colors.primary} size={18} />}
-              variant="soft"
-              accessibilityLabel="Copy room code"
-              onPress={handleCopy}
-            />
+              <View style={styles.waitingCopy}>
+                <AppText variant="bodyStrong">
+                  {waitingRoomStatus === "requesting"
+                    ? "Requesting access"
+                    : "You're in the waiting room"}
+                </AppText>
+                <AppText variant="caption" tone="muted">
+                  {waitingRoomMessage ||
+                    "The host will admit you when they are ready."}
+                </AppText>
+              </View>
 
-            <IconButton
-              icon={<Share2 color={colors.primary} size={18} />}
-              variant="soft"
-              accessibilityLabel="Share meeting room"
-              onPress={handleShare}
-            />
-          </View>
+              <AppButton
+                title="Leave"
+                variant="ghost"
+                fullWidth={false}
+                onPress={() => void handleLeave()}
+              />
+            </View>
+          ) : (
+            <View style={styles.preJoinActions}>
+              <AppButton
+                title={
+                  joining
+                    ? "Joining..."
+                    : waitingRoomStatus === "declined"
+                      ? "Request again"
+                      : "Request to join"
+                }
+                loading={joining}
+                disabled={joining || leaving}
+                onPress={() => void handleJoin()}
+                containerStyle={styles.joinButton}
+                leftIcon={<LogIn color="#FFFFFF" size={18} />}
+              />
+
+              <IconButton
+                icon={<Copy color={colors.primary} size={18} />}
+                variant="soft"
+                accessibilityLabel="Copy room code"
+                onPress={handleCopy}
+              />
+
+              <IconButton
+                icon={<Share2 color={colors.primary} size={18} />}
+                variant="soft"
+                accessibilityLabel="Share meeting room"
+                onPress={handleShare}
+              />
+            </View>
+          )}
         </AppCard>
 
         {error ? (
@@ -674,7 +775,7 @@ const styles = StyleSheet.create({
   },
 
   chatBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(4, 10, 22, 0.55)",
   },
 
@@ -800,6 +901,30 @@ const styles = StyleSheet.create({
 
   joinButton: {
     flex: 1,
+  },
+
+  waitingCard: {
+    minHeight: 92,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+
+  waitingIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  waitingCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
   },
 
   previewCard: {

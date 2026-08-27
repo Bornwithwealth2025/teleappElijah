@@ -55,7 +55,7 @@ const UserService = {
   async getProfile(): Promise<GetProfileResponse> {
     const { data } =
       await apiClient.get<GetProfileResponse>(
-        "/user/profile",
+        "/user/mobile/profile",
       );
 
     return data;

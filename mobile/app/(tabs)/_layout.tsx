@@ -1,7 +1,5 @@
-// tabs layout
 import React from "react";
-import { StyleSheet, View } from "react-native";
-import { BlurView } from "expo-blur";
+import { StyleSheet, View, type ColorValue } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import {
   CalendarDays,
@@ -14,13 +12,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   SCREEN,
   Spacing,
-  verticalScale,
 } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useAuthStore from "@/store/authStore";
 
 export default function TabsLayout() {
-  const { colors, isDark } = useAppTheme();
+  const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const isAuthenticated = useAuthStore(
@@ -40,15 +37,12 @@ export default function TabsLayout() {
   }
 
   const iconSize = SCREEN.isSmallWidth ? 19 : 21;
-
-  // A fixed bottom inset keeps the bar's gap from the edge consistent
-  // across devices instead of letting a tiny safe-area collapse it.
-  const bottomInset = Math.max(insets.bottom, Spacing.three);
+  const tabBarHeight = 64 + insets.bottom;
 
   const renderTabIcon = (
     Icon: React.ComponentType<any>,
     focused: boolean,
-    color: string,
+    color: ColorValue,
   ) => (
     <View
       style={[
@@ -71,67 +65,47 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
-
         sceneStyle: {
           backgroundColor: colors.background,
         },
-
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.tabInactive,
-
-        tabBarBackground: () => (
-          <BlurView
-            tint={isDark ? "dark" : "light"}
-            intensity={90}
-            style={StyleSheet.absoluteFill}
-          />
-        ),
-
         tabBarStyle: {
           position: "absolute",
-          left: Spacing.four,
-          right: Spacing.four,
-          bottom: bottomInset,
-          height: SCREEN.isShortHeight
-            ? verticalScale(66)
-            : verticalScale(72),
-          flexDirection: "row",
-          alignItems: "center",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: tabBarHeight,
+          paddingTop: Spacing.one,
+          paddingBottom: Math.max(insets.bottom, Spacing.two),
           paddingHorizontal: Spacing.two,
-          borderWidth: 1,
-          borderColor: colors.glassBorder,
-          borderRadius: 26,
-          backgroundColor: colors.glass,
-          overflow: "hidden",
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          backgroundColor: colors.card,
           shadowColor: "#071633",
-          shadowOpacity: isDark ? 0.22 : 0.1,
-          shadowRadius: 22,
+          shadowOpacity: 0.12,
+          shadowRadius: 18,
           shadowOffset: {
             width: 0,
-            height: 10,
+            height: -5,
           },
-          elevation: 8,
+          elevation: 14,
         },
-
         tabBarItemStyle: {
-          height: "100%",
-          borderRadius: 20,
-          marginHorizontal: 2,
-          alignItems: "center",
-          justifyContent: "center",
-          paddingTop: 0,
-          paddingBottom: 0,
+          minHeight: 52,
+          borderRadius: 16,
+          paddingTop: 2,
         },
-
         tabBarIconStyle: {
           marginBottom: 0,
         },
-
         tabBarLabelStyle: {
-          fontSize: SCREEN.isSmallWidth ? 10 : 11,
-          lineHeight: 13,
+          fontSize: 10,
+          lineHeight: 12,
           fontWeight: "700",
-          marginTop: 3,
+          marginTop: 1,
         },
       }}
     >
@@ -170,25 +144,15 @@ export default function TabsLayout() {
             renderTabIcon(UserRound, focused, color),
         }}
       />
-
-      {/* Registered with href:null so it doesn't appear as a tab.
-          Nothing in the app currently navigates to it — confirm this
-          file is still needed, or it can likely be removed. */}
-      <Tabs.Screen
-        name="home"
-        options={{
-          href: null,
-        }}
-      />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
   iconWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 14,
+    width: 34,
+    height: 30,
+    borderRadius: 11,
     alignItems: "center",
     justifyContent: "center",
   },
