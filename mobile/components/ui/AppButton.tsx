@@ -10,6 +10,7 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import {
   FontFamily,
@@ -31,9 +32,16 @@ type AppButtonVariant =
   | "secondary"
   | "outline"
   | "ghost"
-  | "danger";
+  | "danger"
+  | "gradient" // solid brand-gradient fill, e.g. "Create Account"
+  | "gradientOutline"; // brand-gradient border, transparent/card fill, e.g. "Sign In"
 
 type AppButtonSize = "sm" | "md" | "lg";
+
+// Shared brand gradient used across the app (welcome screen, primary CTAs).
+// Pass `gradientColors` to override per-button if a screen needs a
+// different sweep.
+export const BRAND_GRADIENT = ["#7C3AED", "#3B82F6", "#14B8A6"] as const;
 
 type AppButtonProps = PressableProps & {
   title: string;
@@ -44,6 +52,17 @@ type AppButtonProps = PressableProps & {
   rightIcon?: React.ReactNode;
   containerStyle?: StyleProp<ViewStyle>;
   fullWidth?: boolean;
+  /** Overrides the palette's default text/icon-label color. */
+  textColor?: string;
+  /** Only used by "gradient" and "gradientOutline" variants. */
+  gradientColors?: readonly [string, string, ...string[]];
+  /**
+   * "center" (default) clusters icon/title/icon together — the common case
+   * for most buttons in the app. "spaceBetween" pins a leftIcon and
+   * rightIcon to opposite edges with the title in between, matching the
+   * hero CTA buttons on the welcome screen.
+   */
+  contentAlign?: "center" | "spaceBetween";
 };
 
 export function AppButton({
@@ -57,6 +76,9 @@ export function AppButton({
   containerStyle,
   fullWidth = true,
   style,
+  textColor,
+  gradientColors = BRAND_GRADIENT,
+  contentAlign = "center",
   onPress,
   onPressIn,
   onPressOut,
@@ -68,7 +90,9 @@ export function AppButton({
   const scale = useRef(new Animated.Value(1)).current;
 
   const isDisabled = Boolean(disabled || loading);
-  const isStrong = variant === "primary" || variant === "danger";
+  const isGradient = variant === "gradient";
+  const isGradientOutline = variant === "gradientOutline";
+  const isStrong = variant === "primary" || variant === "danger" || isGradient;
 
   const palette = {
     primary: {
@@ -96,7 +120,19 @@ export function AppButton({
       borderColor: colors.danger,
       textColor: "#FFFFFF",
     },
+    gradient: {
+      backgroundColor: "transparent",
+      borderColor: "transparent",
+      textColor: "#FFFFFF",
+    },
+    gradientOutline: {
+      backgroundColor: colors.background,
+      borderColor: "transparent",
+      textColor: colors.text,
+    },
   }[variant];
+
+  const resolvedTextColor = textColor ?? palette.textColor;
 
   function animateTo(value: number) {
     Animated.spring(scale, {
@@ -117,77 +153,104 @@ export function AppButton({
     onPress?.(event);
   }
 
-  return (
-    <View
+  const pressableNode = (
+    <Pressable
+      {...props}
+      disabled={isDisabled}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      onPress={handlePress}
+      onPressIn={(event) => {
+        animateTo(0.975);
+        onPressIn?.(event);
+      }}
+      onPressOut={(event) => {
+        animateTo(1);
+        onPressOut?.(event);
+      }}
       style={[
-        fullWidth && styles.container,
-        containerStyle,
+        styles.pressable,
+        styles[size],
+        isGradientOutline && styles.pressableInsetRadius,
+        {
+          borderColor: palette.borderColor,
+          backgroundColor: palette.backgroundColor,
+        },
+        isGradient && Shadows.soft,
+        isGradient && {
+          shadowColor: gradientColors[1] ?? gradientColors[0],
+          shadowOpacity: 0.35,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 8 },
+        },
+        isStrong && !isGradient && Shadows.soft,
+        isDisabled && styles.disabled,
+        typeof style === "function"
+          ? style({
+              pressed: false,
+              hovered: false,
+            })
+          : style,
       ]}
     >
-      <Pressable
-        {...props}
-        disabled={isDisabled}
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel ?? title}
-        onPress={handlePress}
-        onPressIn={(event) => {
-          animateTo(0.975);
-          onPressIn?.(event);
-        }}
-        onPressOut={(event) => {
-          animateTo(1);
-          onPressOut?.(event);
-        }}
+      {isGradient ? (
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={StyleSheet.absoluteFill}
+        />
+      ) : null}
+
+      <Animated.View
         style={[
-          styles.pressable,
-          styles[size],
+          styles.content,
+          contentAlign === "spaceBetween" && styles.contentSpaceBetween,
           {
-            borderColor: palette.borderColor,
-            backgroundColor: palette.backgroundColor,
+            transform: [{ scale }],
           },
-          isStrong && Shadows.soft,
-          isDisabled && styles.disabled,
-          typeof style === "function"
-            ? style({
-                pressed: false,
-                hovered: false,
-                    // focused: false, // Removed focused property
-              })
-            : style,
         ]}
       >
-        <Animated.View
-          style={[
-            styles.content,
-            {
-              transform: [{ scale }],
-            },
-          ]}
+        {loading ? (
+          <ActivityIndicator color={resolvedTextColor} />
+        ) : (
+          <>
+            {leftIcon}
+
+            <AppText
+              variant="button"
+              numberOfLines={1}
+              style={[
+                styles.title,
+                {
+                  color: resolvedTextColor,
+                },
+              ]}
+            >
+              {title}
+            </AppText>
+
+            {rightIcon}
+          </>
+        )}
+      </Animated.View>
+    </Pressable>
+  );
+
+  return (
+    <View style={[fullWidth && styles.container, containerStyle]}>
+      {isGradientOutline ? (
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.gradientBorder}
         >
-          {loading ? (
-            <ActivityIndicator color={palette.textColor} />
-          ) : (
-            <>
-              {leftIcon}
-
-              <AppText
-                variant="button"
-                numberOfLines={1}
-                style={[
-                  styles.title,
-                  {
-                    color: palette.textColor,
-                  },
-                ]}
-              >
-                {title}
-              </AppText>
-
-              {rightIcon}
-            </>
-          )}
-        </Animated.View>
-      </Pressable>
+          {pressableNode}
+        </LinearGradient>
+      ) : (
+        pressableNode
+      )}
     </View>
   );
 }
@@ -200,6 +263,14 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     borderWidth: 1,
     borderRadius: Radius.medium,
+  },
+  pressableInsetRadius: {
+    borderRadius: Radius.medium - 1,
+    borderWidth: 0,
+  },
+  gradientBorder: {
+    borderRadius: Radius.medium,
+    padding: 1.4,
   },
   sm: {
     minHeight: verticalScale(40),
@@ -219,6 +290,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: Spacing.two,
     paddingHorizontal: Spacing.five,
+  },
+  contentSpaceBetween: {
+    justifyContent: "space-between",
+    paddingHorizontal: Spacing.four,
   },
   title: {
     flexShrink: 1,

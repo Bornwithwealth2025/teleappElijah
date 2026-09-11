@@ -6,6 +6,7 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   Hand,
   MessageCircle,
@@ -13,13 +14,16 @@ import {
   MicOff,
   MonitorUp,
   PhoneOff,
+  Sparkles,
   Users,
   Video,
   VideoOff,
 } from "lucide-react-native";
 
 import { AppText } from "@/components/ui/AppText";
-import { Spacing } from "@/constants/theme";
+import { BRAND_GRADIENT } from "@/components/ui/AppButton";
+import { Radius, Spacing } from "@/constants/theme";
+import { useAppTheme } from "@/hooks/use-app-themes";
 
 type Props = {
   muted: boolean;
@@ -30,6 +34,7 @@ type Props = {
   pendingRequestCount?: number;
   onToggleMute: () => void;
   onToggleCamera: () => void;
+  onOpenBackgroundEffects?: () => void;
   onToggleHand: () => void;
   onToggleScreenShare?: () => void;
   onOpenParticipants?: () => void;
@@ -37,38 +42,13 @@ type Props = {
   onLeave: () => void;
 };
 
-type ControlTone = "neutral" | "danger" | "warning" | "active";
+type ControlTone =
+  | "default"
+  | "danger"
+  | "warning"
+  | "active";
 
-const TONE_STYLES: Record<
-  ControlTone,
-  { bg: string; fg: string }
-> = {
-  neutral: {
-    bg: "rgba(255,255,255,0.10)",
-    fg: "#F4F7FF",
-  },
-  danger: {
-    bg: "rgba(255, 75, 62, 0.16)",
-    fg: "#FF6B5E",
-  },
-  warning: {
-    bg: "rgba(255, 176, 32, 0.18)",
-    fg: "#FFC24B",
-  },
-  active: {
-    bg: "rgba(15, 107, 255, 0.20)",
-    fg: "#5B9BFF",
-  },
-};
-
-function ControlButton({
-  icon,
-  label,
-  tone = "neutral",
-  badge,
-  onPress,
-  accessibilityLabel,
-}: {
+type ControlButtonProps = {
   icon: React.ReactElement<{
     color?: string;
     size?: number;
@@ -78,8 +58,41 @@ function ControlButton({
   badge?: number;
   onPress: () => void;
   accessibilityLabel: string;
-}) {
-  const { bg, fg } = TONE_STYLES[tone];
+};
+
+function ControlButton({
+  icon,
+  label,
+  tone = "default",
+  badge,
+  onPress,
+  accessibilityLabel,
+}: ControlButtonProps) {
+  const { colors } = useAppTheme();
+
+  const palette = {
+    default: {
+      background: colors.surfaceStrong,
+      foreground: colors.text,
+    },
+    danger: {
+      background: `${colors.danger}1C`,
+      foreground: colors.danger,
+    },
+    warning: {
+      background: `${colors.warning}1C`,
+      foreground: colors.warning,
+    },
+    active: {
+      background: "transparent",
+      foreground: "#FFFFFF",
+    },
+  }[tone];
+
+  const buttonContent = React.cloneElement(icon, {
+    color: palette.foreground,
+    size: 21,
+  });
 
   return (
     <View style={styles.controlItem}>
@@ -88,20 +101,46 @@ function ControlButton({
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         style={({ pressed }) => [
-          styles.controlButton,
-          {
-            backgroundColor: bg,
-            opacity: pressed ? 0.8 : 1,
-          },
+          pressed && styles.pressed,
         ]}
       >
-        {React.cloneElement(icon, {
-          color: fg,
-          size: 21,
-        })}
+        {tone === "active" ? (
+          <LinearGradient
+            colors={BRAND_GRADIENT}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.controlButton}
+          >
+            {buttonContent}
+          </LinearGradient>
+        ) : (
+          <View
+            style={[
+              styles.controlButton,
+              {
+                backgroundColor: palette.background,
+                borderColor:
+                  tone === "default"
+                    ? colors.border
+                    : "transparent",
+                borderWidth: tone === "default" ? 1 : 0,
+              },
+            ]}
+          >
+            {buttonContent}
+          </View>
+        )}
 
         {badge && badge > 0 ? (
-          <View style={styles.badge}>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: colors.danger,
+                borderColor: colors.card,
+              },
+            ]}
+          >
             <AppText style={styles.badgeText}>
               {badge > 9 ? "9+" : badge}
             </AppText>
@@ -109,7 +148,13 @@ function ControlButton({
         ) : null}
       </Pressable>
 
-      <AppText style={styles.controlLabel} numberOfLines={1}>
+      <AppText
+        numberOfLines={1}
+        style={[
+          styles.controlLabel,
+          { color: colors.textMuted },
+        ]}
+      >
         {label}
       </AppText>
     </View>
@@ -125,12 +170,15 @@ export function MeetingControls({
   pendingRequestCount = 0,
   onToggleMute,
   onToggleCamera,
+  onOpenBackgroundEffects,
   onToggleHand,
   onToggleScreenShare,
   onOpenParticipants,
   onOpenChat,
   onLeave,
 }: Props) {
+  const { colors, isDark } = useAppTheme();
+
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(16)).current;
 
@@ -138,13 +186,14 @@ export function MeetingControls({
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 360,
+        duration: 300,
         useNativeDriver: true,
       }),
       Animated.spring(translateY, {
         toValue: 0,
-        speed: 18,
-        bounciness: 5,
+        damping: 17,
+        stiffness: 180,
+        mass: 0.8,
         useNativeDriver: true,
       }),
     ]).start();
@@ -155,6 +204,10 @@ export function MeetingControls({
       style={[
         styles.dock,
         {
+          backgroundColor: isDark
+            ? colors.glassStrong
+            : colors.card,
+          borderColor: colors.glassBorder,
           opacity,
           transform: [{ translateY }],
         },
@@ -168,7 +221,7 @@ export function MeetingControls({
         <ControlButton
           icon={muted ? <MicOff /> : <Mic />}
           label={muted ? "Unmute" : "Mute"}
-          tone={muted ? "danger" : "neutral"}
+          tone={muted ? "danger" : "default"}
           onPress={onToggleMute}
           accessibilityLabel={
             muted ? "Unmute microphone" : "Mute microphone"
@@ -178,17 +231,26 @@ export function MeetingControls({
         <ControlButton
           icon={cameraOff ? <VideoOff /> : <Video />}
           label={cameraOff ? "Video on" : "Video off"}
-          tone={cameraOff ? "danger" : "neutral"}
+          tone={cameraOff ? "danger" : "default"}
           onPress={onToggleCamera}
           accessibilityLabel={
             cameraOff ? "Turn camera on" : "Turn camera off"
           }
         />
 
+        {onOpenBackgroundEffects ? (
+          <ControlButton
+            icon={<Sparkles color="#FFFFFF" size={20} />}
+            label="Effects"
+            onPress={onOpenBackgroundEffects}
+            accessibilityLabel="Open camera background effects"
+          />
+        ) : null}
+
         <ControlButton
           icon={<Hand />}
           label={handRaised ? "Lower hand" : "Raise hand"}
-          tone={handRaised ? "warning" : "neutral"}
+          tone={handRaised ? "warning" : "default"}
           onPress={onToggleHand}
           accessibilityLabel={
             handRaised ? "Lower hand" : "Raise hand"
@@ -199,7 +261,7 @@ export function MeetingControls({
           <ControlButton
             icon={<MonitorUp />}
             label={screenSharing ? "Stop share" : "Share"}
-            tone={screenSharing ? "active" : "neutral"}
+            tone={screenSharing ? "active" : "default"}
             onPress={onToggleScreenShare}
             accessibilityLabel={
               screenSharing
@@ -219,7 +281,7 @@ export function MeetingControls({
           tone={
             pendingRequestCount > 0
               ? "active"
-              : "neutral"
+              : "default"
           }
           badge={pendingRequestCount}
           onPress={onOpenParticipants ?? (() => undefined)}
@@ -229,9 +291,8 @@ export function MeetingControls({
         <ControlButton
           icon={<MessageCircle />}
           label="Chat"
-          tone="neutral"
           onPress={onOpenChat ?? (() => undefined)}
-          accessibilityLabel="Open chat"
+          accessibilityLabel="Open meeting chat"
         />
 
         <View style={styles.controlItem}>
@@ -241,14 +302,22 @@ export function MeetingControls({
             accessibilityLabel="Leave meeting"
             style={({ pressed }) => [
               styles.leaveButton,
-              { opacity: pressed ? 0.85 : 1 },
+              {
+                backgroundColor: colors.danger,
+                borderColor: `${colors.danger}66`,
+              },
+              pressed && styles.pressed,
             ]}
           >
             <PhoneOff color="#FFFFFF" size={21} />
           </Pressable>
 
           <AppText
-            style={[styles.controlLabel, styles.leaveLabel]}
+            numberOfLines={1}
+            style={[
+              styles.controlLabel,
+              { color: colors.danger },
+            ]}
           >
             Leave
           </AppText>
@@ -261,27 +330,35 @@ export function MeetingControls({
 const styles = StyleSheet.create({
   dock: {
     width: "100%",
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.one,
+    borderWidth: 1,
+    borderRadius: Radius.card,
+    paddingVertical: Spacing.three,
   },
 
   controlsRail: {
     gap: Spacing.three,
-    paddingHorizontal: Spacing.one,
+    paddingHorizontal: Spacing.three,
   },
 
   controlItem: {
-    width: 58,
+    width: 60,
     alignItems: "center",
-    gap: 6,
+    gap: 7,
   },
 
   controlButton: {
     width: 50,
     height: 50,
-    borderRadius: 25,
+    borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  controlLabel: {
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: "700",
+    textAlign: "center",
   },
 
   badge: {
@@ -290,13 +367,11 @@ const styles = StyleSheet.create({
     right: -4,
     minWidth: 18,
     height: 18,
-    borderRadius: 9,
-    paddingHorizontal: 4,
+    borderRadius: Radius.pill,
+    borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#FF4B3E",
-    borderWidth: 2,
-    borderColor: "#0A1220",
+    paddingHorizontal: 4,
   },
 
   badgeText: {
@@ -306,24 +381,17 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  controlLabel: {
-    color: "rgba(255,255,255,0.62)",
-    fontSize: 10,
-    lineHeight: 12,
-    fontWeight: "700",
-    textAlign: "center",
-  },
-
   leaveButton: {
     width: 50,
     height: 50,
-    borderRadius: 25,
-    backgroundColor: "#E8362B",
+    borderRadius: Radius.pill,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  leaveLabel: {
-    color: "#FF6B5E",
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.96 }],
   },
 });

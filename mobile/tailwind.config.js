@@ -24,11 +24,12 @@ module.exports = {
           gold: "#FFB21C",
         },
         surface: {
-          page: "#FFFFFF",
+ 
+          page: "#F8F8FD",
           base: "#FAFBFD",
           strong: "#F2F4F8",
           hover: "#ECEFF4",
-          dark: "#0A1428",
+          dark: "#020618",
           darkCard: "#0F1D3A",
           darkStrong: "#142542",
         },

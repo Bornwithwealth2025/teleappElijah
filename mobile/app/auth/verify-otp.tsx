@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   CheckCircle2,
   MailCheck,
+  Sparkles,
 } from "lucide-react-native";
 import {
   Animated,
@@ -15,8 +17,10 @@ import {
 } from "react-native";
 
 import { TelifierLogo } from "@/components/shared/TelifierLogo";
-import { AppButton } from "@/components/ui/AppButton";
-import { AppCard } from "@/components/ui/AppCard";
+import {
+  AppButton,
+  BRAND_GRADIENT,
+} from "@/components/ui/AppButton";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { Radius, Spacing } from "@/constants/theme";
@@ -25,19 +29,40 @@ import useAuthStore from "@/store/authStore";
 
 const OTP_LENGTH = 6;
 
+const HIGHLIGHT = {
+  dark: "#5EEAD4",
+  light: "#0D9488",
+};
+
+const LINK_COLOR = {
+  dark: "#60A5FA",
+  light: "#2563EB",
+};
+
 export default function VerifyOtpScreen() {
-  const params = useLocalSearchParams<{ email?: string | string[] }>();
+  const params = useLocalSearchParams<{
+    email?: string | string[];
+  }>();
+
   const email = Array.isArray(params.email)
     ? params.email[0]
     : params.email ?? "";
 
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
-  const verifyEmail = useAuthStore((state) => state.verifyEmail);
-  const resendOtp = useAuthStore((state) => state.resendOtp);
-  const isLoading = useAuthStore((state) => state.isLoading);
+  const verifyEmail = useAuthStore(
+    (state) => state.verifyEmail,
+  );
+  const resendOtp = useAuthStore(
+    (state) => state.resendOtp,
+  );
+  const isLoading = useAuthStore(
+    (state) => state.isLoading,
+  );
   const error = useAuthStore((state) => state.error);
-  const clearError = useAuthStore((state) => state.clearError);
+  const clearError = useAuthStore(
+    (state) => state.clearError,
+  );
 
   const [otp, setOtp] = useState<string[]>(
     Array(OTP_LENGTH).fill(""),
@@ -47,19 +72,17 @@ export default function VerifyOtpScreen() {
 
   const inputs = useRef<Array<TextInput | null>>([]);
 
-  const screenOpacity = React.useRef(
+  const screenOpacity = useRef(
     new Animated.Value(0),
   ).current;
-
-  const screenTranslateY = React.useRef(
+  const screenTranslateY = useRef(
     new Animated.Value(18),
   ).current;
-
-  const successScale = React.useRef(
+  const successScale = useRef(
     new Animated.Value(0.82),
   ).current;
 
-  React.useEffect(() => {
+  useEffect(() => {
     Animated.parallel([
       Animated.timing(screenOpacity, {
         toValue: 1,
@@ -76,7 +99,7 @@ export default function VerifyOtpScreen() {
     ]).start();
   }, [screenOpacity, screenTranslateY]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!verified) return;
 
     Animated.spring(successScale, {
@@ -86,15 +109,14 @@ export default function VerifyOtpScreen() {
       mass: 0.7,
       useNativeDriver: true,
     }).start();
-  }, [verified, successScale]);
+  }, [successScale, verified]);
 
   useEffect(() => {
     if (countdown === 0 || verified) return;
 
-    const timer = setTimeout(
-      () => setCountdown((value) => value - 1),
-      1000,
-    );
+    const timer = setTimeout(() => {
+      setCountdown((value) => value - 1);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [countdown, verified]);
@@ -120,7 +142,6 @@ export default function VerifyOtpScreen() {
       return;
     }
 
-    // Supports pasting the complete OTP into any input.
     if (digits.length > 1) {
       const pasted = digits.slice(0, OTP_LENGTH).split("");
       const next = Array(OTP_LENGTH).fill("");
@@ -131,12 +152,17 @@ export default function VerifyOtpScreen() {
 
       setOtp(next);
       clearError();
-      inputs.current[Math.min(pasted.length, OTP_LENGTH - 1)]?.focus();
+
+      inputs.current[
+        Math.min(pasted.length, OTP_LENGTH - 1)
+      ]?.focus();
+
       return;
     }
 
     const next = [...otp];
     next[index] = digits.slice(-1);
+
     setOtp(next);
     clearError();
 
@@ -158,7 +184,9 @@ export default function VerifyOtpScreen() {
   async function handleVerify() {
     const code = otp.join("");
 
-    if (!email || code.length !== OTP_LENGTH || isLoading) return;
+    if (!email || code.length !== OTP_LENGTH || isLoading) {
+      return;
+    }
 
     try {
       await verifyEmail({
@@ -168,26 +196,40 @@ export default function VerifyOtpScreen() {
 
       setVerified(true);
     } catch {
-      // AuthStore exposes the backend error.
+      // The auth store exposes the backend error.
     }
   }
 
   async function handleResend() {
-    if (!email || isLoading || countdown > 0) return;
+    if (!email || isLoading || countdown > 0) {
+      return;
+    }
 
     try {
       await resendOtp({ email });
+
       setCountdown(60);
       setOtp(Array(OTP_LENGTH).fill(""));
       inputs.current[0]?.focus();
     } catch {
-      // AuthStore exposes the backend error.
+      // The auth store exposes the backend error.
     }
   }
 
+  const highlight = isDark
+    ? HIGHLIGHT.dark
+    : HIGHLIGHT.light;
+
+  const linkColor = isDark
+    ? LINK_COLOR.dark
+    : LINK_COLOR.light;
+
   if (verified) {
     return (
-      <AppScreen scroll={false} contentStyle={styles.successContent}>
+      <AppScreen
+        scroll={false}
+        contentStyle={styles.successContent}
+      >
         <TelifierLogo size="md" />
 
         <Animated.View
@@ -195,26 +237,49 @@ export default function VerifyOtpScreen() {
             styles.successIcon,
             {
               backgroundColor: colors.primarySoft,
+              borderColor: colors.border,
               transform: [{ scale: successScale }],
             },
           ]}
         >
-          <CheckCircle2 color={colors.success} size={46} />
+          <CheckCircle2 color={colors.success} size={48} />
         </Animated.View>
 
         <View style={styles.successCopy}>
-          <AppText variant="display" style={styles.successTitle}>
+          <AppText
+            style={[styles.successTitle, { color: colors.text }]}
+          >
             Email verified.
           </AppText>
 
-          <AppText variant="body" tone="muted" style={styles.successSubtitle}>
-            Your Telefya account is ready. We’ll take you to sign in now.
+          <AppText
+            style={[
+              styles.successSubtitle,
+              { color: colors.textMuted },
+            ]}
+          >
+            Your Telefya account is ready. We’ll take you to
+            sign in now.
           </AppText>
         </View>
 
-        <View style={styles.successStatus}>
+        <View
+          style={[
+            styles.successStatus,
+            {
+              backgroundColor: `${colors.success}14`,
+              borderColor: `${colors.success}38`,
+            },
+          ]}
+        >
           <Check color={colors.success} size={16} />
-          <AppText variant="caption" tone="success">
+
+          <AppText
+            style={[
+              styles.successStatusText,
+              { color: colors.success },
+            ]}
+          >
             Verification complete
           </AppText>
         </View>
@@ -225,27 +290,35 @@ export default function VerifyOtpScreen() {
   const codeComplete = otp.join("").length === OTP_LENGTH;
 
   return (
-    <AppScreen contentStyle={styles.content}>
+    <AppScreen
+      keyboardShouldPersistTaps="always"
+      contentStyle={styles.content}
+    >
       <Animated.View
-        style={{
-          width: "100%",
-          opacity: screenOpacity,
-          transform: [{ translateY: screenTranslateY }],
-        }}
+        style={[
+          styles.screen,
+          {
+            opacity: screenOpacity,
+            transform: [{ translateY: screenTranslateY }],
+          },
+        ]}
       >
         <View style={styles.topRow}>
           <Pressable
             onPress={() => {
-              if (router.canGoBack()) router.back();
-              else router.replace("/auth/login");
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace("/auth/login");
+              }
             }}
             accessibilityRole="button"
             accessibilityLabel="Go back"
             style={[
               styles.backButton,
               {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
+                backgroundColor: colors.glass,
+                borderColor: colors.glassBorder,
               },
             ]}
           >
@@ -253,24 +326,57 @@ export default function VerifyOtpScreen() {
           </Pressable>
 
           <TelifierLogo size="sm" />
+
+          <View style={styles.topSpacer} />
         </View>
 
         <View style={styles.intro}>
-          <AppText variant="overline" tone="primary">
-            VERIFY YOUR ACCOUNT
-          </AppText>
+          <View
+            style={[
+              styles.badge,
+              {
+                backgroundColor: colors.glass,
+                borderColor: colors.glassBorder,
+              },
+            ]}
+          >
+            <Sparkles color={highlight} size={13} />
 
-          <AppText variant="display" style={styles.title}>
+            <AppText
+              style={[
+                styles.badgeText,
+                { color: colors.textMuted },
+              ]}
+            >
+              VERIFY YOUR ACCOUNT
+            </AppText>
+          </View>
+
+          <AppText style={[styles.title, { color: colors.text }]}>
             Check your inbox.
           </AppText>
 
-          <AppText variant="body" tone="muted" style={styles.subtitle}>
+          <AppText
+            style={[styles.subtitle, { color: colors.textMuted }]}
+          >
             Enter the six-digit code sent to{" "}
-            <AppText variant="bodyStrong">{email || "your email"}</AppText>
+            <AppText
+              style={[styles.emailText, { color: colors.text }]}
+            >
+              {email || "your email"}
+            </AppText>
           </AppText>
         </View>
 
-        <AppCard variant="default" elevated style={styles.card}>
+        <View
+          style={[
+            styles.formPanel,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+            },
+          ]}
+        >
           <View style={styles.mailRow}>
             <View
               style={[
@@ -282,9 +388,22 @@ export default function VerifyOtpScreen() {
             </View>
 
             <View style={styles.mailCopy}>
-              <AppText variant="bodyStrong">One-time verification code</AppText>
-              <AppText variant="caption" tone="muted">
-                The code expires soon. Check your spam folder if needed.
+              <AppText
+                style={[
+                  styles.mailTitle,
+                  { color: colors.text },
+                ]}
+              >
+                One-time verification code
+              </AppText>
+
+              <AppText
+                style={[
+                  styles.mailSubtitle,
+                  { color: colors.textMuted },
+                ]}
+              >
+                Check spam if you do not see the email.
               </AppText>
             </View>
           </View>
@@ -297,8 +416,12 @@ export default function VerifyOtpScreen() {
                   inputs.current[index] = element;
                 }}
                 value={digit}
-                onChangeText={(value) => handleChange(value, index)}
-                onKeyPress={(event) => handleKeyPress(event, index)}
+                onChangeText={(value) =>
+                  handleChange(value, index)
+                }
+                onKeyPress={(event) =>
+                  handleKeyPress(event, index)
+                }
                 keyboardType="number-pad"
                 textContentType="oneTimeCode"
                 autoComplete="sms-otp"
@@ -311,7 +434,9 @@ export default function VerifyOtpScreen() {
                   styles.otpInput,
                   {
                     backgroundColor: colors.surface,
-                    borderColor: digit ? colors.primary : colors.border,
+                    borderColor: digit
+                      ? colors.primary
+                      : colors.border,
                     color: colors.text,
                   },
                 ]}
@@ -320,27 +445,57 @@ export default function VerifyOtpScreen() {
           </View>
 
           {error ? (
-            <AppText variant="caption" tone="danger" style={styles.errorText}>
-              {error}
-            </AppText>
+            <View
+              style={[
+                styles.errorBox,
+                {
+                  backgroundColor: `${colors.danger}14`,
+                  borderColor: colors.danger,
+                },
+              ]}
+            >
+              <AppText
+                style={[
+                  styles.errorText,
+                  { color: colors.danger },
+                ]}
+              >
+                {error}
+              </AppText>
+            </View>
           ) : null}
 
           <AppButton
             title="Verify email"
-            onPress={handleVerify}
+            variant="gradient"
+            gradientColors={BRAND_GRADIENT}
+            contentAlign="spaceBetween"
+            leftIcon={<MailCheck color="#FFFFFF" size={18} />}
+            rightIcon={<ArrowRight color="#FFFFFF" size={18} />}
             loading={isLoading}
             disabled={!email || !codeComplete || isLoading}
-            containerStyle={styles.button}
+            onPress={handleVerify}
+            accessibilityLabel="Verify email"
           />
-        </AppCard>
+        </View>
 
         <View style={styles.resendRow}>
-          <AppText variant="caption" tone="muted">
+          <AppText
+            style={[
+              styles.resendText,
+              { color: colors.textMuted },
+            ]}
+          >
             Didn’t receive the code?
           </AppText>
 
           {countdown > 0 ? (
-            <AppText variant="caption" tone="muted">
+            <AppText
+              style={[
+                styles.resendText,
+                { color: colors.textSoft },
+              ]}
+            >
               Resend in {countdown}s
             </AppText>
           ) : (
@@ -349,7 +504,12 @@ export default function VerifyOtpScreen() {
               disabled={isLoading}
               hitSlop={8}
             >
-              <AppText variant="caption" tone="primary" style={styles.link}>
+              <AppText
+                style={[
+                  styles.resendLink,
+                  { color: linkColor },
+                ]}
+              >
                 Resend code
               </AppText>
             </Pressable>
@@ -364,8 +524,12 @@ const styles = StyleSheet.create({
   content: {
     flexGrow: 1,
     justifyContent: "center",
-    gap: Spacing.five,
     paddingBottom: Spacing.six,
+  },
+
+  screen: {
+    width: "100%",
+    gap: Spacing.five,
   },
 
   topRow: {
@@ -378,27 +542,61 @@ const styles = StyleSheet.create({
   backButton: {
     width: 44,
     height: 44,
+    borderRadius: Radius.pill,
     borderWidth: 1,
-    borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  topSpacer: {
+    width: 44,
   },
 
   intro: {
     gap: Spacing.two,
   },
 
+  badge: {
+    alignSelf: "flex-start",
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: Radius.pill,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.three,
+  },
+
+  badgeText: {
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.6,
+  },
+
   title: {
-    letterSpacing: -0.8,
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: "800",
+    letterSpacing: -0.6,
   },
 
   subtitle: {
     maxWidth: 390,
-    lineHeight: 23,
+    fontSize: 14,
+    lineHeight: 21,
   },
 
-  card: {
+  emailText: {
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "800",
+  },
+
+  formPanel: {
     gap: Spacing.four,
+    borderRadius: Radius.card,
+    borderWidth: 1,
+    padding: Spacing.four,
   },
 
   mailRow: {
@@ -417,7 +615,18 @@ const styles = StyleSheet.create({
 
   mailCopy: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
+  },
+
+  mailTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  mailSubtitle: {
+    fontSize: 12,
+    lineHeight: 17,
   },
 
   otpRow: {
@@ -438,13 +647,16 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  errorText: {
-    textAlign: "center",
-    fontWeight: "700",
+  errorBox: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: Spacing.three,
   },
 
-  button: {
-    marginTop: Spacing.one,
+  errorText: {
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
   },
 
   resendRow: {
@@ -455,7 +667,13 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
 
-  link: {
+  resendText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  resendLink: {
+    fontSize: 12,
     fontWeight: "800",
   },
 
@@ -468,9 +686,10 @@ const styles = StyleSheet.create({
   },
 
   successIcon: {
-    width: 92,
-    height: 92,
+    width: 94,
+    height: 94,
     borderRadius: 30,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -481,18 +700,32 @@ const styles = StyleSheet.create({
   },
 
   successTitle: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: "800",
+    letterSpacing: -0.6,
     textAlign: "center",
   },
 
   successSubtitle: {
     maxWidth: 330,
+    fontSize: 14,
+    lineHeight: 21,
     textAlign: "center",
-    lineHeight: 23,
   },
 
   successStatus: {
+    minHeight: 36,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+  },
+
+  successStatusText: {
+    fontSize: 12,
+    fontWeight: "800",
   },
 });

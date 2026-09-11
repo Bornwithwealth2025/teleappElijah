@@ -1,5 +1,6 @@
 import React from "react";
 
+import MeetingTelemetryService from "@/api/meeting-telemetry.service";
 import { getConfMeetingSocket } from "@/services/confMeetingSocket";
 import useMeetingStore from "@/store/meetingStore";
 
@@ -33,6 +34,9 @@ export function useMeetingReconnect({
 
   const attemptsRef = React.useRef(0);
   const disposedRef = React.useRef(false);
+  const hadDisconnectRef = React.useRef(false);
+  const recoveryReportedRef = React.useRef(false);
+
   const retryTimerRef =
     React.useRef<ReturnType<typeof setTimeout> | null>(
       null,
@@ -65,6 +69,9 @@ export function useMeetingReconnect({
 
     disposedRef.current = false;
     attemptsRef.current = 0;
+    hadDisconnectRef.current = false;
+    recoveryReportedRef.current = false;
+
     setAttempts(0);
     setReconnecting(false);
 
@@ -76,6 +83,30 @@ export function useMeetingReconnect({
         clearTimeout(retryTimerRef.current);
         retryTimerRef.current = null;
       }
+    };
+
+    const reportRecovery = () => {
+      const recoveredRoomId = roomIdRef.current;
+
+      if (
+        !hadDisconnectRef.current ||
+        recoveryReportedRef.current ||
+        !recoveredRoomId
+      ) {
+        return;
+      }
+
+      recoveryReportedRef.current = true;
+      hadDisconnectRef.current = false;
+
+      const { networkQuality } =
+        useMeetingStore.getState();
+
+      void MeetingTelemetryService.reportMeetingTelemetry({
+        roomId: recoveredRoomId,
+        eventType: "meeting_reconnected",
+        networkQuality,
+      });
     };
 
     const scheduleReconnect = () => {
@@ -137,6 +168,7 @@ export function useMeetingReconnect({
             attemptsRef.current = 0;
             setAttempts(0);
             setReconnecting(false);
+            reportRecovery();
           } else {
             scheduleReconnect();
           }
@@ -165,12 +197,16 @@ export function useMeetingReconnect({
 
         const handleDisconnect = () => {
           if (statusRef.current === "joined") {
+            hadDisconnectRef.current = true;
+            recoveryReportedRef.current = false;
             scheduleReconnect();
           }
         };
 
         const handleConnectError = () => {
           if (statusRef.current === "joined") {
+            hadDisconnectRef.current = true;
+            recoveryReportedRef.current = false;
             scheduleReconnect();
           }
         };
@@ -188,6 +224,8 @@ export function useMeetingReconnect({
           );
         };
       } catch {
+        hadDisconnectRef.current = true;
+        recoveryReportedRef.current = false;
         scheduleReconnect();
       }
     };

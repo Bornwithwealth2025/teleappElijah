@@ -252,21 +252,34 @@ export const ConfMeetingSocketCommands = {
   sendMessage: (payload: {
     roomId: string;
     message: string;
-    time: string;
-    userName: string;
-    socketId: string;
     messageId: string;
-  }) => emitFireAndForget("send-message", payload),
+  }) =>
+    emitWithAck<{
+      success: boolean;
+      message?: {
+        roomId: string;
+        messageId: string;
+        message: string;
+        time: string;
+        userName: string;
+        userId: string;
+        socketId?: string;
+        edited?: boolean;
+      };
+    }>("send-message", payload),
 
   editMessage: (payload: {
     roomId: string;
     messageId: string;
     newMessage: string;
-    socketId: string;
-  }) => emitFireAndForget("edit-message", payload),
+  }) =>
+    emitWithAck<{ success: boolean }>("edit-message", payload),
 
-  deleteMessage: (payload: { roomId: string; messageId: string }) =>
-    emitFireAndForget("delete-message", payload),
+  deleteMessage: (payload: {
+    roomId: string;
+    messageId: string;
+  }) =>
+    emitWithAck<{ success: boolean }>("delete-message", payload),
 
   raiseHand: (payload: { roomId: string; userId: string; userName: string }) =>
     emitWithAck<{ success: boolean }>("raise-hand", payload),
@@ -280,6 +293,29 @@ export const ConfMeetingSocketCommands = {
       mutedUserIds?: string[];
       message?: string;
     }>("mute-all", payload),
+
+  stopScreenShare: (payload: {
+    userId: string;
+    screenProducerIds?: string[];
+  }) => emitFireAndForget("stop-screen-share", payload),
+
+  muteParticipant: (payload: {
+    roomId: string;
+    targetUserId: string;
+  }) =>
+    emitWithAck<{
+      success: boolean;
+      message?: string;
+    }>("host-mute-participant", payload),
+
+  removeParticipant: (payload: {
+    roomId: string;
+    targetUserId: string;
+  }) =>
+    emitWithAck<{
+      success: boolean;
+      message?: string;
+    }>("host-remove-participant", payload),
 
   toggleMic: (payload: { userId: string; isMicMuted: boolean }) =>
     emitFireAndForget("user-toggle-mic", payload),

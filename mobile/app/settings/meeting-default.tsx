@@ -19,20 +19,74 @@ import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
+import useAuthStore from "@/store/authStore";
+import usePreferencesStore from "@/store/preferencesStore";
 
 export default function MeetingDefaultsScreen() {
   const { colors } = useAppTheme();
 
-  const [duration, setDuration] = React.useState("45 minutes");
-  const [roomName, setRoomName] = React.useState("");
-  const [cameraEnabled, setCameraEnabled] = React.useState(true);
-  const [autoCreateLink, setAutoCreateLink] =
-    React.useState(true);
+  const user = useAuthStore((state) => state.user);
 
-  function handleSave() {
+  const meeting = usePreferencesStore((state) => state.meeting);
+  const isReady = usePreferencesStore((state) => state.isReady);
+  const initialize = usePreferencesStore(
+    (state) => state.initialize,
+  );
+  const updateMeetingDefaults = usePreferencesStore(
+    (state) => state.updateMeetingDefaults,
+  );
+
+  const [duration, setDuration] = React.useState(
+    String(meeting.durationMinutes),
+  );
+  const [roomName, setRoomName] = React.useState(meeting.roomName);
+  const [cameraEnabled, setCameraEnabled] = React.useState(
+    meeting.cameraEnabled,
+  );
+  const [autoCreateLink, setAutoCreateLink] = React.useState(
+    meeting.autoCreateLink,
+  );
+
+  React.useEffect(() => {
+    void initialize(
+      String(user?.id ?? user?.user_id ?? user?.email ?? "guest"),
+    );
+  }, [initialize, user?.email, user?.id, user?.user_id]);
+
+  React.useEffect(() => {
+    if (!isReady) return;
+
+    setDuration(String(meeting.durationMinutes));
+    setRoomName(meeting.roomName);
+    setCameraEnabled(meeting.cameraEnabled);
+    setAutoCreateLink(meeting.autoCreateLink);
+  }, [isReady, meeting]);
+
+  async function handleSave() {
+    const parsedDuration = Number.parseInt(duration, 10);
+
+    if (
+      !Number.isFinite(parsedDuration) ||
+      parsedDuration < 1 ||
+      parsedDuration > 1440
+    ) {
+      Alert.alert(
+        "Invalid duration",
+        "Enter a duration between 1 and 1,440 minutes.",
+      );
+      return;
+    }
+
+    await updateMeetingDefaults({
+      durationMinutes: parsedDuration,
+      roomName: roomName.trim(),
+      cameraEnabled,
+      autoCreateLink,
+    });
+
     Alert.alert(
-      "Defaults updated",
-      "These preferences are active for this app session. Server persistence will be connected when the workspace settings API is available.",
+      "Defaults saved",
+      "Your meeting preferences will be used on this device.",
     );
   }
 
@@ -71,10 +125,11 @@ export default function MeetingDefaultsScreen() {
       <AppCard style={styles.card}>
         <View style={styles.fields}>
           <AppTextInput
-            label="Default meeting duration"
+            label="Default meeting duration (minutes)"
             value={duration}
             onChangeText={setDuration}
-            placeholder="45 minutes"
+            placeholder="45"
+            keyboardType="number-pad"
             leftSlot={
               <Clock
                 color={colors.textSoft}

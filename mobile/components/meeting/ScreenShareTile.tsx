@@ -24,7 +24,7 @@ export function ScreenShareTile({
 
   if (Platform.OS !== "web") {
     try {
-      RTCView = require("react-native-webrtc").RTCView;
+      RTCView = require("@stream-io/react-native-webrtc").RTCView;
     } catch {}
   }
 

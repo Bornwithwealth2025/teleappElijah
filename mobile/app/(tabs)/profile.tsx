@@ -1,33 +1,38 @@
 import React from "react";
 import { router, type Href } from "expo-router";
 import {
-  Film,
-  LogOut,
-  Mail,
-  MapPin,
-  Phone,
-  ShieldCheck,
+  Bell,
+  ChevronRight,
+  Contrast,
+  CreditCard,
+  UserRound,
+  Video,
+  Volume2,
 } from "lucide-react-native";
-import { RefreshControl, Pressable, StyleSheet, View } from "react-native";
+import {
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Switch,
+  View,
+} from "react-native";
 
+import { BASE_URL } from "@/api/client";
 import { ProfileAvatar } from "@/components/shared/ProfileAvatar";
-import { StatCard } from "@/components/shared/StatCard";
 import { AppButton } from "@/components/ui/AppButton";
-import { AppCard } from "@/components/ui/AppCard";
-import { AppHeader } from "@/components/ui/AppHeader";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { Spacing } from "@/constants/theme";
-import { BASE_URL } from "@/api/client";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useAuthStore from "@/store/authStore";
-import useSchedulerStore from "@/store/schedulerStore";
 import useUserStore from "@/store/userStore";
 
 function getValue(...values: Array<unknown>) {
   return values.find(
     (value) =>
-      value !== undefined && value !== null && String(value).trim() !== "",
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== "",
   );
 }
 
@@ -44,30 +49,33 @@ function getProfileName(profile: any) {
 }
 
 function resolveImageUrl(value?: string | null) {
-  if (!value) return null;
-  if (/^https?:\/\//i.test(value)) return value;
+  if (!value) {
+    return null;
+  }
+
+  if (/^https?:\/\//i.test(value)) {
+    return value;
+  }
 
   return `${BASE_URL.replace("/api/v2", "")}/${value.replace(/^\/+/, "")}`;
 }
 
-function formatBirthDate(value?: string | null) {
-  if (!value) return "Not provided";
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Not provided";
-  }
-
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
+type SettingsRow = {
+  key: string;
+  label: string;
+  subtitle?: string;
+  icon: React.ReactNode;
+  onPress?: () => void;
+  rightSlot?: React.ReactNode;
+};
 
 export default function ProfileScreen() {
-  const { colors } = useAppTheme();
+  const {
+    colors,
+    isDark,
+    preference,
+    setPreference,
+  } = useAppTheme();
 
   const authUser = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -76,20 +84,17 @@ export default function ProfileScreen() {
   const profile = useUserStore((state) => state.profile);
   const isLoading = useUserStore((state) => state.isLoading);
   const isUploading = useUserStore((state) => state.isUploading);
-  const error = useUserStore((state) => state.error);
   const fetchProfile = useUserStore((state) => state.fetchProfile);
-  const uploadProfileImage = useUserStore((state) => state.uploadProfileImage);
+  const uploadProfileImage = useUserStore(
+    (state) => state.uploadProfileImage,
+  );
   const clearProfile = useUserStore((state) => state.clearProfile);
 
-  const meetings = useSchedulerStore((state) => state.meetings);
-  const meetingsLoading = useSchedulerStore((state) => state.isLoading);
-  const fetchMeetings = useSchedulerStore((state) => state.fetchMeetings);
-
   React.useEffect(() => {
-    if (!isAuthenticated) return;
-
-    void Promise.allSettled([fetchProfile(), fetchMeetings()]);
-  }, [fetchMeetings, fetchProfile, isAuthenticated]);
+    if (isAuthenticated) {
+      void fetchProfile();
+    }
+  }, [fetchProfile, isAuthenticated]);
 
   const activeProfile = {
     ...(authUser ?? {}),
@@ -112,315 +117,310 @@ export default function ProfileScreen() {
     getValue(activeProfile.email, authUser?.email) ?? "No email available",
   );
 
-  const phone = getValue(
-    activeProfile.phone_number,
-    activeProfile.phoneNumber,
-    activeProfile.phone,
-  );
-
-  const location = [
-    activeProfile.city,
-    activeProfile.state,
-    activeProfile.country,
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  const dateOfBirth = getValue(
-    activeProfile.date_of_birth,
-    activeProfile.dateOfBirth,
-  );
-
-  const isVerified =
-    activeProfile.is_verified === 1 ||
-    activeProfile.is_verified === true ||
-    activeProfile.isVerified === true;
-
   const handleLogout = async () => {
     clearProfile();
     await logout();
     router.replace("/welcome" as Href);
   };
 
-  const refresh = async () => {
-    if (!isAuthenticated) return;
-
-    await Promise.allSettled([fetchProfile(), fetchMeetings()]);
-  };
+  const settingsRows: SettingsRow[] = [
+    {
+      key: "account",
+      label: "Account",
+      icon: <UserRound color={colors.text} size={20} />,
+      onPress: () => router.push("/settings/account" as Href),
+    },
+    {
+      key: "billing",
+      label: "Billing",
+      icon: <CreditCard color={colors.text} size={20} />,
+      onPress: () => router.push("/settings/billing" as Href),
+    },
+    {
+      key: "meetings",
+      label: "Meetings",
+      icon: <Video color={colors.text} size={20} />,
+      onPress: () => router.push("/(tabs)/meetings" as Href),
+    },
+    {
+      key: "audio-video",
+      label: "Audio & Video",
+      subtitle: "Meeting defaults",
+      icon: <Volume2 color={colors.text} size={20} />,
+      onPress: () => router.push("/settings/meeting-default" as Href),
+    },
+    {
+      key: "notifications",
+      label: "Notifications",
+      icon: <Bell color={colors.text} size={20} />,
+      onPress: () => router.push("/settings/notifications" as Href),
+    },
+    {
+      key: "appearance",
+      label: "Appearance",
+      subtitle:
+        preference === "system"
+          ? "Use device setting"
+          : isDark
+            ? "Dark mode"
+            : "Light mode",
+      icon: <Contrast color={colors.text} size={20} />,
+      rightSlot: (
+        <Switch
+          value={isDark}
+          onValueChange={(enabled) =>
+            setPreference(enabled ? "dark" : "light")
+          }
+          trackColor={{
+            false: colors.border,
+            true: colors.primary,
+          }}
+          thumbColor="#FFFFFF"
+          accessibilityLabel="Toggle dark mode"
+        />
+      ),
+    },
+  ];
 
   return (
     <AppScreen
       contentStyle={styles.content}
       refreshControl={
         <RefreshControl
-          refreshing={isLoading || meetingsLoading}
-          onRefresh={() => void refresh()}
+          refreshing={isLoading}
+          onRefresh={() => void fetchProfile()}
           tintColor={colors.primary}
           colors={[colors.primary]}
         />
       }
     >
-      <AppHeader title="Profile" />
-
-      <AppCard variant="tinted" style={styles.profileCard}>
+      <View style={styles.header}>
         <ProfileAvatar
           name={profileName}
           imageUri={imageUrl}
           editable={isAuthenticated}
           uploading={isUploading}
-          size={78}
+          size={64}
           onImageSelected={uploadProfileImage}
         />
 
-        <View style={styles.profileCopy}>
-          <View style={styles.nameRow}>
-            <AppText variant="subtitle" numberOfLines={1}>
-              {isLoading && !profile ? "Loading profile..." : profileName}
-            </AppText>
+        <View style={styles.headerCopy}>
+          <AppText
+            numberOfLines={1}
+            style={[styles.name, { color: colors.text }]}
+          >
+            {isLoading && !profile ? "Loading profile…" : profileName}
+          </AppText>
 
-            {isVerified ? (
-              <ShieldCheck color={colors.success} size={18} strokeWidth={2.4} />
-            ) : null}
-          </View>
-
-          <AppText variant="caption" tone="muted" numberOfLines={1}>
+          <AppText
+            numberOfLines={1}
+            style={[styles.email, { color: colors.textMuted }]}
+          >
             {email}
           </AppText>
 
-          {isUploading ? (
-            <AppText
-              variant="caption"
-              tone="primary"
-              style={styles.uploadingText}
+          {isAuthenticated ? (
+            <Pressable
+              onPress={() =>
+                router.push("/settings/account" as Href)
+              }
+              hitSlop={8}
             >
-              Uploading...
-            </AppText>
+              <AppText
+                style={[styles.editLink, { color: colors.primary }]}
+              >
+                Edit Profile
+              </AppText>
+            </Pressable>
           ) : null}
         </View>
-      </AppCard>
-
-      {error ? (
-        <AppCard
-          compact
-          style={[
-            styles.errorCard,
-            {
-              backgroundColor: colors.danger + "12",
-              borderColor: colors.danger + "45",
-            },
-          ]}
-        >
-          <AppText variant="caption" style={{ color: colors.danger }}>
-            {error}
-          </AppText>
-        </AppCard>
-      ) : null}
-
-      <AppCard style={styles.detailsCard}>
-        <AppText variant="sectionTitle">Personal details</AppText>
-
-        <View style={styles.detailRow}>
-          <View
-            style={[styles.detailIcon, { backgroundColor: colors.primarySoft }]}
-          >
-            <Phone color={colors.primary} size={17} />
-          </View>
-
-          <View style={styles.detailCopy}>
-            <AppText variant="caption" tone="muted">
-              Phone
-            </AppText>
-            <AppText variant="bodyStrong" numberOfLines={1}>
-              {String(phone ?? "Not provided")}
-            </AppText>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <View
-            style={[
-              styles.detailIcon,
-              { backgroundColor: colors.secondarySoft },
-            ]}
-          >
-            <MapPin color={colors.secondary} size={17} />
-          </View>
-
-          <View style={styles.detailCopy}>
-            <AppText variant="caption" tone="muted">
-              Location
-            </AppText>
-            <AppText variant="bodyStrong" numberOfLines={2}>
-              {location || "Not provided"}
-            </AppText>
-          </View>
-        </View>
-
-        <View style={styles.detailRow}>
-          <View
-            style={[
-              styles.detailIcon,
-              { backgroundColor: colors.surfaceStrong },
-            ]}
-          >
-            <Mail color={colors.textMuted} size={17} />
-          </View>
-
-          <View style={styles.detailCopy}>
-            <AppText variant="caption" tone="muted">
-              Date of birth
-            </AppText>
-            <AppText variant="bodyStrong">
-              {formatBirthDate(String(dateOfBirth ?? ""))}
-            </AppText>
-          </View>
-        </View>
-      </AppCard>
-
-      <View style={styles.statsGrid}>
-        <StatCard value={meetings.length} label="Scheduled meetings" />
-
-        <StatCard
-          value={isVerified ? "Verified" : "Pending"}
-          label="Account status"
-        />
       </View>
 
-      <Pressable
-        onPress={() => router.push("/recordings" as Href)}
-        style={({ pressed }) => pressed && styles.pressed}
-      >
-        <AppCard
-          variant="soft"
-          style={styles.recordingsCard}
-        >
-          <View
-            style={[
-              styles.recordingsIcon,
-              { backgroundColor: colors.primarySoft },
-            ]}
-          >
-            <Film color={colors.primary} size={21} />
-          </View>
-
-          <View style={styles.recordingsCopy}>
-            <AppText variant="bodyStrong">
-              Recordings
-            </AppText>
-
-            <AppText variant="caption" tone="muted">
-              View and play saved meeting recordings.
-            </AppText>
-          </View>
-        </AppCard>
-      </Pressable>
-
       {isAuthenticated ? (
-        <AppButton
-          title="Sign out"
-          variant="danger"
-          leftIcon={<LogOut color="#FFFFFF" size={18} />}
-          onPress={handleLogout}
-          containerStyle={styles.logoutButton}
-        />
+        <View style={styles.menu}>
+          {settingsRows.map((row) => {
+            const content = (
+              <View style={styles.row}>
+                <View style={styles.rowLeft}>
+                  {row.icon}
+
+                  <View style={styles.rowCopy}>
+                    <AppText
+                      style={[styles.rowLabel, { color: colors.text }]}
+                    >
+                      {row.label}
+                    </AppText>
+
+                    {row.subtitle ? (
+                      <AppText
+                        style={[
+                          styles.rowSubtitle,
+                          { color: colors.textMuted },
+                        ]}
+                      >
+                        {row.subtitle}
+                      </AppText>
+                    ) : null}
+                  </View>
+                </View>
+
+                {row.rightSlot ?? (
+                  <ChevronRight color={colors.textSoft} size={19} />
+                )}
+              </View>
+            );
+
+            if (!row.onPress) {
+              return (
+                <View key={row.key} style={styles.rowWrap}>
+                  {content}
+                </View>
+              );
+            }
+
+            return (
+              <Pressable
+                key={row.key}
+                onPress={row.onPress}
+                style={({ pressed }) => [
+                  styles.rowWrap,
+                  pressed && styles.pressed,
+                ]}
+              >
+                {content}
+              </Pressable>
+            );
+          })}
+        </View>
       ) : (
         <View style={styles.authActions}>
           <AppButton
             title="Sign in"
             variant="secondary"
-            onPress={() => router.push("/auth/login")}
+            onPress={() => router.push("/auth/login" as Href)}
             containerStyle={styles.authButton}
           />
 
           <AppButton
             title="Create account"
-            onPress={() => router.push("/auth/register")}
+            onPress={() => router.push("/auth/register" as Href)}
             containerStyle={styles.authButton}
           />
         </View>
       )}
+
+      {isAuthenticated ? (
+        <Pressable
+          onPress={() => void handleLogout()}
+          style={({ pressed }) => [
+            styles.logoutWrap,
+            pressed && styles.pressed,
+          ]}
+        >
+          <AppText
+            style={[styles.logoutText, { color: colors.danger }]}
+          >
+            Log Out
+          </AppText>
+        </Pressable>
+      ) : null}
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
   content: {
-    gap: Spacing.three,
+    gap: Spacing.five,
   },
-  profileCard: {
+
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
-  profileCopy: {
+
+  headerCopy: {
     flex: 1,
     minWidth: 0,
+    gap: 2,
+  },
+
+  name: {
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  email: {
+    fontSize: 12,
+  },
+
+  editLink: {
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 2,
+  },
+
+  menu: {
     gap: Spacing.one,
   },
-  nameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
-  },
-  uploadingText: {
-    fontWeight: "700",
-  },
-  errorCard: {
-    borderWidth: 1,
-  },
-  detailsCard: {
-    gap: Spacing.four,
-  },
-  detailRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.three,
-  },
-  detailIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  detailCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 2,
-  },
-  statsGrid: {
-    flexDirection: "row",
-    gap: Spacing.two,
-  },
-  recordingsCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.three,
-  },
-  recordingsIcon: {
-    width: 44,
-    height: 44,
+
+  rowWrap: {
     borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
   },
-  recordingsCopy: {
+
+  row: {
+    minHeight: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.one,
+  },
+
+  rowLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
     flex: 1,
     minWidth: 0,
-    gap: 2,
   },
-  logoutButton: {
-    marginTop: Spacing.two,
+
+  rowCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 1,
   },
+
+  rowLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  rowSubtitle: {
+    fontSize: 11,
+  },
+
   authActions: {
     flexDirection: "row",
     gap: Spacing.three,
   },
+
   authButton: {
     flex: 1,
   },
+
+  logoutWrap: {
+    alignItems: "center",
+    paddingVertical: Spacing.three,
+    marginTop: Spacing.two,
+  },
+
+  logoutText: {
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
   pressed: {
-    opacity: 0.78,
-    transform: [{ scale: 0.985 }],
+    opacity: 0.7,
   },
 });

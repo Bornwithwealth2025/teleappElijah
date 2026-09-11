@@ -6,10 +6,12 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Video } from "lucide-react-native";
 
 import { AppText } from "@/components/ui/AppText";
-import { Spacing } from "@/constants/theme";
+import { BRAND_GRADIENT } from "@/components/ui/AppButton";
+import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import type { RemoteStream } from "@/store/meetingStore";
 import type { MeetingParticipant } from "@/types/meeting.types";
@@ -24,6 +26,7 @@ type Props = {
   localCameraOff?: boolean;
   remoteStreams: RemoteStream[];
   participants: MeetingParticipant[];
+  fullScreen?: boolean;
 };
 
 export function MeetingGrid({
@@ -33,6 +36,7 @@ export function MeetingGrid({
   localCameraOff = false,
   remoteStreams,
   participants,
+  fullScreen = false,
 }: Props) {
   const { colors } = useAppTheme();
   const { width } = useWindowDimensions();
@@ -52,33 +56,35 @@ export function MeetingGrid({
 
   const remainingRemoteStreams = featuredRemote
     ? remoteStreams.filter(
-        (stream) =>
-          stream.producerId !== featuredRemote.producerId,
+        (stream) => stream.producerId !== featuredRemote.producerId,
       )
     : remoteStreams;
 
   const featuredIsRemote = Boolean(featuredRemote);
-  const totalTiles = remoteStreams.length + 1;
+  const totalTiles = Math.max(participants.length, remoteStreams.length + 1);
 
   useEffect(() => {
-    Animated.parallel([
+    opacity.setValue(0);
+    translateY.setValue(10);
+
+    const animation = Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 360,
+        duration: 260,
         useNativeDriver: true,
       }),
       Animated.spring(translateY, {
         toValue: 0,
         speed: 18,
-        bounciness: 5,
+        bounciness: 4,
         useNativeDriver: true,
       }),
-    ]).start();
-  }, [
-    opacity,
-    translateY,
-    remoteStreams.length,
-  ]);
+    ]);
+
+    animation.start();
+
+    return () => animation.stop();
+  }, [opacity, remoteStreams.length, translateY]);
 
   function getParticipant(userId?: string) {
     return participants.find(
@@ -91,30 +97,30 @@ export function MeetingGrid({
       <View
         accessibilityLabel="Camera preview unavailable"
         style={[
-          styles.empty,
+          fullScreen ? styles.emptyFullScreen : styles.empty,
           {
             backgroundColor: colors.surfaceStrong,
             borderColor: colors.border,
           },
         ]}
       >
-        <View
-          style={[
-            styles.emptyIcon,
-            { backgroundColor: colors.primarySoft },
-          ]}
+        <LinearGradient
+          colors={BRAND_GRADIENT}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.emptyIcon}
         >
-          <Video color={colors.primary} size={22} />
-        </View>
+          <Video color="#FFFFFF" size={24} />
+        </LinearGradient>
 
-        <AppText variant="bodyStrong">Camera preview</AppText>
+        <AppText variant="bodyStrong">Camera preview unavailable</AppText>
 
         <AppText
           variant="caption"
           tone="muted"
           style={styles.emptyCopy}
         >
-          Connect your camera and microphone to preview your feed.
+          Enable camera and microphone permissions to join with video.
         </AppText>
       </View>
     );
@@ -123,55 +129,53 @@ export function MeetingGrid({
   return (
     <Animated.View
       style={[
-        styles.root,
+        fullScreen ? styles.fullScreenRoot : styles.root,
         {
           opacity,
           transform: [{ translateY }],
         },
       ]}
     >
-      <View style={styles.header}>
-        <AppText variant="caption" tone="muted">
-          Participants
-        </AppText>
+      {!fullScreen ? (
+        <View style={styles.header}>
+          <AppText variant="caption" tone="muted">
+            Participants
+          </AppText>
 
-        <View
-          style={[
-            styles.statusPill,
-            { backgroundColor: colors.success + "18" },
-          ]}
-        >
           <View
             style={[
-              styles.statusDot,
-              { backgroundColor: colors.success },
-            ]}
-          />
-
-          <AppText
-            variant="caption"
-            style={[
-              styles.statusText,
-              { color: colors.success },
+              styles.statusPill,
+              { backgroundColor: `${colors.success}18` },
             ]}
           >
-            {totalTiles}
-          </AppText>
-        </View>
-      </View>
+            <View
+              style={[
+                styles.statusDot,
+                { backgroundColor: colors.success },
+              ]}
+            />
 
-      <View style={styles.stage}>
+            <AppText
+              variant="caption"
+              style={[styles.statusText, { color: colors.success }]}
+            >
+              {totalTiles}
+            </AppText>
+          </View>
+        </View>
+      ) : null}
+
+      <View style={fullScreen ? styles.fullScreenStage : styles.stage}>
         {featuredIsRemote && featuredRemote ? (
           <RemoteVideoTile
             remote={featuredRemote}
-            featured
+            featured={!fullScreen}
+            fill={fullScreen}
             muted={
-              getParticipant(featuredRemote.userId)
-                ?.isMuted ?? false
+              getParticipant(featuredRemote.userId)?.isMuted ?? false
             }
             cameraOff={
-              getParticipant(featuredRemote.userId)
-                ?.isCameraOff ?? false
+              getParticipant(featuredRemote.userId)?.isCameraOff ?? false
             }
           />
         ) : (
@@ -180,7 +184,7 @@ export function MeetingGrid({
             stream={localStream}
             muted={localMuted}
             cameraOff={localCameraOff}
-            featured
+            featured={!fullScreen}
           />
         )}
       </View>
@@ -189,6 +193,7 @@ export function MeetingGrid({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          style={fullScreen ? styles.fullScreenRail : undefined}
           contentContainerStyle={[
             styles.thumbnailRail,
             compact && styles.compactRail,
@@ -205,9 +210,7 @@ export function MeetingGrid({
           ) : null}
 
           {remainingRemoteStreams.map((remote) => {
-            const participant = getParticipant(
-              remote.userId,
-            );
+            const participant = getParticipant(remote.userId);
 
             return (
               <RemoteVideoTile
@@ -215,9 +218,7 @@ export function MeetingGrid({
                 remote={remote}
                 compact
                 muted={participant?.isMuted ?? false}
-                cameraOff={
-                  participant?.isCameraOff ?? false
-                }
+                cameraOff={participant?.isCameraOff ?? false}
               />
             );
           })}
@@ -233,17 +234,22 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
 
+  fullScreenRoot: {
+    flex: 1,
+    width: "100%",
+    overflow: "hidden",
+  },
+
   header: {
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: Spacing.three,
   },
 
   statusPill: {
     minHeight: 28,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
@@ -253,7 +259,7 @@ const styles = StyleSheet.create({
   statusDot: {
     width: 6,
     height: 6,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
   },
 
   statusText: {
@@ -263,13 +269,26 @@ const styles = StyleSheet.create({
   stage: {
     width: "100%",
     minHeight: 290,
-    borderRadius: 22,
+    borderRadius: Radius.xLarge,
+    overflow: "hidden",
+  },
+
+  fullScreenStage: {
+    flex: 1,
+    width: "100%",
     overflow: "hidden",
   },
 
   thumbnailRail: {
     gap: Spacing.two,
     paddingRight: Spacing.three,
+  },
+
+  fullScreenRail: {
+    position: "absolute",
+    left: Spacing.three,
+    right: 0,
+    bottom: 112,
   },
 
   compactRail: {
@@ -279,7 +298,15 @@ const styles = StyleSheet.create({
   empty: {
     minHeight: 230,
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: Radius.large,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.two,
+    padding: Spacing.five,
+  },
+
+  emptyFullScreen: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.two,
@@ -289,14 +316,13 @@ const styles = StyleSheet.create({
   emptyIcon: {
     width: 58,
     height: 58,
-    borderRadius: 18,
+    borderRadius: Radius.large,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.one,
   },
 
   emptyCopy: {
-    maxWidth: 260,
+    maxWidth: 280,
     textAlign: "center",
   },
 });

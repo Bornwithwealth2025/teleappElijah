@@ -11,13 +11,14 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppText } from "@/components/ui/AppText";
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useSchedulerStore from "@/store/schedulerStore";
 
@@ -32,18 +33,23 @@ function formatDate(value: Date) {
 }
 
 function formatTime(value: Date) {
-  return `${pad(value.getHours())}:${pad(
-    value.getMinutes(),
-  )}`;
+  return `${pad(value.getHours())}:${pad(value.getMinutes())}`;
 }
 
 function buildIsoDate(date: string, time: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return "";
-  if (!/^\d{2}:\d{2}$/.test(time)) return "";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return "";
+  }
+
+  if (!/^\d{2}:\d{2}$/.test(time)) {
+    return "";
+  }
 
   const parsed = new Date(`${date}T${time}:00`);
 
-  if (Number.isNaN(parsed.getTime())) return "";
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
 
   return parsed.toISOString();
 }
@@ -51,13 +57,9 @@ function buildIsoDate(date: string, time: string) {
 export function ScheduleForm() {
   const { colors } = useAppTheme();
 
-  const isCreating = useSchedulerStore(
-    (state) => state.isCreating,
-  );
+  const isCreating = useSchedulerStore((state) => state.isCreating);
   const error = useSchedulerStore((state) => state.error);
-  const clearError = useSchedulerStore(
-    (state) => state.clearError,
-  );
+  const clearError = useSchedulerStore((state) => state.clearError);
   const scheduleMeeting = useSchedulerStore(
     (state) => state.scheduleMeeting,
   );
@@ -85,10 +87,7 @@ export function ScheduleForm() {
   }, [date, time]);
 
   const handlePickerChange = React.useCallback(
-    (
-      event: DateTimePickerEvent,
-      selectedDate?: Date,
-    ) => {
+    (event: DateTimePickerEvent, selectedDate?: Date) => {
       if (Platform.OS !== "ios") {
         setPickerMode(null);
       }
@@ -112,7 +111,9 @@ export function ScheduleForm() {
   );
 
   const handleSubmit = async () => {
-    if (!isoDate || isCreating) return;
+    if (!isoDate || isCreating) {
+      return;
+    }
 
     setIsSuccess(false);
     clearError();
@@ -128,19 +129,24 @@ export function ScheduleForm() {
     }
   };
 
+  const resetFeedback = () => {
+    setIsSuccess(false);
+    clearError();
+  };
+
   return (
     <AppCard variant="tinted" style={styles.card}>
       <View style={styles.headingRow}>
         <View
           style={[
             styles.headingIcon,
-            { backgroundColor: colors.primarySoft },
+            {
+              backgroundColor: colors.primarySoft,
+              borderColor: `${colors.primary}28`,
+            },
           ]}
         >
-          <CalendarDays
-            color={colors.primary}
-            size={21}
-          />
+          <CalendarDays color={colors.primary} size={21} />
         </View>
 
         <View style={styles.headingCopy}>
@@ -148,126 +154,176 @@ export function ScheduleForm() {
             Schedule a meeting
           </AppText>
 
-          <AppText
-            variant="caption"
-            tone="muted"
-            style={styles.copy}
-          >
-            Choose when your secure Telefya room should be
-            available.
+          <AppText variant="caption" tone="muted">
+            Choose a time and create a secure shareable meeting room.
           </AppText>
         </View>
       </View>
 
       <View style={styles.fields}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Choose meeting date"
-          onPress={() => {
-            setIsSuccess(false);
-            clearError();
-            setPickerMode("date");
-          }}
-          style={[
-            styles.pickerField,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <CalendarDays
-            color={colors.textSoft}
-            size={19}
-          />
-
-          <View style={styles.pickerCopy}>
-            <AppText variant="caption" tone="muted">
-              Date
-            </AppText>
-
-            <AppText
-              variant="body"
-              style={{
-                color: date
-                  ? colors.text
-                  : colors.textMuted,
-              }}
+        {Platform.OS === "web" ? (
+          <>
+            <View
+              style={[
+                styles.webField,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
             >
-              {date || "Select date"}
-            </AppText>
-          </View>
-        </Pressable>
+              <CalendarDays color={colors.primary} size={19} />
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Choose meeting time"
-          onPress={() => {
-            setIsSuccess(false);
-            clearError();
-            setPickerMode("time");
-          }}
-          style={[
-            styles.pickerField,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-            },
-          ]}
-        >
-          <Clock3
-            color={colors.textSoft}
-            size={19}
-          />
+              <View style={styles.pickerCopy}>
+                <AppText variant="caption" tone="muted">
+                  Date
+                </AppText>
 
-          <View style={styles.pickerCopy}>
-            <AppText variant="caption" tone="muted">
-              Time
-            </AppText>
+                <TextInput
+                  value={date}
+                  onChangeText={(value) => {
+                    resetFeedback();
+                    setDate(value);
+                  }}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={colors.textSoft}
+                  accessibilityLabel="Meeting date"
+                  style={[styles.webInput, { color: colors.text }]}
+                />
+              </View>
+            </View>
 
-            <AppText
-              variant="body"
-              style={{
-                color: time
-                  ? colors.text
-                  : colors.textMuted,
-              }}
+            <View
+              style={[
+                styles.webField,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                },
+              ]}
             >
-              {time || "Select time"}
-            </AppText>
-          </View>
-        </Pressable>
+              <Clock3 color={colors.secondary} size={19} />
+
+              <View style={styles.pickerCopy}>
+                <AppText variant="caption" tone="muted">
+                  Time
+                </AppText>
+
+                <TextInput
+                  value={time}
+                  onChangeText={(value) => {
+                    resetFeedback();
+                    setTime(value);
+                  }}
+                  placeholder="HH:mm"
+                  placeholderTextColor={colors.textSoft}
+                  accessibilityLabel="Meeting time"
+                  style={[styles.webInput, { color: colors.text }]}
+                />
+              </View>
+            </View>
+          </>
+        ) : (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Choose meeting date"
+              onPress={() => {
+                resetFeedback();
+                setPickerMode("date");
+              }}
+              style={({ pressed }) => [
+                styles.pickerField,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  opacity: pressed ? 0.78 : 1,
+                },
+              ]}
+            >
+              <CalendarDays color={colors.primary} size={19} />
+
+              <View style={styles.pickerCopy}>
+                <AppText variant="caption" tone="muted">
+                  Date
+                </AppText>
+
+                <AppText
+                  variant="body"
+                  style={{
+                    color: date ? colors.text : colors.textMuted,
+                  }}
+                >
+                  {date || "Select date"}
+                </AppText>
+              </View>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Choose meeting time"
+              onPress={() => {
+                resetFeedback();
+                setPickerMode("time");
+              }}
+              style={({ pressed }) => [
+                styles.pickerField,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  opacity: pressed ? 0.78 : 1,
+                },
+              ]}
+            >
+              <Clock3 color={colors.secondary} size={19} />
+
+              <View style={styles.pickerCopy}>
+                <AppText variant="caption" tone="muted">
+                  Time
+                </AppText>
+
+                <AppText
+                  variant="body"
+                  style={{
+                    color: time ? colors.text : colors.textMuted,
+                  }}
+                >
+                  {time || "Select time"}
+                </AppText>
+              </View>
+            </Pressable>
+          </>
+        )}
       </View>
 
       {pickerMode && Platform.OS !== "web" ? (
         <DateTimePicker
           value={pickerValue}
           mode={pickerMode}
-          display={
-            Platform.OS === "ios"
-              ? "spinner"
-              : "default"
-          }
-          minimumDate={
-            pickerMode === "date"
-              ? new Date()
-              : undefined
-          }
+          display={Platform.OS === "ios" ? "spinner" : "default"}
+          minimumDate={pickerMode === "date" ? new Date() : undefined}
           onChange={handlePickerChange}
           accentColor={colors.primary}
         />
       ) : null}
 
       {error ? (
-        <AppText
-          variant="caption"
+        <View
           style={[
-            styles.error,
-            { color: colors.danger },
+            styles.errorBox,
+            {
+              backgroundColor: `${colors.danger}10`,
+              borderColor: `${colors.danger}35`,
+            },
           ]}
         >
-          {error}
-        </AppText>
+          <AppText
+            variant="caption"
+            style={{ color: colors.danger, fontWeight: "700" }}
+          >
+            {error}
+          </AppText>
+        </View>
       ) : null}
 
       {isSuccess ? (
@@ -275,19 +331,16 @@ export function ScheduleForm() {
           style={[
             styles.successBox,
             {
-              backgroundColor: `${colors.success}18`,
-              borderColor: `${colors.success}40`,
+              backgroundColor: `${colors.success}14`,
+              borderColor: `${colors.success}38`,
             },
           ]}
         >
-          <CheckCircle2
-            color={colors.success}
-            size={17}
-          />
+          <CheckCircle2 color={colors.success} size={17} />
 
           <AppText
             variant="caption"
-            style={{ color: colors.success }}
+            style={{ color: colors.success, fontWeight: "700" }}
           >
             Meeting scheduled successfully.
           </AppText>
@@ -298,17 +351,12 @@ export function ScheduleForm() {
         title={
           isCreating
             ? "Creating meeting..."
-            : "Create secure schedule"
+            : "Schedule meeting"
         }
         disabled={!canSubmit}
         loading={isCreating}
         onPress={() => void handleSubmit()}
-        leftIcon={
-          <CalendarDays
-            color="#FFFFFF"
-            size={18}
-          />
-        }
+        leftIcon={<CalendarDays color="#FFFFFF" size={18} />}
         containerStyle={styles.button}
       />
     </AppCard>
@@ -317,7 +365,7 @@ export function ScheduleForm() {
 
 const styles = StyleSheet.create({
   card: {
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
 
   headingRow: {
@@ -329,30 +377,37 @@ const styles = StyleSheet.create({
   headingIcon: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderWidth: 1,
+    borderRadius: Radius.large,
     alignItems: "center",
     justifyContent: "center",
   },
 
   headingCopy: {
     flex: 1,
-    gap: 2,
-  },
-
-  copy: {
-    marginTop: Spacing.one,
+    minWidth: 0,
+    gap: 3,
   },
 
   fields: {
-    gap: Spacing.three,
-    marginTop: Spacing.two,
+    gap: Spacing.two,
   },
 
   pickerField: {
     minHeight: 62,
     borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: Spacing.four,
+    borderRadius: Radius.large,
+    paddingHorizontal: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+
+  webField: {
+    minHeight: 62,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
@@ -360,26 +415,33 @@ const styles = StyleSheet.create({
 
   pickerCopy: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
   },
 
-  error: {
-    textAlign: "center",
-    fontWeight: "700",
+  webInput: {
+    minHeight: 25,
+    padding: 0,
+    fontSize: 15,
+  },
+
+  errorBox: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three,
   },
 
   successBox: {
-    minHeight: 42,
+    minHeight: 44,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: Radius.medium,
     paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
     gap: Spacing.two,
   },
 
   button: {
-    marginTop: Spacing.two,
+    marginTop: Spacing.one,
   },
 });

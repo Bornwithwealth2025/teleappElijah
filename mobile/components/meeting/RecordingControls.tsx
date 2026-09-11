@@ -7,16 +7,16 @@ import {
 import {
   CircleStop,
   Radio,
+  Video,
 } from "lucide-react-native";
 
+import { RecordingStatusBadge } from "@/components/meeting/RecordingStatusBadge";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useMeetingStore from "@/store/meetingStore";
 import useRecordingStore from "@/store/recordingStore";
-
-import { RecordingStatusBadge } from "./RecordingStatusBadge";
 
 export function RecordingControls() {
   const { colors } = useAppTheme();
@@ -54,13 +54,13 @@ export function RecordingControls() {
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
-          toValue: 1.12,
-          duration: 700,
+          toValue: 1.16,
+          duration: 720,
           useNativeDriver: true,
         }),
         Animated.timing(pulse, {
           toValue: 1,
-          duration: 700,
+          duration: 720,
           useNativeDriver: true,
         }),
       ]),
@@ -77,122 +77,156 @@ export function RecordingControls() {
     return null;
   }
 
-  return (
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}>
-          <Animated.View
-            style={[
-              styles.recordingIndicator,
-              {
-                backgroundColor: isRecording
-                  ? colors.danger
-                  : colors.textSoft,
-                transform: [{ scale: pulse }],
-              },
-            ]}
-          />
+  const description = isRecording
+    ? "This meeting is being recorded. Participants can see the recording indicator."
+    : isProcessing
+      ? "Your previous recording is being prepared and saved."
+      : "Start a recording for this meeting. It will appear in your library when ready.";
 
-          <View style={styles.titleCopy}>
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: colors.card,
+          borderColor: isRecording
+            ? `${colors.danger}45`
+            : colors.glassBorder,
+        },
+      ]}
+    >
+      <View style={styles.header}>
+        <View
+          style={[
+            styles.iconShell,
+            {
+              backgroundColor: isRecording
+                ? `${colors.danger}16`
+                : colors.primarySoft,
+            },
+          ]}
+        >
+          {isRecording ? (
+            <Animated.View
+              style={[
+                styles.recordingDot,
+                {
+                  backgroundColor: colors.danger,
+                  transform: [{ scale: pulse }],
+                },
+              ]}
+            />
+          ) : (
+            <Video color={colors.primary} size={19} />
+          )}
+        </View>
+
+        <View style={styles.copy}>
+          <View style={styles.titleRow}>
             <AppText variant="bodyStrong">
               Meeting recording
             </AppText>
 
-            <AppText variant="caption" tone="muted">
-              {isRecording
-                ? "This session is being recorded."
-                : isProcessing
-                  ? "Preparing your recording..."
-                  : "Only the host can control recording."}
-            </AppText>
+            <RecordingStatusBadge status={status} />
           </View>
-        </View>
 
-        <RecordingStatusBadge status={status} />
+          <AppText variant="caption" tone="muted">
+            {description}
+          </AppText>
+        </View>
       </View>
 
       {isRecording ? (
         <AppButton
-          title={
-            isStopping
-              ? "Stopping..."
-              : "Stop recording"
-          }
+          title={isStopping ? "Stopping recording..." : "Stop recording"}
           variant="danger"
           loading={isStopping}
           disabled={isStopping}
-          leftIcon={
-            <CircleStop color="#FFFFFF" size={18} />
-          }
+          leftIcon={<CircleStop color="#FFFFFF" size={18} />}
           onPress={() => void stopRecording(roomId)}
         />
       ) : (
         <AppButton
           title={
             isStarting
-              ? "Starting..."
+              ? "Starting recording..."
               : isProcessing
-                ? "Processing..."
+                ? "Recording processing..."
                 : "Start recording"
           }
           loading={isStarting}
           disabled={isStarting || isProcessing}
-          leftIcon={
-            <Radio color="#FFFFFF" size={18} />
-          }
+          leftIcon={<Radio color="#FFFFFF" size={18} />}
           onPress={() => void startRecording(roomId)}
         />
       )}
 
       {error ? (
-        <AppText
-          variant="caption"
+        <View
           style={[
-            styles.error,
-            { color: colors.danger },
+            styles.errorNotice,
+            {
+              backgroundColor: `${colors.danger}10`,
+              borderColor: `${colors.danger}32`,
+            },
           ]}
         >
-          {error}
-        </AppText>
+          <AppText
+            variant="caption"
+            style={{ color: colors.danger, fontWeight: "700" }}
+          >
+            {error}
+          </AppText>
+        </View>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
+    borderWidth: 1,
+    borderRadius: Radius.xLarge,
+    padding: Spacing.four,
     gap: Spacing.three,
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     gap: Spacing.three,
   },
 
-  titleRow: {
+  iconShell: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.large,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  recordingDot: {
+    width: 13,
+    height: 13,
+    borderRadius: Radius.pill,
+  },
+
+  copy: {
     flex: 1,
     minWidth: 0,
+    gap: 4,
+  },
+
+  titleRow: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: Spacing.two,
   },
 
-  recordingIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 999,
-  },
-
-  titleCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
-  },
-
-  error: {
-    textAlign: "center",
-    fontWeight: "700",
+  errorNotice: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three,
   },
 });

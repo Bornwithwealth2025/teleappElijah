@@ -4,6 +4,7 @@ import {
   Mic,
   MicOff,
   ShieldCheck,
+  UserMinus,
   Users,
   Video,
   VideoOff,
@@ -17,9 +18,11 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText } from "@/components/ui/AppText";
+import { BRAND_GRADIENT } from "@/components/ui/AppButton";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import type { MeetingParticipant } from "@/types/meeting.types";
@@ -32,6 +35,8 @@ type Props = {
   busy?: boolean;
   onClose: () => void;
   onMuteAll?: () => void;
+  onMuteParticipant?: (userId: string) => void;
+  onRemoveParticipant?: (userId: string) => void;
 };
 
 function getInitials(name?: string) {
@@ -55,6 +60,8 @@ export function MeetingParticipantSheet({
   busy = false,
   onClose,
   onMuteAll,
+  onMuteParticipant,
+  onRemoveParticipant,
 }: Props) {
   const { colors } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -63,17 +70,21 @@ export function MeetingParticipantSheet({
     (participant) => participant.isHandRaised,
   );
 
+  const mutedParticipantCount = participants.filter(
+    (participant) => !participant.isHost && participant.isMuted,
+  ).length;
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
-      onRequestClose={onClose}
       statusBarTranslucent
+      onRequestClose={onClose}
     >
       <View style={styles.modalRoot}>
         <Pressable
-          style={styles.backdrop}
+          style={[styles.backdrop, { backgroundColor: colors.overlay }]}
           onPress={onClose}
           accessibilityRole="button"
           accessibilityLabel="Close participants"
@@ -84,25 +95,40 @@ export function MeetingParticipantSheet({
             styles.sheet,
             {
               backgroundColor: colors.card,
-              borderColor: colors.border,
-              paddingBottom: Math.max(
-                insets.bottom,
-                Spacing.four,
-              ),
+              borderColor: colors.glassBorder,
+              paddingBottom: Math.max(insets.bottom, Spacing.four),
             },
           ]}
         >
-          <View style={styles.handle} />
+          <View
+            style={[
+              styles.handle,
+              { backgroundColor: colors.borderStrong },
+            ]}
+          />
 
           <View style={styles.header}>
             <View style={styles.headerCopy}>
-              <AppText variant="sectionTitle">
-                Participants
-              </AppText>
+              <View style={styles.titleRow}>
+                <LinearGradient
+                  colors={BRAND_GRADIENT}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.titleIcon}
+                >
+                  <Users color="#FFFFFF" size={17} />
+                </LinearGradient>
 
-              <AppText variant="caption" tone="muted">
-                {participants.length} in this meeting
-              </AppText>
+                <View style={styles.titleCopy}>
+                  <AppText variant="sectionTitle">
+                    Participants
+                  </AppText>
+
+                  <AppText variant="caption" tone="muted">
+                    {participants.length} people in this meeting
+                  </AppText>
+                </View>
+              </View>
             </View>
 
             <Pressable
@@ -112,7 +138,8 @@ export function MeetingParticipantSheet({
               style={({ pressed }) => [
                 styles.closeButton,
                 {
-                  backgroundColor: colors.surface,
+                  backgroundColor: colors.surfaceStrong,
+                  borderColor: colors.border,
                   opacity: pressed ? 0.72 : 1,
                 },
               ]}
@@ -121,52 +148,94 @@ export function MeetingParticipantSheet({
             </Pressable>
           </View>
 
-          {isHost && pendingRequestCount > 0 ? (
+          <View style={styles.summaryRow}>
             <View
               style={[
-                styles.waitingNotice,
+                styles.summaryPill,
                 {
                   backgroundColor: colors.primarySoft,
                   borderColor: colors.border,
                 },
               ]}
             >
-              <Users color={colors.primary} size={18} />
+              <Users color={colors.primary} size={14} />
+              <AppText
+                variant="label"
+                style={{ color: colors.primary }}
+              >
+                {participants.length} live
+              </AppText>
+            </View>
 
-              <View style={styles.waitingCopy}>
-                <AppText variant="bodyStrong" tone="primary">
-                  {pendingRequestCount} waiting to join
-                </AppText>
-
-                <AppText variant="caption" tone="muted">
-                  Use the join request banner in the meeting to admit them.
+            {raisedHands.length > 0 ? (
+              <View
+                style={[
+                  styles.summaryPill,
+                  {
+                    backgroundColor: `${colors.warning}18`,
+                    borderColor: `${colors.warning}42`,
+                  },
+                ]}
+              >
+                <Hand color={colors.warning} size={14} />
+                <AppText
+                  variant="label"
+                  style={{ color: colors.warning }}
+                >
+                  {raisedHands.length} raised
                 </AppText>
               </View>
-            </View>
-          ) : null}
+            ) : null}
 
-          {raisedHands.length > 0 ? (
+            {isHost && pendingRequestCount > 0 ? (
+              <View
+                style={[
+                  styles.summaryPill,
+                  {
+                    backgroundColor: colors.secondarySoft,
+                    borderColor: `${colors.secondary}35`,
+                  },
+                ]}
+              >
+                <Users color={colors.secondary} size={14} />
+                <AppText
+                  variant="label"
+                  style={{ color: colors.secondary }}
+                >
+                  {pendingRequestCount} waiting
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+
+          {isHost && pendingRequestCount > 0 ? (
             <View
               style={[
-                styles.handNotice,
+                styles.waitingNotice,
                 {
-                  backgroundColor: `${colors.warning}16`,
-                  borderColor: `${colors.warning}38`,
+                  backgroundColor: colors.primarySoft,
+                  borderColor: `${colors.primary}28`,
                 },
               ]}
             >
-              <Hand color={colors.warning} size={18} />
-
-              <AppText
-                variant="caption"
-                style={{
-                  color: colors.warning,
-                  fontWeight: "800",
-                }}
+              <View
+                style={[
+                  styles.noticeIcon,
+                  { backgroundColor: colors.card },
+                ]}
               >
-                {raisedHands.length} hand
-                {raisedHands.length === 1 ? "" : "s"} raised
-              </AppText>
+                <Users color={colors.primary} size={17} />
+              </View>
+
+              <View style={styles.waitingCopy}>
+                <AppText variant="bodyStrong">
+                  Join requests are waiting
+                </AppText>
+
+                <AppText variant="caption" tone="muted">
+                  Admit or decline them from the banner in the meeting.
+                </AppText>
+              </View>
             </View>
           ) : null}
 
@@ -179,20 +248,35 @@ export function MeetingParticipantSheet({
               style={({ pressed }) => [
                 styles.muteAllButton,
                 {
-                  backgroundColor: `${colors.danger}14`,
-                  borderColor: `${colors.danger}42`,
+                  backgroundColor: `${colors.danger}12`,
+                  borderColor: `${colors.danger}38`,
                   opacity: busy ? 0.55 : pressed ? 0.76 : 1,
                 },
               ]}
             >
-              <VolumeX color={colors.danger} size={18} />
-
-              <AppText
-                variant="bodyStrong"
-                style={{ color: colors.danger }}
+              <View
+                style={[
+                  styles.muteIcon,
+                  { backgroundColor: `${colors.danger}18` },
+                ]}
               >
-                Mute all participants
-              </AppText>
+                <VolumeX color={colors.danger} size={17} />
+              </View>
+
+              <View style={styles.muteCopy}>
+                <AppText
+                  variant="bodyStrong"
+                  style={{ color: colors.danger }}
+                >
+                  Mute all participants
+                </AppText>
+
+                <AppText variant="caption" tone="muted">
+                  {mutedParticipantCount > 0
+                    ? `${mutedParticipantCount} already muted`
+                    : "You can unmute yourself at any time"}
+                </AppText>
+              </View>
             </Pressable>
           ) : null}
 
@@ -202,10 +286,11 @@ export function MeetingParticipantSheet({
           >
             {participants.map((participant) => {
               const name = participant.name || "Participant";
+              const participantKey = participant.userId || participant.id;
 
               return (
                 <View
-                  key={participant.userId || participant.id}
+                  key={participantKey}
                   style={[
                     styles.row,
                     {
@@ -221,20 +306,34 @@ export function MeetingParticipantSheet({
                         backgroundColor: participant.isHost
                           ? colors.secondarySoft
                           : colors.primarySoft,
+                        borderColor: participant.isHost
+                          ? `${colors.secondary}48`
+                          : `${colors.primary}38`,
                       },
                     ]}
                   >
                     <AppText
                       variant="caption"
-                      tone={
-                        participant.isHost
-                          ? "secondary"
-                          : "primary"
-                      }
-                      style={styles.avatarText}
+                      style={[
+                        styles.avatarText,
+                        {
+                          color: participant.isHost
+                            ? colors.secondary
+                            : colors.primary,
+                        },
+                      ]}
                     >
                       {getInitials(name)}
                     </AppText>
+
+                    {!participant.isMuted ? (
+                      <View
+                        style={[
+                          styles.onlineDot,
+                          { backgroundColor: colors.success },
+                        ]}
+                      />
+                    ) : null}
                   </View>
 
                   <View style={styles.copy}>
@@ -242,6 +341,7 @@ export function MeetingParticipantSheet({
                       <AppText
                         variant="bodyStrong"
                         numberOfLines={1}
+                        style={styles.name}
                       >
                         {name}
                       </AppText>
@@ -251,8 +351,8 @@ export function MeetingParticipantSheet({
                           style={[
                             styles.hostBadge,
                             {
-                              backgroundColor:
-                                colors.secondarySoft,
+                              backgroundColor: colors.secondarySoft,
+                              borderColor: `${colors.secondary}32`,
                             },
                           ]}
                         >
@@ -263,8 +363,10 @@ export function MeetingParticipantSheet({
 
                           <AppText
                             variant="label"
-                            tone="secondary"
-                            style={styles.hostLabel}
+                            style={[
+                              styles.hostLabel,
+                              { color: colors.secondary },
+                            ]}
                           >
                             Host
                           </AppText>
@@ -277,42 +379,98 @@ export function MeetingParticipantSheet({
                         ? "Hand raised"
                         : participant.isMuted
                           ? "Microphone muted"
-                          : "In the meeting"}
+                          : "Listening"}
                     </AppText>
                   </View>
 
                   <View style={styles.status}>
                     {participant.isHandRaised ? (
-                      <Hand
-                        color={colors.warning}
-                        size={17}
-                      />
+                      <View
+                        style={[
+                          styles.statusIcon,
+                          { backgroundColor: `${colors.warning}18` },
+                        ]}
+                      >
+                        <Hand color={colors.warning} size={15} />
+                      </View>
                     ) : null}
 
-                    {participant.isMuted ? (
-                      <MicOff
-                        color={colors.danger}
-                        size={17}
-                      />
-                    ) : (
-                      <Mic
-                        color={colors.success}
-                        size={17}
-                      />
-                    )}
+                    <View
+                      style={[
+                        styles.statusIcon,
+                        {
+                          backgroundColor: participant.isMuted
+                            ? `${colors.danger}14`
+                            : `${colors.success}16`,
+                        },
+                      ]}
+                    >
+                      {participant.isMuted ? (
+                        <MicOff color={colors.danger} size={15} />
+                      ) : (
+                        <Mic color={colors.success} size={15} />
+                      )}
+                    </View>
 
-                    {participant.isCameraOff ? (
-                      <VideoOff
-                        color={colors.danger}
-                        size={17}
-                      />
-                    ) : (
-                      <Video
-                        color={colors.success}
-                        size={17}
-                      />
-                    )}
+                    <View
+                      style={[
+                        styles.statusIcon,
+                        {
+                          backgroundColor: participant.isCameraOff
+                            ? `${colors.danger}14`
+                            : colors.primarySoft,
+                        },
+                      ]}
+                    >
+                      {participant.isCameraOff ? (
+                        <VideoOff color={colors.danger} size={15} />
+                      ) : (
+                        <Video color={colors.primary} size={15} />
+                      )}
+                    </View>
                   </View>
+
+                  {isHost && !participant.isHost ? (
+                    <View style={styles.hostActions}>
+                      <Pressable
+                        disabled={busy}
+                        onPress={() =>
+                          onMuteParticipant?.(participant.userId)
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={`Mute ${name}`}
+                        style={({ pressed }) => [
+                          styles.hostAction,
+                          {
+                            backgroundColor: `${colors.warning}16`,
+                            borderColor: `${colors.warning}35`,
+                            opacity: busy ? 0.5 : pressed ? 0.72 : 1,
+                          },
+                        ]}
+                      >
+                        <MicOff color={colors.warning} size={15} />
+                      </Pressable>
+
+                      <Pressable
+                        disabled={busy}
+                        onPress={() =>
+                          onRemoveParticipant?.(participant.userId)
+                        }
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${name}`}
+                        style={({ pressed }) => [
+                          styles.hostAction,
+                          {
+                            backgroundColor: `${colors.danger}12`,
+                            borderColor: `${colors.danger}38`,
+                            opacity: busy ? 0.5 : pressed ? 0.72 : 1,
+                          },
+                        ]}
+                      >
+                        <UserMinus color={colors.danger} size={15} />
+                      </Pressable>
+                    </View>
+                  ) : null}
                 </View>
               );
             })}
@@ -331,11 +489,10 @@ const styles = StyleSheet.create({
 
   backdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(3, 9, 20, 0.6)",
   },
 
   sheet: {
-    maxHeight: "82%",
+    maxHeight: "84%",
     borderTopWidth: 1,
     borderTopLeftRadius: Radius.xLarge,
     borderTopRightRadius: Radius.xLarge,
@@ -345,11 +502,10 @@ const styles = StyleSheet.create({
   },
 
   handle: {
+    alignSelf: "center",
     width: 42,
     height: 4,
     borderRadius: Radius.pill,
-    alignSelf: "center",
-    backgroundColor: "rgba(148, 163, 184, 0.42)",
   },
 
   header: {
@@ -362,51 +518,99 @@ const styles = StyleSheet.create({
   headerCopy: {
     flex: 1,
     minWidth: 0,
+  },
+
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+
+  titleIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  titleCopy: {
+    flex: 1,
+    minWidth: 0,
     gap: 2,
   },
 
   closeButton: {
     width: 40,
     height: 40,
+    borderWidth: 1,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  waitingNotice: {
+  summaryRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: Spacing.two,
+  },
+
+  summaryPill: {
+    minHeight: 30,
     borderWidth: 1,
-    borderRadius: Radius.medium,
-    minHeight: 58,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.two,
+    gap: 6,
+  },
+
+  waitingNotice: {
+    minHeight: 66,
+    borderWidth: 1,
+    borderRadius: Radius.large,
     padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+
+  noticeIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   waitingCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
-  },
-
-  handNotice: {
-    minHeight: 38,
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.three,
+    gap: 3,
   },
 
   muteAllButton: {
-    minHeight: 48,
+    minHeight: 62,
     borderWidth: 1,
-    borderRadius: Radius.medium,
+    borderRadius: Radius.large,
+    paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
+    gap: Spacing.three,
+  },
+
+  muteIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.medium,
+    alignItems: "center",
     justifyContent: "center",
-    gap: Spacing.two,
+  },
+
+  muteCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
 
   list: {
@@ -415,9 +619,9 @@ const styles = StyleSheet.create({
   },
 
   row: {
-    minHeight: 68,
+    minHeight: 76,
     borderWidth: 1,
-    borderRadius: Radius.medium,
+    borderRadius: Radius.large,
     paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
@@ -425,8 +629,9 @@ const styles = StyleSheet.create({
   },
 
   avatar: {
-    width: 42,
-    height: 42,
+    width: 46,
+    height: 46,
+    borderWidth: 1,
     borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
@@ -434,6 +639,17 @@ const styles = StyleSheet.create({
 
   avatarText: {
     fontWeight: "900",
+  },
+
+  onlineDot: {
+    position: "absolute",
+    right: -1,
+    bottom: -1,
+    width: 12,
+    height: 12,
+    borderRadius: Radius.pill,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
 
   copy: {
@@ -445,11 +661,16 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.two,
+    gap: Spacing.one,
+  },
+
+  name: {
+    flexShrink: 1,
   },
 
   hostBadge: {
-    minHeight: 21,
+    minHeight: 22,
+    borderWidth: 1,
     borderRadius: Radius.pill,
     paddingHorizontal: 7,
     flexDirection: "row",
@@ -465,6 +686,29 @@ const styles = StyleSheet.create({
   status: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.one,
+    gap: 5,
+  },
+
+  statusIcon: {
+    width: 29,
+    height: 29,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  hostActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+
+  hostAction: {
+    width: 29,
+    height: 29,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -1,87 +1,108 @@
 import React from "react";
 import { router } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
 import * as NavigationBar from "expo-navigation-bar";
 import {
+  AccessibilityInfo,
   Animated,
+  Easing,
   Image,
   Platform,
   StatusBar,
   StyleSheet,
-  View,
   useWindowDimensions,
+  View,
 } from "react-native";
-import {
-  MessageCircle,
-  ShieldCheck,
-  UsersRound,
-  Video,
-} from "lucide-react-native";
+import { ArrowRight, LogIn, Sparkles, Users } from "lucide-react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppButton } from "@/components/ui/AppButton";
+import { AppButton, BRAND_GRADIENT } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
-const features = [
-  { label: "Chat", icon: MessageCircle, color: "#0F6BFF" },
-  { label: "Meet", icon: Video, color: "#FF4B3E" },
-  { label: "Secure", icon: ShieldCheck, color: "#22D386" },
-  { label: "Connect", icon: UsersRound, color: "#6426FF" },
+const GLOBE_IMAGE_LIGHT = require("@/assets/images/telefya-globe.png");
+const GLOBE_IMAGE_DARK = require("@/assets/images/telefya-globe-dark.png");
+const GLOBE_ASPECT_RATIO = 785 / 660;
+
+const HIGHLIGHT = { dark: "#5EEAD4", light: "#0D9488" };
+const LINK_COLOR = { dark: "#60A5FA", light: "#2563EB" };
+
+const BRAND_LETTERS = [
+  { char: "T", color: "#0B62FB" },
+  { char: "e", color: "#0B62FB" },
+  { char: "l", color: "#FE5C43" },
+  { char: "e", color: "#FFA500" },
+  { char: "f", color: "#24D68D" },
+  { char: "y", color: "#6C4FE0" },
+  { char: "a", color: "#7B1CFF" },
 ];
 
-// Reuses the same brand blue already used for the "Chat" feature icon,
-// so no new colors are introduced — just applied to the hero backdrop.
-const BRAND_BLUE = features[0].color;
+const HERO_ANIMATION_DURATION = 440;
+const BODY_ANIMATION_DURATION = 300;
+const BREATHE_DURATION = 3400;
 
 export default function WelcomeScreen() {
   const { colors, isDark } = useAppTheme();
+  const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
 
   const compact = height < 720;
-  const background = isDark ? "#071633" : "#FFFFFF";
-  const logoSize = Math.min(width * 0.56, compact ? 190 : 220);
-  const haloSize = logoSize * 1.9;
+  const heroWidth = Math.min(width * 0.92, compact ? 300 : 360);
+  const heroHeight = heroWidth / GLOBE_ASPECT_RATIO;
 
-  const logoOpacity = React.useRef(
-    new Animated.Value(0),
-  ).current;
+  const [reduceMotion, setReduceMotion] = React.useState(false);
 
-  const logoScale = React.useRef(
-    new Animated.Value(0.88),
-  ).current;
-
-  const contentOpacity = React.useRef(
-    new Animated.Value(0),
-  ).current;
-
-  const contentTranslateY = React.useRef(
-    new Animated.Value(24),
-  ).current;
+  const heroOpacity = React.useRef(new Animated.Value(0)).current;
+  const heroScale = React.useRef(new Animated.Value(0.92)).current;
+  const bodyOpacity = React.useRef(new Animated.Value(0)).current;
+  const bodyTranslateY = React.useRef(new Animated.Value(18)).current;
+  const breathe = React.useRef(new Animated.Value(1)).current;
 
   React.useEffect(() => {
+    let mounted = true;
+
+    AccessibilityInfo.isReduceMotionEnabled()
+      .then((enabled) => {
+        if (mounted) setReduceMotion(enabled);
+      })
+      .catch(() => {});
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (reduceMotion) {
+      heroOpacity.setValue(1);
+      heroScale.setValue(1);
+      bodyOpacity.setValue(1);
+      bodyTranslateY.setValue(0);
+      return;
+    }
+
     Animated.sequence([
       Animated.parallel([
-        Animated.timing(logoOpacity, {
+        Animated.timing(heroOpacity, {
           toValue: 1,
-          duration: 520,
+          duration: HERO_ANIMATION_DURATION,
           useNativeDriver: true,
         }),
-        Animated.spring(logoScale, {
+        Animated.spring(heroScale, {
           toValue: 1,
-          damping: 14,
+          damping: 16,
           stiffness: 130,
-          mass: 0.8,
+          mass: 0.85,
           useNativeDriver: true,
         }),
       ]),
       Animated.parallel([
-        Animated.timing(contentOpacity, {
+        Animated.timing(bodyOpacity, {
           toValue: 1,
-          duration: 380,
+          duration: BODY_ANIMATION_DURATION,
           useNativeDriver: true,
         }),
-        Animated.spring(contentTranslateY, {
+        Animated.spring(bodyTranslateY, {
           toValue: 0,
           damping: 16,
           stiffness: 145,
@@ -90,200 +111,224 @@ export default function WelcomeScreen() {
         }),
       ]),
     ]).start();
-  }, [
-    logoOpacity,
-    logoScale,
-    contentOpacity,
-    contentTranslateY,
-  ]);
+  }, [bodyOpacity, bodyTranslateY, heroOpacity, heroScale, reduceMotion]);
+
+  React.useEffect(() => {
+    if (reduceMotion) return;
+
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breathe, {
+          toValue: 1.018,
+          duration: BREATHE_DURATION,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(breathe, {
+          toValue: 1,
+          duration: BREATHE_DURATION,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    loop.start();
+    return () => loop.stop();
+  }, [breathe, reduceMotion]);
 
   React.useEffect(() => {
     async function configureSystemBars() {
       if (Platform.OS !== "android") return;
 
-      const nav = NavigationBar as any;
-
       try {
-        if (nav.setPositionAsync) {
-          await nav.setPositionAsync("absolute");
-        }
-
-        if (nav.setBackgroundColorAsync) {
-          await nav.setBackgroundColorAsync("transparent");
-        }
-
-        if (nav.setButtonStyleAsync) {
-          await nav.setButtonStyleAsync(isDark ? "light" : "dark");
-        }
-
-        if (nav.setBehaviorAsync) {
-          await nav.setBehaviorAsync("overlay-swipe");
-        }
+        const navigationBar = NavigationBar as any;
+        await navigationBar.setPositionAsync?.("absolute");
+        await navigationBar.setBackgroundColorAsync?.("transparent");
+        await navigationBar.setButtonStyleAsync?.(isDark ? "light" : "dark");
+        await navigationBar.setBehaviorAsync?.("overlay-swipe");
       } catch {}
     }
 
     void configureSystemBars();
   }, [isDark]);
 
+  const highlight = isDark ? HIGHLIGHT.dark : HIGHLIGHT.light;
+  const linkColor = isDark ? LINK_COLOR.dark : LINK_COLOR.light;
+  const globeImage = isDark ? GLOBE_IMAGE_DARK : GLOBE_IMAGE_LIGHT;
+
   return (
-    <View style={[styles.root, { backgroundColor: background }]}>
+    <View style={[styles.root, { backgroundColor: colors.background }]}>
       <StatusBar
-        barStyle="light-content"
         translucent
         backgroundColor="transparent"
+        barStyle={isDark ? "light-content" : "dark-content"}
       />
 
-      {/* Hero backdrop: radial-style blue glow fading into the base background,
-          built from the same brand blue already used for the "Chat" feature. */}
-      <LinearGradient
-        colors={
-          isDark
-            ? ["#071633", "#10244D", "#071633"]
-            : [BRAND_BLUE, BRAND_BLUE, "#FFFFFF"]
-        }
-        locations={isDark ? [0, 0.52, 1] : [0, 0.3, 0.62]}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
-
-      <View style={styles.content}>
-        <View
-          style={[
-            styles.heroArea,
-            { height: compact ? height * 0.42 : height * 0.46 },
-          ]}
-        >
-          <View
-            style={[
-              styles.halo,
-              {
-                width: haloSize,
-                height: haloSize,
-                borderRadius: haloSize / 2,
-                backgroundColor: isDark
-                  ? "rgba(255,255,255,0.06)"
-                  : "rgba(255,255,255,0.22)",
-              },
-            ]}
+      <View
+        style={[
+          styles.content,
+          {
+            paddingTop: Math.max(insets.top + Spacing.two, Spacing.four),
+            paddingBottom: Math.max(insets.bottom + Spacing.two, Spacing.four),
+          },
+        ]}
+      >
+        <View style={styles.topArea}>
+          <Image
+            source={require("@/assets/images/telefya-logo.png")}
+            resizeMode="contain"
+            accessibilityRole="image"
+            accessibilityLabel="Telefya"
+            style={styles.logo}
           />
-          <View
-            style={[
-              styles.haloInner,
-              {
-                width: haloSize * 0.66,
-                height: haloSize * 0.66,
-                borderRadius: (haloSize * 0.66) / 2,
-                backgroundColor: isDark
-                  ? "rgba(255,255,255,0.08)"
-                  : "rgba(255,255,255,0.32)",
-              },
-            ]}
-          />
+        </View>
 
+        <View style={styles.heroSection}>
           <Animated.View
             style={[
-              styles.logoWrap,
+              styles.hero,
               {
-                width: logoSize,
-                height: logoSize,
-                opacity: logoOpacity,
-                transform: [{ scale: logoScale }],
+                width: heroWidth,
+                height: heroHeight,
+                opacity: heroOpacity,
+                transform: [{ scale: heroScale }, { scale: breathe }],
               },
             ]}
           >
+            <View
+              pointerEvents="none"
+              style={[
+                styles.heroShadow,
+                { backgroundColor: isDark ? "rgba(0,0,0,0.35)" : "rgba(59,130,246,0.16)" },
+              ]}
+            />
+
             <Image
-              source={require("@/assets/images/telefya-logo.png")}
-              style={styles.logo}
+              source={globeImage}
               resizeMode="contain"
+              style={styles.globeImage}
+              accessibilityRole="image"
+              accessibilityLabel="Telefya's global network of connected users"
             />
           </Animated.View>
         </View>
 
         <Animated.View
           style={[
-            styles.lowerArea,
-            {
-              opacity: contentOpacity,
-              transform: [{ translateY: contentTranslateY }],
-            },
+            styles.bottomContent,
+            { opacity: bodyOpacity, transform: [{ translateY: bodyTranslateY }] },
           ]}
         >
-          <View style={styles.brandCopy}>
-            <View style={styles.featureRow}>
-              {features.map((item, index) => {
-                const Icon = item.icon;
+          <View
+            style={[
+              styles.connectionPill,
+              {
+                backgroundColor: isDark
+                  ? "rgba(5, 17, 40, 0.78)"
+                  : "rgba(255, 255, 255, 0.88)",
+                borderColor: isDark
+                  ? "rgba(22, 119, 255, 0.58)"
+                  : "rgba(22, 119, 255, 0.42)",
+              },
+            ]}
+          >
+            <Sparkles color={colors.primary} size={15} />
 
-                return (
-                  <View key={item.label} style={styles.featureItem}>
-                    <Icon color={item.color} size={compact ? 19 : 22} />
+            <AppText style={styles.connectionText}>
+              <AppText
+                style={[
+                  styles.connectionText,
+                  { color: isDark ? "#FFFFFF" : "#15213D" },
+                ]}
+              >
+                ONE APP.{" "}
+              </AppText>
 
-                    <AppText
-                      numberOfLines={1}
-                      style={[styles.featureLabel, { color: colors.text }]}
-                    >
-                      {item.label}
-                    </AppText>
+              <AppText style={[styles.connectionText, styles.allText]}>
+                ALL{" "}
+              </AppText>
 
-                    {index < features.length - 1 ? (
-                      <View
-                        style={[
-                          styles.divider,
-                          { backgroundColor: colors.border },
-                        ]}
-                      />
-                    ) : null}
-                  </View>
-                );
-              })}
-            </View>
-
-            <AppText style={styles.tagline}>
-              <AppText style={styles.blue}>O N E </AppText>
-              <AppText style={styles.purple}> A P P. </AppText>
-              <AppText style={styles.red}> A L L </AppText>
-              <AppText style={styles.green}> C O N N E C T I O N S.</AppText>
+              <AppText style={[styles.connectionText, styles.connectionsText]}>
+                CONNECTIONS.
+              </AppText>
             </AppText>
           </View>
 
           <View style={styles.copy}>
             <AppText
               variant="display"
-              style={[styles.heading, { color: colors.text }]}
+              style={[
+                styles.title,
+                {
+                  color: isDark ? "#FFFFFF" : "#071633",
+                },
+              ]}
             >
-              Your meeting workspace
+              Welcome to{" "}
+              {BRAND_LETTERS.map((letter, index) => (
+                <AppText
+                  key={index}
+                  variant="display"
+                  style={[styles.telefyaWord, { color: letter.color }]}
+                >
+                  {letter.char}
+                </AppText>
+              ))}
             </AppText>
 
             <AppText
               variant="body"
-              style={[styles.subtitle, { color: colors.textMuted }]}
+              style={[
+                styles.subtitle,
+                {
+                  color: isDark
+                    ? "rgba(224, 232, 250, 0.68)"
+                    : colors.textMuted,
+                },
+              ]}
             >
-              Chat, meet, secure conversations, and connect with people from one
-              polished workspace.
+              High-quality meetings. Crystal-clear voice.{"\n"}
+              Instant collaboration.
             </AppText>
           </View>
 
           <View style={styles.actions}>
             <AppButton
-              title="Create account"
-              accessibilityLabel="Create a Telefya account"
+              title="Create Account"
+              variant="gradient"
+              gradientColors={BRAND_GRADIENT}
+              contentAlign="spaceBetween"
+              leftIcon={<Users color="#FFFFFF" size={18} />}
+              rightIcon={<ArrowRight color="#FFFFFF" size={18} />}
               onPress={() => router.push("/auth/register")}
-              style={[
-                styles.primaryButton,
-                {
-                  shadowColor: BRAND_BLUE,
-                },
-              ]}
+              accessibilityLabel="Create a Telefya account"
             />
 
             <AppButton
-              title="Sign in"
-              accessibilityLabel="Sign in to Telefya"
-              variant="secondary"
+              title="Sign In"
+              variant="gradientOutline"
+              gradientColors={BRAND_GRADIENT}
+              contentAlign="spaceBetween"
+              textColor={colors.text}
+              leftIcon={<LogIn color={colors.primary} size={18} />}
+              rightIcon={<ArrowRight color={colors.primary} size={18} />}
               onPress={() => router.push("/auth/login")}
-              style={styles.secondaryButton}
+              accessibilityLabel="Sign in to Telefya"
             />
           </View>
+
+          <AppText style={[styles.legal, { color: colors.textSoft }]}>
+            By continuing, you agree to our{" "}
+            <AppText style={[styles.legalLink, { color: linkColor }]}>
+              Terms of Service
+            </AppText>{" "}
+            and{" "}
+            <AppText style={[styles.legalLink, { color: linkColor }]}>
+              Privacy Policy
+            </AppText>
+            .
+          </AppText>
         </Animated.View>
       </View>
     </View>
@@ -291,120 +336,82 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
+  root: { flex: 1 },
+  content: { flex: 1, paddingHorizontal: Spacing.four },
+  topArea: { minHeight: 52, alignItems: "center", justifyContent: "center" },
+  logo: { width: 168, height: 54 },
+  heroSection: {
     flex: 1,
-    width: "100%",
-  },
-  content: {
-    flex: 1,
-    width: "100%",
-  },
-  heroArea: {
-    width: "100%",
+    minHeight: 250,
     alignItems: "center",
     justifyContent: "center",
+    paddingTop: Spacing.two,
   },
-  halo: {
+  hero: { alignItems: "center", justifyContent: "center" },
+  heroShadow: {
     position: "absolute",
-    alignSelf: "center",
+    width: "58%",
+    height: "18%",
+    bottom: "2%",
+    borderRadius: 999,
+    transform: [{ scaleX: 1.3 }],
   },
-  haloInner: {
-    position: "absolute",
-    alignSelf: "center",
-  },
-  logoWrap: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  logo: {
-    width: "100%",
-    height: "100%",
-  },
-  lowerArea: {
-    flex: 1,
-    width: "100%",
-    paddingHorizontal: Spacing.four,
-    paddingBottom: Platform.OS === "android" ? Spacing.six : Spacing.five,
-    justifyContent: "space-between",
-    gap: Spacing.four,
-  },
-  brandCopy: {
-    alignItems: "center",
-    gap: Spacing.three,
-  },
-  featureRow: {
-    width: "100%",
-    maxWidth: 460,
+  globeImage: { width: "100%", height: "100%" },
+  bottomContent: { width: "100%", alignItems: "center", gap: Spacing.three },
+  connectionPill: {
+    minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    marginTop: -Spacing.three,
   },
-  featureItem: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
-  featureLabel: {
-    fontSize: 13,
-    fontWeight: "800",
-  },
-  divider: {
-    position: "absolute",
-    right: 0,
-    width: StyleSheet.hairlineWidth,
-    height: 26,
-  },
-  tagline: {
-    fontSize: 12,
-    lineHeight: 18,
+
+  connectionText: {
+    fontSize: 11,
     fontWeight: "900",
-    textAlign: "center",
+    letterSpacing: 0.2,
   },
-  blue: {
-    color: "#0F6BFF",
+
+  allText: {
+    color: "#12BFC6",
   },
-  red: {
-    color: "#FF4B3E",
+
+  connectionsText: {
+    color: "#386CFF",
   },
-  green: {
-    color: "#22D386",
-  },
-  purple: {
-    color: "#6426FF",
-  },
+
   copy: {
+    width: "100%",
     alignItems: "center",
+    marginTop: Spacing.four,
     gap: Spacing.two,
   },
-  heading: {
-    fontSize: 30,
-    lineHeight: 37,
+
+  title: {
+    fontSize: 34,
+    lineHeight: 41,
     fontWeight: "900",
-    letterSpacing: -0.5,
+    letterSpacing: -1,
     textAlign: "center",
   },
+
+  telefyaWord: {
+    fontSize: 34,
+    lineHeight: 41,
+    fontWeight: "900",
+    letterSpacing: -1,
+  },
+
   subtitle: {
-    maxWidth: 380,
+    fontSize: 14,
+    lineHeight: 21,
     textAlign: "center",
-    lineHeight: 22,
   },
-  actions: {
-    width: "100%",
-    gap: Spacing.three,
-  },
-  primaryButton: {
-    minHeight: 58,
-    borderRadius: 999,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    elevation: 6,
-  },
-  secondaryButton: {
-    minHeight: 58,
-    borderRadius: 999,
-  },
+  actions: { width: "100%", gap: Spacing.three, marginTop: Spacing.one },
+  legal: { maxWidth: 300, fontSize: 10, lineHeight: 15, textAlign: "center", marginTop: Spacing.one },
+  legalLink: { fontSize: 10, lineHeight: 15, fontWeight: "700" },
 });

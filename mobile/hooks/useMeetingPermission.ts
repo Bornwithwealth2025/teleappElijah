@@ -56,7 +56,7 @@ export function useMeetingPermissions() {
         return true;
       }
 
-      const webrtc = await import("react-native-webrtc");
+      const webrtc = await import("@stream-io/react-native-webrtc");
       const mediaDevices = webrtc.mediaDevices;
 
       if (!mediaDevices?.getUserMedia) {

@@ -23,6 +23,7 @@ type Props = {
   cameraOff?: boolean;
   featured?: boolean;
   compact?: boolean;
+  fill?: boolean;
 };
 
 function getInitials(name: string) {
@@ -43,6 +44,7 @@ export function RemoteVideoTile({
   cameraOff = false,
   featured = false,
   compact = false,
+  fill = false,
 }: Props) {
   const { colors } = useAppTheme();
   const opacity = useRef(new Animated.Value(0)).current;
@@ -68,7 +70,7 @@ export function RemoteVideoTile({
 
   if (Platform.OS !== "web") {
     try {
-      RTCView = require("react-native-webrtc").RTCView;
+      RTCView = require("@stream-io/react-native-webrtc").RTCView;
     } catch {
       RTCView = null;
     }
@@ -85,17 +87,21 @@ export function RemoteVideoTile({
     remote.stream &&
     typeof (remote.stream as any).toURL === "function";
 
-  const tileStyle = featured
-    ? styles.featuredTile
-    : compact
-      ? styles.compactTile
-      : styles.tile;
+  const tileStyle = fill
+    ? styles.fillTile
+    : featured
+      ? styles.featuredTile
+      : compact
+        ? styles.compactTile
+        : styles.tile;
 
-  const fallbackStyle = featured
-    ? styles.featuredFallback
-    : compact
-      ? styles.compactFallback
-      : styles.fallback;
+  const fallbackStyle = fill
+    ? styles.fillFallback
+    : featured
+      ? styles.featuredFallback
+      : compact
+        ? styles.compactFallback
+        : styles.fallback;
 
   return (
     <Animated.View
@@ -283,6 +289,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#0B1220",
   },
 
+  fillTile: {
+    flex: 1,
+    width: "100%",
+    overflow: "hidden",
+    backgroundColor: "#0B1220",
+  },
+
   fallback: {
     flex: 1,
     minHeight: 210,
@@ -304,6 +317,13 @@ const styles = StyleSheet.create({
     minHeight: 104,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  fillFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: Spacing.three,
   },
 
   avatar: {

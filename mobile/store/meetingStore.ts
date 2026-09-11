@@ -17,6 +17,10 @@ import type {
   WaitingRoomRequest,
   WaitingRoomStatus,
 } from "@/types/meeting.types";
+import type {
+  NetworkQualitySnapshot,
+} from "@/services/networkQuality.service";
+import type { VideoEffectId } from "@/services/video-effects.service";
 
 export type RemoteStream = {
   id: string;
@@ -78,6 +82,17 @@ function createInitialState() {
     isCameraOff: false,
     isHandRaised: false,
     isScreenSharing: false,
+    videoEffect: "none" as VideoEffectId,
+
+    networkQuality: {
+      level: "unknown",
+      label: "Checking connection",
+      roundTripTimeMs: null,
+      jitterMs: null,
+      packetLossPercent: null,
+      bitrateKbps: null,
+      updatedAt: null,
+    } as NetworkQualitySnapshot,
 
     participants: [] as MeetingParticipant[],
     messages: [] as MeetingMessage[],
@@ -103,7 +118,20 @@ type MeetingStore = MeetingState & {
   toggleCamera: () => Promise<void>;
   toggleHand: () => Promise<void>;
   toggleScreenShare: () => Promise<void>;
+  setVideoEffect: (effectId: VideoEffectId) => Promise<void>;
   muteAllParticipants: () => Promise<void>;
+  muteParticipant: (targetUserId: string) => Promise<void>;
+  removeParticipantByHost: (
+    targetUserId: string,
+  ) => Promise<void>;
+  applyHostMuteParticipant: (payload: {
+    roomId?: string;
+    targetUserId?: string;
+  }) => Promise<void>;
+  handleHostRemoved: (payload: {
+    roomId?: string;
+    message?: string;
+  }) => void;
   applyHostMuteAll: (payload: {
     roomId?: string;
     byUserId?: string;
@@ -141,6 +169,10 @@ type MeetingStore = MeetingState & {
   addRemoteStream: (stream: RemoteStream) => void;
   removeRemoteStreamsByUser: (userId: string) => void;
   removeRemoteStreamByProducer: (producerId: string) => void;
+  removeScreenShareStreamByUser: (userId: string) => void;
+  setNetworkQuality: (
+    networkQuality: NetworkQualitySnapshot,
+  ) => void;
 
   addProducer: (producer: MeetingProducerInfo) => void;
   upsertParticipant: (
@@ -154,6 +186,7 @@ type MeetingStore = MeetingState & {
     newMessage: string,
   ) => void;
   removeMessage: (messageId: string) => void;
+  hydrateMessages: (messages: MeetingMessage[]) => void;
 
   resetMeeting: () => void;
 };
@@ -186,6 +219,8 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     userName,
     isHost,
     isBot,
+    micOn = true,
+    cameraOn = true,
   }) => {
     if (!roomId || !userId || !userName) {
       set({
@@ -213,8 +248,8 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
         userName,
         isHost,
         isBot,
-        micOn: true,
-        cameraOn: true,
+        micOn,
+        cameraOn,
       } as JoinPayload)) as ExtendedJoinResponse;
 
       if (!joined?.success) {
@@ -262,6 +297,8 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
         isHost: Boolean(joined.isHost),
         waitingRoomStatus: "idle",
         waitingRoomMessage: null,
+        isMuted: !micOn,
+        isCameraOff: !cameraOn,
         participants: hasCurrentUser
           ? backendParticipants
           : [...backendParticipants, currentUser],
@@ -286,6 +323,8 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     userId,
     userName,
     isBot,
+    micOn = true,
+    cameraOn = true,
   }) => {
     if (!roomId || !userId || !userName) {
       set({
@@ -328,6 +367,8 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
           userName,
           isHost: response.status === "host",
           isBot,
+          micOn,
+          cameraOn,
         });
 
         if (get().status === "joined") {
@@ -668,6 +709,26 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     }
   },
 
+  setVideoEffect: async (effectId) => {
+    try {
+      await MediasoupClient.applyVideoEffect(effectId);
+
+      set({
+        videoEffect: effectId,
+        error: null,
+      });
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to apply the selected camera effect.",
+        ),
+      });
+
+      throw error;
+    }
+  },
+
   muteAllParticipants: async () => {
     const { roomId, isHost } = get();
 
@@ -687,6 +748,107 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
         ),
       });
     }
+  },
+
+  muteParticipant: async (targetUserId) => {
+    const { roomId, isHost, userId } = get();
+
+    if (
+      !roomId ||
+      !isHost ||
+      !targetUserId ||
+      targetUserId === userId
+    ) {
+      return;
+    }
+
+    try {
+      await ConfMeetingSocketCommands.muteParticipant({
+        roomId,
+        targetUserId,
+      });
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to mute that participant.",
+        ),
+      });
+    }
+  },
+
+  removeParticipantByHost: async (targetUserId) => {
+    const { roomId, isHost, userId } = get();
+
+    if (
+      !roomId ||
+      !isHost ||
+      !targetUserId ||
+      targetUserId === userId
+    ) {
+      return;
+    }
+
+    try {
+      await ConfMeetingSocketCommands.removeParticipant({
+        roomId,
+        targetUserId,
+      });
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to remove that participant.",
+        ),
+      });
+    }
+  },
+
+  applyHostMuteParticipant: async (payload) => {
+    const { roomId, userId } = get();
+
+    if (
+      !roomId ||
+      !userId ||
+      payload.roomId !== roomId ||
+      payload.targetUserId !== userId
+    ) {
+      return;
+    }
+
+    try {
+      MediasoupClient.setTrackEnabled("audio", false);
+    } catch {
+      // Keep state correct even if the local audio track is unavailable.
+    }
+
+    set((state) => ({
+      isMuted: true,
+      participants: state.participants.map((participant) =>
+        participant.userId === userId
+          ? { ...participant, isMuted: true }
+          : participant,
+      ),
+    }));
+  },
+
+  handleHostRemoved: (payload) => {
+    const { roomId } = get();
+
+    if (!roomId || payload.roomId !== roomId) {
+      return;
+    }
+
+    MediasoupClient.cleanup();
+    disconnectConfMeetingSocket();
+
+    set({
+      ...createInitialState(),
+      status: "error",
+      error:
+        payload.message ||
+        "The host removed you from this meeting.",
+    });
   },
 
   applyHostMuteAll: async (payload) => {
@@ -728,66 +890,73 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
   },
 
   sendMessage: async (message) => {
-    const {
-      roomId,
-      userName,
-      socketId,
-    } = get();
-
+    const { roomId } = get();
     const trimmedMessage = message.trim();
 
-    if (
-      !roomId ||
-      !userName ||
-      !socketId ||
-      !trimmedMessage
-    ) {
+    if (!roomId || !trimmedMessage) {
       return;
     }
 
-    await ConfMeetingSocketCommands.sendMessage({
-      roomId,
-      message: trimmedMessage,
-      time: new Date().toISOString(),
-      userName,
-      socketId,
-      messageId: createMessageId(),
-    });
+    try {
+      await ConfMeetingSocketCommands.sendMessage({
+        roomId,
+        message: trimmedMessage,
+        messageId: createMessageId(),
+      });
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to send your message. Please try again.",
+        ),
+      });
+    }
   },
 
-  editMessage: async (
-    messageId,
-    newMessage,
-  ) => {
-    const { roomId, socketId } = get();
+  editMessage: async (messageId, newMessage) => {
+    const { roomId } = get();
     const trimmedMessage = newMessage.trim();
 
-    if (
-      !roomId ||
-      !socketId ||
-      !messageId ||
-      !trimmedMessage
-    ) {
+    if (!roomId || !messageId || !trimmedMessage) {
       return;
     }
 
-    await ConfMeetingSocketCommands.editMessage({
-      roomId,
-      messageId,
-      newMessage: trimmedMessage,
-      socketId,
-    });
+    try {
+      await ConfMeetingSocketCommands.editMessage({
+        roomId,
+        messageId,
+        newMessage: trimmedMessage,
+      });
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to edit this message.",
+        ),
+      });
+    }
   },
 
   deleteMessage: async (messageId) => {
     const { roomId } = get();
 
-    if (!roomId || !messageId) return;
+    if (!roomId || !messageId) {
+      return;
+    }
 
-    await ConfMeetingSocketCommands.deleteMessage({
-      roomId,
-      messageId,
-    });
+    try {
+      await ConfMeetingSocketCommands.deleteMessage({
+        roomId,
+        messageId,
+      });
+    } catch (error) {
+      set({
+        error: getErrorMessage(
+          error,
+          "Unable to delete this message.",
+        ),
+      });
+    }
   },
 
   respondToWaitingRoomRequest: async (
@@ -1102,6 +1271,39 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
     });
   },
 
+  removeScreenShareStreamByUser: (userId) => {
+    set((state) => {
+      const remoteStreams = state.remoteStreams.filter(
+        (stream) =>
+          !(
+            stream.userId === userId &&
+            stream.isScreen
+          ),
+      );
+
+      const activeScreenShare = remoteStreams.find(
+        (stream) => stream.isScreen,
+      );
+
+      return {
+        remoteStreams,
+        screenShareStream: activeScreenShare?.stream ?? null,
+        participants: state.participants.map((participant) =>
+          participant.userId === userId
+            ? {
+                ...participant,
+                isScreenSharing: false,
+              }
+            : participant,
+        ),
+      };
+    });
+  },
+
+  setNetworkQuality: (networkQuality) => {
+    set({ networkQuality });
+  },
+
   addProducer: (producer) => {
     set((state) => {
       const exists = state.producers.some(
@@ -1210,6 +1412,24 @@ const useMeetingStore = create<MeetingStore>((set, get) => ({
           message.messageId !== messageId,
       ),
     }));
+  },
+
+  hydrateMessages: (messages) => {
+    const deduplicated = new Map<string, MeetingMessage>();
+
+    for (const message of messages) {
+      if (message?.messageId) {
+        deduplicated.set(message.messageId, message);
+      }
+    }
+
+    set({
+      messages: Array.from(deduplicated.values()).sort(
+        (first, second) =>
+          new Date(first.time).getTime() -
+          new Date(second.time).getTime(),
+      ),
+    });
   },
 
   resetMeeting: () => {

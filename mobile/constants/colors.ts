@@ -38,7 +38,8 @@ export type AppColorTokens = {
 };
 
 export const LightColors: AppColorTokens = {
-  background: "#FFFFFF",
+
+  background: "#F8F8FD",
   surface: "#FAFBFD",
   surfaceStrong: "#F2F4F8",
   surfaceHover: "#ECEFF4",
@@ -76,7 +77,8 @@ export const LightColors: AppColorTokens = {
 };
 
 export const DarkColors: AppColorTokens = {
-  background: "#0A1428",
+
+  background: "#020618",
   surface: "#0F1D3A",
   surfaceStrong: "#142542",
   surfaceHover: "#1A2C4C",
@@ -118,8 +120,6 @@ export const Colors = {
   dark: DarkColors,
 };
 
-// Use "primary" for buttons/accents/small UI surfaces only.
-// Use "logo" strictly for the Telefya logo mark — never as a UI background or button fill.
 export const TelefyaGradients = {
   primary: ["#0F6BFF", "#6426FF"] as const,
   logo: ["#0F6BFF", "#FF4B3E", "#FFB21C", "#22D386", "#8B22FF"] as const,

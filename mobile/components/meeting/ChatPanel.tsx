@@ -8,10 +8,15 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Send } from "lucide-react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import {
+  LockKeyhole,
+  MessageCircle,
+  Send,
+} from "lucide-react-native";
 
-import { AppCard } from "@/components/ui/AppCard";
 import { AppText } from "@/components/ui/AppText";
+import { BRAND_GRADIENT } from "@/components/ui/AppButton";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import type { MeetingMessage } from "@/types/meeting.types";
@@ -30,24 +35,28 @@ export function ChatPanel({
   const { colors } = useAppTheme();
   const [text, setText] = React.useState("");
   const [sending, setSending] = React.useState(false);
-  const inputRef = useRef<TextInput>(null);
+
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(10)).current;
+  const translateY = useRef(new Animated.Value(12)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 360,
+        duration: 280,
         useNativeDriver: true,
       }),
       Animated.spring(translateY, {
         toValue: 0,
         speed: 18,
-        bounciness: 5,
+        bounciness: 4,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]);
+
+    animation.start();
+
+    return () => animation.stop();
   }, [opacity, translateY]);
 
   async function handleSend() {
@@ -62,6 +71,8 @@ export function ChatPanel({
 
     try {
       await onSend(value);
+    } catch {
+      setText(value);
     } finally {
       setSending(false);
     }
@@ -79,67 +90,145 @@ export function ChatPanel({
         },
       ]}
     >
-      <AppCard elevated variant="soft" style={styles.card}>
+      <View
+        style={[
+          styles.card,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.glassBorder,
+          },
+        ]}
+      >
         <View style={styles.header}>
           <View style={styles.headerCopy}>
-            <AppText variant="sectionTitle">
-              Room chat
-            </AppText>
+            <View style={styles.headingRow}>
+              <LinearGradient
+                colors={BRAND_GRADIENT}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.headingIcon}
+              >
+                <MessageCircle color="#FFFFFF" size={17} />
+              </LinearGradient>
 
-            <AppText variant="caption" tone="muted">
-              Messages shared with participants.
-            </AppText>
+              <View style={styles.headingCopy}>
+                <AppText variant="sectionTitle">
+                  Meeting chat
+                </AppText>
+
+                <AppText variant="caption" tone="muted">
+                  Keep everyone in the conversation.
+                </AppText>
+              </View>
+            </View>
           </View>
 
           <View
             style={[
               styles.countBadge,
-              { backgroundColor: colors.primarySoft },
+              {
+                backgroundColor: colors.primarySoft,
+                borderColor: `${colors.primary}28`,
+              },
             ]}
           >
-            <AppText variant="caption" tone="primary">
+            <AppText
+              variant="label"
+              style={{ color: colors.primary }}
+            >
               {messages.length}
             </AppText>
           </View>
         </View>
 
-        <View style={styles.messages}>
-          {visibleMessages.map((message, index) => (
-            <Animated.View
-              key={message.messageId ?? `${message.message}-${index}`}
-              style={[
-                styles.message,
-                {
-                  backgroundColor: colors.surface,
-                  borderColor: colors.border,
-                },
-              ]}
-            >
-              <AppText
-                variant="caption"
-                tone="primary"
-                style={styles.sender}
-              >
-                {message.userName || "Participant"}
-              </AppText>
+        <View
+          style={[
+            styles.messageArea,
+            {
+              backgroundColor: colors.surfaceStrong,
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          {visibleMessages.length > 0 ? (
+            <View style={styles.messages}>
+              {visibleMessages.map((message, index) => (
+                <View
+                  key={
+                    message.messageId ??
+                    `${message.userName}-${message.message}-${index}`
+                  }
+                  style={[
+                    styles.message,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.glassBorder,
+                    },
+                  ]}
+                >
+                  <View style={styles.messageHeader}>
+                    <View
+                      style={[
+                        styles.senderAvatar,
+                        { backgroundColor: colors.secondarySoft },
+                      ]}
+                    >
+                      <AppText
+                        variant="label"
+                        style={{
+                          color: colors.secondary,
+                          fontWeight: "900",
+                        }}
+                      >
+                        {(message.userName || "P")
+                          .trim()
+                          .charAt(0)
+                          .toUpperCase()}
+                      </AppText>
+                    </View>
 
-              <AppText variant="body">
-                {message.message}
-              </AppText>
-            </Animated.View>
-          ))}
+                    <AppText
+                      variant="caption"
+                      style={[
+                        styles.sender,
+                        { color: colors.primary },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {message.userName || "Participant"}
+                    </AppText>
+                  </View>
 
-          {messages.length === 0 ? (
+                  <AppText variant="body" style={styles.messageText}>
+                    {message.message}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          ) : (
             <View style={styles.empty}>
+              <View
+                style={[
+                  styles.emptyIcon,
+                  { backgroundColor: colors.primarySoft },
+                ]}
+              >
+                <MessageCircle color={colors.primary} size={20} />
+              </View>
+
               <AppText variant="bodyStrong">
                 No messages yet
               </AppText>
 
-              <AppText variant="caption" tone="muted">
-                Start the conversation with your meeting team.
+              <AppText
+                variant="caption"
+                tone="muted"
+                style={styles.emptyDescription}
+              >
+                Start the conversation with everyone in this meeting.
               </AppText>
             </View>
-          ) : null}
+          )}
         </View>
 
         <KeyboardAvoidingView
@@ -150,13 +239,14 @@ export function ChatPanel({
               styles.inputShell,
               {
                 backgroundColor: colors.surface,
-                borderColor: colors.border,
-                opacity: joined ? 1 : 0.6,
+                borderColor: joined
+                  ? colors.borderStrong
+                  : colors.border,
+                opacity: joined ? 1 : 0.62,
               },
             ]}
           >
             <TextInput
-              ref={inputRef}
               value={text}
               onChangeText={setText}
               editable={joined && !sending}
@@ -166,13 +256,18 @@ export function ChatPanel({
               blurOnSubmit={false}
               onSubmitEditing={() => void handleSend()}
               placeholder={
-                joined ? "Write a message..." : "Join to chat"
+                joined
+                  ? "Write a message..."
+                  : "Join the meeting to chat"
               }
               placeholderTextColor={colors.textSoft}
               accessibilityLabel="Meeting chat message"
               style={[
                 styles.input,
-                { color: colors.text },
+                {
+                  color: colors.text,
+                  backgroundColor: colors.card,
+                },
               ]}
             />
 
@@ -184,21 +279,36 @@ export function ChatPanel({
               style={({ pressed }) => [
                 styles.send,
                 {
-                  backgroundColor: colors.primary,
                   opacity:
                     !joined || !text.trim() || sending
-                      ? 0.42
+                      ? 0.38
                       : pressed
                         ? 0.78
                         : 1,
                 },
               ]}
             >
-              <Send color="#FFFFFF" size={17} />
+              <LinearGradient
+                colors={BRAND_GRADIENT}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.sendGradient}
+              >
+                <Send color="#FFFFFF" size={18} />
+              </LinearGradient>
             </Pressable>
           </View>
+
+          {!joined ? (
+            <View style={styles.privateNotice}>
+              <LockKeyhole color={colors.textSoft} size={12} />
+              <AppText variant="caption" tone="muted">
+                Join the meeting to send messages.
+              </AppText>
+            </View>
+          ) : null}
         </KeyboardAvoidingView>
-      </AppCard>
+      </View>
     </Animated.View>
   );
 }
@@ -209,28 +319,58 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    gap: Spacing.four,
+    borderWidth: 1,
+    borderRadius: Radius.xLarge,
+    padding: Spacing.four,
+    gap: Spacing.three,
   },
 
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: Spacing.three,
   },
 
   headerCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+  },
+
+  headingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+
+  headingIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  headingCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
 
   countBadge: {
-    minWidth: 32,
-    height: 32,
+    minWidth: 34,
+    height: 34,
+    borderWidth: 1,
     borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 9,
+  },
+
+  messageArea: {
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    padding: Spacing.two,
   },
 
   messages: {
@@ -240,28 +380,59 @@ const styles = StyleSheet.create({
   message: {
     borderWidth: 1,
     borderRadius: Radius.medium,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    gap: 3,
+    padding: Spacing.three,
+    gap: Spacing.two,
+  },
+
+  messageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+
+  senderAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: Radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   sender: {
+    flex: 1,
     fontWeight: "800",
   },
 
+  messageText: {
+    lineHeight: 21,
+  },
+
   empty: {
-    minHeight: 76,
+    minHeight: 130,
     alignItems: "center",
     justifyContent: "center",
     gap: Spacing.one,
+    paddingHorizontal: Spacing.four,
+  },
+
+  emptyIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Spacing.one,
+  },
+
+  emptyDescription: {
+    textAlign: "center",
   },
 
   inputShell: {
-    minHeight: 52,
+    minHeight: 56,
     borderWidth: 1,
     borderRadius: Radius.large,
-    paddingLeft: Spacing.three,
-    paddingRight: 5,
+    padding: 5,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
@@ -270,17 +441,33 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     minHeight: 44,
-    maxHeight: 92,
+    maxHeight: 96,
+    borderRadius: Radius.medium,
     fontSize: 15,
     lineHeight: 21,
-    paddingVertical: Spacing.two,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: 10,
   },
 
   send: {
-    width: 42,
-    height: 42,
+    width: 44,
+    height: 44,
     borderRadius: Radius.medium,
+    overflow: "hidden",
+  },
+
+  sendGradient: {
+    width: "100%",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  privateNotice: {
+    marginTop: Spacing.two,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
   },
 });

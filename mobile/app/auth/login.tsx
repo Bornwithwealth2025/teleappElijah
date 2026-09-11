@@ -1,26 +1,33 @@
 // app/auth/login.tsx
 import React from "react";
 import { router, type Href } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import {
   ArrowLeft,
+  ArrowRight,
   Check,
   Eye,
   EyeOff,
   LockKeyhole,
   Mail,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react-native";
-import { Pressable, StyleSheet, View, Animated } from "react-native";
+import { Animated, Pressable, StyleSheet, View } from "react-native";
 
 import { TelifierLogo } from "@/components/shared/TelifierLogo";
-import { AppButton } from "@/components/ui/AppButton";
-import { AppCard } from "@/components/ui/AppCard";
+import { AppButton, BRAND_GRADIENT } from "@/components/ui/AppButton";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
-import { Radius, Spacing } from "@/constants/theme";
+import { Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useAuthStore from "@/store/authStore";
+
+// Same accent pairing used on the welcome screen, so "secure" language and
+// links read as the same brand voice across every auth-adjacent screen.
+const HIGHLIGHT = { dark: "#5EEAD4", light: "#0D9488" };
+const LINK_COLOR = { dark: "#60A5FA", light: "#2563EB" };
 
 function Checkbox({
   checked,
@@ -31,6 +38,25 @@ function Checkbox({
 }) {
   const { colors } = useAppTheme();
 
+  if (checked) {
+    return (
+      <Pressable
+        onPress={onPress}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked }}
+      >
+        <LinearGradient
+          colors={BRAND_GRADIENT}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.checkboxBox}
+        >
+          <Check color="#FFFFFF" size={13} strokeWidth={3} />
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+
   return (
     <Pressable
       onPress={onPress}
@@ -38,19 +64,14 @@ function Checkbox({
       accessibilityState={{ checked }}
       style={[
         styles.checkboxBox,
-        {
-          borderColor: checked ? colors.primary : colors.border,
-          backgroundColor: checked ? colors.primary : "transparent",
-        },
+        { borderWidth: 1.5, borderColor: colors.border },
       ]}
-    >
-      {checked ? <Check color="#FFFFFF" size={13} strokeWidth={3} /> : null}
-    </Pressable>
+    />
   );
 }
 
 export default function LoginScreen() {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
   const login = useAuthStore((state) => state.login);
   const isLoading = useAuthStore((state) => state.isLoading);
@@ -64,7 +85,6 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = React.useState(false);
 
   const introOpacity = React.useRef(new Animated.Value(0)).current;
-
   const introTranslateY = React.useRef(new Animated.Value(18)).current;
 
   React.useEffect(() => {
@@ -107,6 +127,9 @@ export default function LoginScreen() {
     }
   }
 
+  const highlight = isDark ? HIGHLIGHT.dark : HIGHLIGHT.light;
+  const linkColor = isDark ? LINK_COLOR.dark : LINK_COLOR.light;
+
   return (
     <AppScreen keyboardShouldPersistTaps="always" contentStyle={styles.content}>
       <View style={styles.topRow}>
@@ -122,15 +145,15 @@ export default function LoginScreen() {
           accessibilityLabel="Go back"
           style={[
             styles.backButton,
-            {
-              backgroundColor: colors.surface,
-            },
+            { backgroundColor: colors.glass, borderColor: colors.glassBorder },
           ]}
         >
           <ArrowLeft color={colors.text} size={20} />
         </Pressable>
 
         <TelifierLogo size="sm" />
+
+        <View style={styles.topSpacer} />
       </View>
 
       <Animated.View
@@ -142,27 +165,38 @@ export default function LoginScreen() {
           },
         ]}
       >
-        <AppText variant="overline" tone="primary">
-          TELEFYA WORKSPACE
-        </AppText>
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: colors.glass, borderColor: colors.glassBorder },
+          ]}
+        >
+          <Sparkles color={highlight} size={13} />
+          <AppText style={[styles.badgeText, { color: colors.textMuted }]}>
+            SECURE WORKSPACE ACCESS
+          </AppText>
+        </View>
 
-        <AppText variant="display" style={styles.title}>
+        <AppText style={[styles.title, { color: colors.text }]}>
           Welcome back.
         </AppText>
 
-        <AppText variant="body" tone="muted" style={styles.subtitle}>
+        <AppText style={[styles.subtitle, { color: colors.textMuted }]}>
           Sign in to manage secure meetings, rooms, and connections.
         </AppText>
       </Animated.View>
 
-      <AppCard variant="default" elevated style={styles.formCard}>
-        <View style={styles.trustRow}>
-          <ShieldCheck color={colors.success} size={17} />
-          <AppText variant="caption" tone="success">
-            Secure workspace access
-          </AppText>
-        </View>
-
+      <Animated.View
+        style={[
+          styles.formPanel,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+            opacity: introOpacity,
+            transform: [{ translateY: introTranslateY }],
+          },
+        ]}
+      >
         <View style={styles.fields}>
           <AppTextInput
             label="Email address"
@@ -177,7 +211,10 @@ export default function LoginScreen() {
               clearError();
             }}
             leftSlot={<Mail color={colors.textSoft} size={19} />}
-            containerStyle={styles.inputContainer}
+            containerStyle={[
+              styles.inputContainer,
+              { backgroundColor: colors.surface },
+            ]}
           />
 
           <AppTextInput
@@ -207,7 +244,10 @@ export default function LoginScreen() {
                 )}
               </Pressable>
             }
-            containerStyle={styles.inputContainer}
+            containerStyle={[
+              styles.inputContainer,
+              { backgroundColor: colors.surface },
+            ]}
           />
         </View>
 
@@ -220,7 +260,7 @@ export default function LoginScreen() {
               checked={rememberDevice}
               onPress={() => setRememberDevice((value) => !value)}
             />
-            <AppText variant="caption" tone="muted">
+            <AppText style={[styles.metaText, { color: colors.textMuted }]}>
               Keep me signed in
             </AppText>
           </Pressable>
@@ -229,7 +269,7 @@ export default function LoginScreen() {
             onPress={() => router.push("/auth/forget-password" as Href)}
             hitSlop={8}
           >
-            <AppText variant="caption" tone="primary" style={styles.link}>
+            <AppText style={[styles.link, { color: linkColor }]}>
               Forgot password?
             </AppText>
           </Pressable>
@@ -240,12 +280,12 @@ export default function LoginScreen() {
             style={[
               styles.errorBox,
               {
-                backgroundColor: colors.surface,
+                backgroundColor: `${colors.danger}14`,
                 borderColor: colors.danger,
               },
             ]}
           >
-            <AppText variant="caption" tone="danger">
+            <AppText style={[styles.errorText, { color: colors.danger }]}>
               {error}
             </AppText>
           </View>
@@ -253,24 +293,28 @@ export default function LoginScreen() {
 
         <AppButton
           title="Sign in"
+          variant="gradient"
+          gradientColors={BRAND_GRADIENT}
+          contentAlign="spaceBetween"
+          leftIcon={<ShieldCheck color="#FFFFFF" size={18} />}
+          rightIcon={<ArrowRight color="#FFFFFF" size={18} />}
           loading={isLoading}
           disabled={!email.trim() || !password || isLoading}
           onPress={handleLogin}
-          containerStyle={styles.buttonContainer}
-          style={styles.button}
+          accessibilityLabel="Sign in to Telefya"
         />
-      </AppCard>
+      </Animated.View>
 
       <View style={styles.footer}>
-        <AppText variant="caption" tone="muted">
-          Don't have a Telefya account?
+        <AppText style={[styles.footerText, { color: colors.textMuted }]}>
+          Don&apos;t have a Telefya account?
         </AppText>
 
         <Pressable
           onPress={() => router.push("/auth/register" as Href)}
           hitSlop={8}
         >
-          <AppText variant="caption" tone="primary" style={styles.link}>
+          <AppText style={[styles.link, { color: linkColor }]}>
             Create one
           </AppText>
         </Pressable>
@@ -296,40 +340,52 @@ const styles = StyleSheet.create({
   },
 
   backButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  intro: {
-    gap: Spacing.two,
+  topSpacer: { width: 44 },
+
+  intro: { gap: Spacing.two },
+
+  badge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 30,
+    paddingHorizontal: Spacing.three,
+    borderRadius: 999,
+    borderWidth: 1,
   },
 
+  badgeText: { fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
+
   title: {
-    letterSpacing: -1,
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: "800",
+    letterSpacing: -0.6,
   },
 
   subtitle: {
     maxWidth: 390,
-    lineHeight: 23,
+    fontSize: 14,
+    lineHeight: 21,
   },
 
-  formCard: {
+  formPanel: {
     gap: Spacing.four,
-    borderRadius: 22,
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: Spacing.four,
   },
 
-  trustRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
-  },
-
-  fields: {
-    gap: Spacing.three,
-  },
+  fields: { gap: Spacing.three },
 
   inputContainer: {
     borderRadius: 16,
@@ -354,32 +410,21 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 6,
-    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  link: {
-    fontWeight: "800",
-  },
+  metaText: { fontSize: 12, fontWeight: "600" },
+
+  link: { fontSize: 12, fontWeight: "800" },
 
   errorBox: {
     borderWidth: 1,
-    borderRadius: Radius.small,
+    borderRadius: 14,
     padding: Spacing.three,
   },
 
-  buttonContainer: {
-    width: "100%",
-    maxWidth: 340,
-    alignSelf: "center",
-    marginTop: Spacing.one,
-  },
-
-  button: {
-    minHeight: 54,
-    borderRadius: 18,
-  },
+  errorText: { fontSize: 12, fontWeight: "600" },
 
   footer: {
     flexDirection: "row",
@@ -388,4 +433,6 @@ const styles = StyleSheet.create({
     gap: 5,
     flexWrap: "wrap",
   },
+
+  footerText: { fontSize: 12, fontWeight: "600" },
 });

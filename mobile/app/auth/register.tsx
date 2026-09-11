@@ -4,8 +4,10 @@ import DateTimePicker, {
   type DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { Link, router, type Href } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 import countries from "world-countries";
 import {
+  ArrowRight,
   Calendar,
   CheckCircle2,
   ChevronDown,
@@ -18,6 +20,7 @@ import {
   MapPin,
   Phone,
   Search,
+  Sparkles,
   UserRound,
 } from "lucide-react-native";
 import {
@@ -35,14 +38,18 @@ import {
 } from "react-native";
 import { City as CSCity, State as CSState } from "country-state-city";
 
-import { AppButton } from "@/components/ui/AppButton";
+import { AppButton, BRAND_GRADIENT } from "@/components/ui/AppButton";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { AppTextInput } from "@/components/ui/AppTextInput";
-import { AppCard } from "@/components/ui/AppCard";
 import { TelifierLogo } from "@/components/shared/TelifierLogo";
 import { Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
+
+// Same accent pairing as the welcome screen and the login screen — one
+// small shared vocabulary across every auth-adjacent screen instead of
+// each one inventing its own.
+const HIGHLIGHT = { dark: "#5EEAD4", light: "#0D9488" };
 
 type LocationOption = {
   name: string;
@@ -124,8 +131,10 @@ function PasswordRule({ passed, label }: { passed: boolean; label: string }) {
       )}
 
       <AppText
-        variant="caption"
-        style={{ color: passed ? colors.success : colors.textMuted }}
+        style={[
+          styles.ruleText,
+          { color: passed ? colors.success : colors.textMuted },
+        ]}
       >
         {label}
       </AppText>
@@ -138,7 +147,6 @@ function StepIndicator({ step, colors }: { step: 1 | 2; colors: any }) {
     <View style={styles.stepWrap}>
       <View style={styles.stepLabels}>
         <AppText
-          variant="caption"
           style={[
             styles.stepLabel,
             { color: step === 1 ? colors.primary : colors.textMuted },
@@ -147,7 +155,6 @@ function StepIndicator({ step, colors }: { step: 1 | 2; colors: any }) {
           Account
         </AppText>
         <AppText
-          variant="caption"
           style={[
             styles.stepLabel,
             { color: step === 2 ? colors.primary : colors.textMuted },
@@ -158,19 +165,39 @@ function StepIndicator({ step, colors }: { step: 1 | 2; colors: any }) {
       </View>
 
       <View style={styles.stepRow}>
-        <View style={[styles.stepDot, { backgroundColor: colors.primary }]} />
-        <View
-          style={[
-            styles.stepLine,
-            { backgroundColor: step === 2 ? colors.primary : colors.border },
-          ]}
+        <LinearGradient
+          colors={BRAND_GRADIENT}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.stepDot}
         />
-        <View
-          style={[
-            styles.stepDot,
-            { backgroundColor: step === 2 ? colors.primary : colors.border },
-          ]}
-        />
+
+        {step === 2 ? (
+          <LinearGradient
+            colors={BRAND_GRADIENT}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.stepLine}
+          />
+        ) : (
+          <View style={[styles.stepLine, { backgroundColor: colors.border }]} />
+        )}
+
+        {step === 2 ? (
+          <LinearGradient
+            colors={BRAND_GRADIENT}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.stepDot}
+          />
+        ) : (
+          <View
+            style={[
+              styles.stepDot,
+              { backgroundColor: colors.border },
+            ]}
+          />
+        )}
       </View>
     </View>
   );
@@ -189,10 +216,7 @@ function FieldGroup({
 
   return (
     <View style={[styles.fieldGroup, style]}>
-      <AppText
-        variant="caption"
-        style={[styles.fieldLabel, { color: colors.textMuted }]}
-      >
+      <AppText style={[styles.fieldLabel, { color: colors.textMuted }]}>
         {label}
       </AppText>
       {children}
@@ -226,7 +250,7 @@ function SelectField({
         style={[
           styles.selectField,
           {
-            backgroundColor: disabled ? colors.border + "22" : colors.surface,
+            backgroundColor: disabled ? `${colors.border}22` : colors.surface,
             opacity: disabled ? 0.55 : 1,
           },
         ]}
@@ -320,10 +344,12 @@ function WebDatePickerModal({
           style={[styles.modalSheet, { backgroundColor: colors.card }]}
           onPress={(event) => event.stopPropagation()}
         >
-          <View style={styles.modalGrabber} />
+          <View
+            style={[styles.modalGrabber, { backgroundColor: colors.border }]}
+          />
 
           <View style={styles.modalHeader}>
-            <AppText variant="bodyStrong" style={{ color: colors.text }}>
+            <AppText style={[styles.modalTitle, { color: colors.text }]}>
               Select date of birth
             </AppText>
 
@@ -354,8 +380,9 @@ function WebDatePickerModal({
 
           <AppButton
             title="Use selected date"
+            variant="gradient"
+            gradientColors={BRAND_GRADIENT}
             onPress={handleDone}
-            style={styles.modalButton}
           />
         </Pressable>
       </Pressable>
@@ -382,10 +409,7 @@ function DateColumn<T>({
 
   return (
     <View style={styles.dateColumn}>
-      <AppText
-        variant="caption"
-        style={[styles.dateColumnTitle, { color: colors.textMuted }]}
-      >
+      <AppText style={[styles.dateColumnTitle, { color: colors.textMuted }]}>
         {title}
       </AppText>
 
@@ -474,10 +498,12 @@ function CountryOptionModal({
           style={[styles.modalSheet, { backgroundColor: colors.card }]}
           onPress={(event) => event.stopPropagation()}
         >
-          <View style={styles.modalGrabber} />
+          <View
+            style={[styles.modalGrabber, { backgroundColor: colors.border }]}
+          />
 
           <View style={styles.modalHeader}>
-            <AppText variant="bodyStrong" style={{ color: colors.text }}>
+            <AppText style={[styles.modalTitle, { color: colors.text }]}>
               Select country
             </AppText>
 
@@ -488,12 +514,7 @@ function CountryOptionModal({
             </TouchableOpacity>
           </View>
 
-          <View
-            style={[
-              styles.searchBox,
-              { backgroundColor: colors.surface },
-            ]}
-          >
+          <View style={[styles.searchBox, { backgroundColor: colors.surface }]}>
             <Search color={colors.textSoft} size={17} />
             <TextInput
               value={query}
@@ -516,10 +537,7 @@ function CountryOptionModal({
                 <TouchableOpacity
                   activeOpacity={0.75}
                   onPress={() => onSelect(item)}
-                  style={[
-                    styles.optionRow,
-                    { borderBottomColor: colors.border },
-                  ]}
+                  style={[styles.optionRow, { borderBottomColor: colors.border }]}
                 >
                   <View style={styles.countryOptionLeft}>
                     <FlagImage isoCode={item.isoCode} size={26} />
@@ -598,10 +616,12 @@ function OptionModal({
           style={[styles.modalSheet, { backgroundColor: colors.card }]}
           onPress={(event) => event.stopPropagation()}
         >
-          <View style={styles.modalGrabber} />
+          <View
+            style={[styles.modalGrabber, { backgroundColor: colors.border }]}
+          />
 
           <View style={styles.modalHeader}>
-            <AppText variant="bodyStrong" style={{ color: colors.text }}>
+            <AppText style={[styles.modalTitle, { color: colors.text }]}>
               {title}
             </AppText>
 
@@ -612,12 +632,7 @@ function OptionModal({
             </TouchableOpacity>
           </View>
 
-          <View
-            style={[
-              styles.searchBox,
-              { backgroundColor: colors.surface },
-            ]}
-          >
+          <View style={[styles.searchBox, { backgroundColor: colors.surface }]}>
             <Search color={colors.textSoft} size={17} />
             <TextInput
               value={query}
@@ -635,7 +650,7 @@ function OptionModal({
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyState}>
-                <AppText variant="caption" tone="muted">
+                <AppText style={{ color: colors.textMuted, fontSize: 13 }}>
                   {emptyText}
                 </AppText>
               </View>
@@ -647,10 +662,7 @@ function OptionModal({
                 <TouchableOpacity
                   activeOpacity={0.75}
                   onPress={() => onSelect(item)}
-                  style={[
-                    styles.optionRow,
-                    { borderBottomColor: colors.border },
-                  ]}
+                  style={[styles.optionRow, { borderBottomColor: colors.border }]}
                 >
                   <AppText
                     numberOfLines={1}
@@ -679,7 +691,7 @@ export default function RegisterScreen() {
   const { width } = useWindowDimensions();
   const isCompact = width <= 360;
 
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { register, isLoading, error, clearError } = useAuthStore();
 
   const [step, setStep] = React.useState<1 | 2>(1);
@@ -832,6 +844,8 @@ export default function RegisterScreen() {
     } catch {}
   };
 
+  const highlight = isDark ? HIGHLIGHT.dark : HIGHLIGHT.light;
+
   return (
     <AppScreen
       contentStyle={[
@@ -851,7 +865,8 @@ export default function RegisterScreen() {
             style={[
               styles.backBtn,
               {
-                backgroundColor: colors.surface,
+                backgroundColor: colors.glass,
+                borderColor: colors.glassBorder,
               },
             ]}
             activeOpacity={0.75}
@@ -860,16 +875,30 @@ export default function RegisterScreen() {
           </TouchableOpacity>
 
           <TelifierLogo size="sm" />
+
+          <View style={styles.topSpacer} />
         </View>
 
-       <View style={styles.header}>
+        <View style={styles.header}>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: colors.glass, borderColor: colors.glassBorder },
+            ]}
+          >
+            <Sparkles color={highlight} size={13} />
+            <AppText style={[styles.badgeText, { color: colors.textMuted }]}>
+              JOIN TELEFYA
+            </AppText>
+          </View>
+
           <StepIndicator step={step} colors={colors} />
 
-          <AppText variant="display" style={styles.title}>
+          <AppText style={[styles.title, { color: colors.text }]}>
             {step === 1 ? "Create your account." : "Complete your profile."}
           </AppText>
 
-          <AppText variant="body" tone="muted" style={styles.subtitle}>
+          <AppText style={[styles.subtitle, { color: colors.textMuted }]}>
             {step === 1
               ? "Sign up to get started with Telefya."
               : "Just a few more details."}
@@ -880,113 +909,122 @@ export default function RegisterScreen() {
           <>
             <View style={styles.fields}>
               <View style={[styles.nameRow, isCompact && styles.stackRow]}>
-                <FieldGroup label="First name" style={styles.nameInput}>
-                  <AppTextInput
-                    placeholder="Enter first name"
-                    autoCapitalize="words"
-                    value={firstName}
-                    onChangeText={(v) => {
-                      setFirstName(v);
-                      clearError();
-                    }}
-                    leftSlot={<UserRound color={colors.textSoft} size={18} />}
-                    containerStyle={styles.inputContainer}
-                    style={styles.input}
-                  />
-                </FieldGroup>
+                <AppTextInput
+                  label="First name"
+                  placeholder="Enter first name"
+                  autoCapitalize="words"
+                  value={firstName}
+                  onChangeText={(v) => {
+                    setFirstName(v);
+                    clearError();
+                  }}
+                  leftSlot={<UserRound color={colors.textSoft} size={18} />}
+                  containerStyle={[
+                    styles.inputContainer,
+                    styles.nameInput,
+                    { backgroundColor: colors.surface },
+                  ]}
+                />
 
-                <FieldGroup label="Last name" style={styles.nameInput}>
-                  <AppTextInput
-                    placeholder="Enter last name"
-                    autoCapitalize="words"
-                    value={lastName}
-                    onChangeText={(v) => {
-                      setLastName(v);
-                      clearError();
-                    }}
-                    leftSlot={<UserRound color={colors.textSoft} size={18} />}
-                    containerStyle={styles.inputContainer}
-                    style={styles.input}
-                  />
-                </FieldGroup>
+                <AppTextInput
+                  label="Last name"
+                  placeholder="Enter last name"
+                  autoCapitalize="words"
+                  value={lastName}
+                  onChangeText={(v) => {
+                    setLastName(v);
+                    clearError();
+                  }}
+                  leftSlot={<UserRound color={colors.textSoft} size={18} />}
+                  containerStyle={[
+                    styles.inputContainer,
+                    styles.nameInput,
+                    { backgroundColor: colors.surface },
+                  ]}
+                />
               </View>
 
-              <FieldGroup label="Email address">
-                <AppTextInput
-                  placeholder="you@example.com"
-                  autoCapitalize="none"
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={(v) => {
-                    setEmail(v);
-                    clearError();
-                  }}
-                  leftSlot={<Mail color={colors.textSoft} size={18} />}
-                  containerStyle={styles.inputContainer}
-                  style={styles.input}
-                />
-              </FieldGroup>
+              <AppTextInput
+                label="Email address"
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={(v) => {
+                  setEmail(v);
+                  clearError();
+                }}
+                leftSlot={<Mail color={colors.textSoft} size={18} />}
+                containerStyle={[
+                  styles.inputContainer,
+                  { backgroundColor: colors.surface },
+                ]}
+              />
 
-              <FieldGroup label="Password">
-                <AppTextInput
-                  placeholder="Create a password"
-                  value={password}
-                  onChangeText={(v) => {
-                    setPassword(v);
-                    clearError();
-                  }}
-                  secureTextEntry={!showPassword}
-                  leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
-                  rightSlot={
-                    <TouchableOpacity
-                      onPress={() => setShowPassword((v) => !v)}
-                      activeOpacity={0.75}
-                    >
-                      {showPassword ? (
-                        <EyeOff color={colors.textSoft} size={18} />
-                      ) : (
-                        <Eye color={colors.textSoft} size={18} />
-                      )}
-                    </TouchableOpacity>
-                  }
-                  containerStyle={styles.inputContainer}
-                  style={styles.input}
-                />
-              </FieldGroup>
+              <AppTextInput
+                label="Password"
+                placeholder="Create a password"
+                value={password}
+                onChangeText={(v) => {
+                  setPassword(v);
+                  clearError();
+                }}
+                secureTextEntry={!showPassword}
+                leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
+                rightSlot={
+                  <TouchableOpacity
+                    onPress={() => setShowPassword((v) => !v)}
+                    activeOpacity={0.75}
+                  >
+                    {showPassword ? (
+                      <EyeOff color={colors.textSoft} size={18} />
+                    ) : (
+                      <Eye color={colors.textSoft} size={18} />
+                    )}
+                  </TouchableOpacity>
+                }
+                containerStyle={[
+                  styles.inputContainer,
+                  { backgroundColor: colors.surface },
+                ]}
+              />
 
-              <FieldGroup label="Confirm password">
-                <AppTextInput
-                  placeholder="Re-enter your password"
-                  value={confirmPassword}
-                  onChangeText={(v) => {
-                    setConfirmPassword(v);
-                    clearError();
-                  }}
-                  secureTextEntry={!showConfirmPassword}
-                  leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
-                  rightSlot={
-                    <TouchableOpacity
-                      onPress={() => setShowConfirmPassword((v) => !v)}
-                      activeOpacity={0.75}
-                    >
-                      {showConfirmPassword ? (
-                        <EyeOff color={colors.textSoft} size={18} />
-                      ) : (
-                        <Eye color={colors.textSoft} size={18} />
-                      )}
-                    </TouchableOpacity>
-                  }
-                  containerStyle={styles.inputContainer}
-                  style={styles.input}
-                />
-              </FieldGroup>
+              <AppTextInput
+                label="Confirm password"
+                placeholder="Re-enter your password"
+                value={confirmPassword}
+                onChangeText={(v) => {
+                  setConfirmPassword(v);
+                  clearError();
+                }}
+                secureTextEntry={!showConfirmPassword}
+                leftSlot={<LockKeyhole color={colors.textSoft} size={18} />}
+                rightSlot={
+                  <TouchableOpacity
+                    onPress={() => setShowConfirmPassword((v) => !v)}
+                    activeOpacity={0.75}
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff color={colors.textSoft} size={18} />
+                    ) : (
+                      <Eye color={colors.textSoft} size={18} />
+                    )}
+                  </TouchableOpacity>
+                }
+                containerStyle={[
+                  styles.inputContainer,
+                  { backgroundColor: colors.surface },
+                ]}
+              />
             </View>
 
-            <AppCard variant="soft" compact style={styles.passwordPanel}>
-              <AppText
-                variant="caption"
-                style={[styles.passwordTitle, { color: colors.text }]}
-              >
+            <View
+              style={[
+                styles.passwordPanel,
+                { backgroundColor: colors.surface, borderColor: colors.border },
+              ]}
+            >
+              <AppText style={[styles.passwordTitle, { color: colors.text }]}>
                 Password must include:
               </AppText>
 
@@ -1009,23 +1047,32 @@ export default function RegisterScreen() {
                   label="Passwords match"
                 />
               </View>
-            </AppCard>
+            </View>
 
             {error ? (
-              <AppText
-                variant="caption"
-                style={{ color: colors.danger, textAlign: "center" }}
+              <View
+                style={[
+                  styles.errorBox,
+                  {
+                    backgroundColor: `${colors.danger}14`,
+                    borderColor: colors.danger,
+                  },
+                ]}
               >
-                {error}
-              </AppText>
+                <AppText style={[styles.errorText, { color: colors.danger }]}>
+                  {error}
+                </AppText>
+              </View>
             ) : null}
 
             <AppButton
               title="Continue"
+              variant="gradient"
+              gradientColors={BRAND_GRADIENT}
+              contentAlign="spaceBetween"
+              rightIcon={<ArrowRight color="#FFFFFF" size={18} />}
               disabled={!step1Valid}
               onPress={handleNext}
-              containerStyle={styles.primaryButtonContainer}
-              style={styles.primaryButton}
             />
           </>
         ) : (
@@ -1058,20 +1105,22 @@ export default function RegisterScreen() {
                   </TouchableOpacity>
                 </FieldGroup>
 
-                <FieldGroup label="Phone number" style={styles.phoneInput}>
-                  <AppTextInput
-                    placeholder="Enter phone number"
-                    value={phone}
-                    onChangeText={(v) => {
-                      setPhone(v);
-                      clearError();
-                    }}
-                    keyboardType="phone-pad"
-                    leftSlot={<Phone color={colors.textSoft} size={18} />}
-                    containerStyle={styles.inputContainer}
-                    style={styles.input}
-                  />
-                </FieldGroup>
+                <AppTextInput
+                  label="Phone number"
+                  placeholder="Enter phone number"
+                  value={phone}
+                  onChangeText={(v) => {
+                    setPhone(v);
+                    clearError();
+                  }}
+                  keyboardType="phone-pad"
+                  leftSlot={<Phone color={colors.textSoft} size={18} />}
+                  containerStyle={[
+                    styles.inputContainer,
+                    { backgroundColor: colors.surface },
+                  ]}
+                  style={styles.phoneInput}
+                />
               </View>
 
               <SelectField
@@ -1171,37 +1220,42 @@ export default function RegisterScreen() {
             />
 
             {error ? (
-              <AppText
-                variant="caption"
-                style={{ color: colors.danger, textAlign: "center" }}
+              <View
+                style={[
+                  styles.errorBox,
+                  {
+                    backgroundColor: `${colors.danger}14`,
+                    borderColor: colors.danger,
+                  },
+                ]}
               >
-                {error}
-              </AppText>
+                <AppText style={[styles.errorText, { color: colors.danger }]}>
+                  {error}
+                </AppText>
+              </View>
             ) : null}
 
             <AppButton
               title="Create account"
+              variant="gradient"
+              gradientColors={BRAND_GRADIENT}
+              contentAlign="spaceBetween"
+              rightIcon={<ArrowRight color="#FFFFFF" size={18} />}
               disabled={!step2Valid || isLoading}
-              onPress={handleRegister}
               loading={isLoading}
-              containerStyle={styles.primaryButtonContainer}
-              style={styles.primaryButton}
+              onPress={handleRegister}
             />
           </>
         )}
 
         <View style={styles.footer}>
-          <AppText variant="caption" tone="muted">
+          <AppText style={[styles.footerText, { color: colors.textMuted }]}>
             Already have a Telefya account?
           </AppText>
 
           <Link href="/auth/login" asChild>
             <TouchableOpacity activeOpacity={0.75}>
-              <AppText
-                variant="caption"
-                tone="primary"
-                style={styles.authLink}
-              >
+              <AppText style={[styles.authLink, { color: colors.primary }]}>
                 Sign in
               </AppText>
             </TouchableOpacity>
@@ -1219,13 +1273,11 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     gap: Spacing.four,
     paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.five,
     paddingBottom: Spacing.six,
   },
   contentCompact: {
     gap: Spacing.three,
     paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.four,
   },
   topBar: {
     width: "100%",
@@ -1234,16 +1286,29 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   backBtn: {
-    width: 46,
-    height: 46,
-    borderRadius: 16,
+    width: 44,
+    height: 44,
+    borderRadius: 999,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
+  topSpacer: { width: 44 },
   header: {
     gap: Spacing.three,
     marginTop: Spacing.four,
   },
+  badge: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    minHeight: 30,
+    paddingHorizontal: Spacing.three,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  badgeText: { fontSize: 10, fontWeight: "900", letterSpacing: 0.6 },
   stepWrap: {
     gap: Spacing.two,
   },
@@ -1271,14 +1336,15 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   title: {
-    fontSize: 32,
-    lineHeight: 38,
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: "800",
-    letterSpacing: -0.7,
+    letterSpacing: -0.6,
   },
   subtitle: {
     maxWidth: 430,
-    lineHeight: 22,
+    fontSize: 14,
+    lineHeight: 21,
   },
   fields: {
     width: "100%",
@@ -1330,17 +1396,13 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   phoneInput: {
-    flex: 1,
-    minWidth: 0,
+    fontSize: 16,
   },
   inputContainer: {
     width: "100%",
     minHeight: 58,
     borderRadius: 16,
     borderWidth: 0,
-  },
-  input: {
-    fontSize: 16,
   },
   selectField: {
     minHeight: 58,
@@ -1372,8 +1434,11 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
     marginTop: Spacing.three,
     borderRadius: 18,
+    borderWidth: 1,
+    padding: Spacing.four,
   },
   passwordTitle: {
+    fontSize: 13,
     fontWeight: "900",
   },
   rulesGrid: {
@@ -1384,16 +1449,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: Spacing.two,
   },
-  primaryButtonContainer: {
-    width: "100%",
-    maxWidth: 340,
-    alignSelf: "center",
-    marginTop: Spacing.four,
+  ruleText: { fontSize: 12, fontWeight: "600" },
+  errorBox: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: Spacing.three,
   },
-  primaryButton: {
-    minHeight: 54,
-    borderRadius: 18,
-  },
+  errorText: { fontSize: 12, fontWeight: "600", textAlign: "center" },
   footer: {
     flexDirection: "row",
     justifyContent: "center",
@@ -1402,13 +1464,15 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     marginTop: Spacing.five,
   },
+  footerText: { fontSize: 12, fontWeight: "600" },
   authLink: {
+    fontSize: 12,
     fontWeight: "800",
   },
   modalBackdrop: {
     flex: 1,
     justifyContent: "flex-end",
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    backgroundColor: "rgba(2, 6, 24, 0.55)",
   },
   modalSheet: {
     maxHeight: "86%",
@@ -1422,7 +1486,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: 999,
-    backgroundColor: "rgba(148, 163, 184, 0.35)",
     marginBottom: 2,
   },
   modalHeader: {
@@ -1431,6 +1494,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
+  modalTitle: { fontSize: 15, fontWeight: "800" },
   modalClose: {
     fontWeight: "900",
   },
@@ -1489,6 +1553,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: "center",
     fontWeight: "900",
+    fontSize: 12,
   },
   dateColumnList: {
     flex: 1,
@@ -1505,9 +1570,5 @@ const styles = StyleSheet.create({
   dateOptionText: {
     fontSize: 13,
     fontWeight: "900",
-  },
-  modalButton: {
-    minHeight: 54,
-    borderRadius: 999,
   },
 });

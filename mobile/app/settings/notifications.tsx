@@ -19,11 +19,14 @@ import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
+import useAuthStore from "@/store/authStore";
+import usePreferencesStore from "@/store/preferencesStore";
 
 type NotificationKey =
   | "reminders"
   | "invitations"
-  | "updates";
+  | "waitingRoom"
+  | "recordings";
 
 type NotificationOption = {
   key: NotificationKey;
@@ -35,12 +38,23 @@ type NotificationOption = {
 export default function NotificationPreferencesScreen() {
   const { colors } = useAppTheme();
 
-  const [preferences, setPreferences] =
-    React.useState<Record<NotificationKey, boolean>>({
-      reminders: true,
-      invitations: true,
-      updates: false,
-    });
+  const user = useAuthStore((state) => state.user);
+
+  const preferences = usePreferencesStore(
+    (state) => state.notifications,
+  );
+  const initialize = usePreferencesStore(
+    (state) => state.initialize,
+  );
+  const updateNotificationPreferences = usePreferencesStore(
+    (state) => state.updateNotificationPreferences,
+  );
+
+  React.useEffect(() => {
+    void initialize(
+      String(user?.id ?? user?.user_id ?? user?.email ?? "guest"),
+    );
+  }, [initialize, user?.email, user?.id, user?.user_id]);
 
   const options: NotificationOption[] = [
     {
@@ -68,12 +82,24 @@ export default function NotificationPreferencesScreen() {
       ),
     },
     {
-      key: "updates",
-      title: "Product updates",
+      key: "waitingRoom",
+      title: "Waiting room requests",
       description:
-        "Occasional updates about Telefya improvements.",
+        "Get alerted when a participant is waiting for approval.",
       icon: (
         <Bell
+          color={colors.primary}
+          size={20}
+        />
+      ),
+    },
+    {
+      key: "recordings",
+      title: "Recording ready",
+      description:
+        "Get notified when a meeting recording is ready.",
+      icon: (
+        <Mail
           color={colors.primary}
           size={20}
         />
@@ -82,18 +108,17 @@ export default function NotificationPreferencesScreen() {
   ];
 
   function togglePreference(key: NotificationKey) {
-    setPreferences((current) => ({
-      ...current,
-      [key]: !current[key],
-    }));
+    void updateNotificationPreferences({
+      [key]: !preferences[key],
+    });
   }
 
-  function handleSave() {
-    Alert.alert(
-      "Notification preferences updated",
-      "These preferences are active for this app session. Persistent notification settings will be connected when the backend preference API is available.",
-    );
-  }
+function handleSave() {
+  Alert.alert(
+    "Preferences saved",
+    "Your notification choices now apply across your signed-in devices.",
+  );
+}
 
   return (
     <AppScreen contentStyle={styles.content}>

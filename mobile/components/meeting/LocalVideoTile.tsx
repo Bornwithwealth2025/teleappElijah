@@ -69,7 +69,7 @@ export function LocalVideoTile({
 
   if (Platform.OS !== "web") {
     try {
-      RTCView = require("react-native-webrtc").RTCView;
+      RTCView = require("@stream-io/react-native-webrtc").RTCView;
     } catch {
       RTCView = null;
     }

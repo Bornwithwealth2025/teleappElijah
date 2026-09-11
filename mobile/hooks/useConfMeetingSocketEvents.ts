@@ -32,10 +32,26 @@ export function useConfMeetingSocketEvents() {
   const addProducer = useMeetingStore((state) => state.addProducer);
   const upsertParticipant = useMeetingStore((state) => state.upsertParticipant);
   const removeParticipant = useMeetingStore((state) => state.removeParticipant);
+  const removeRemoteStreamByProducer = useMeetingStore(
+    (state) => state.removeRemoteStreamByProducer,
+  );
+  const removeScreenShareStreamByUser = useMeetingStore(
+    (state) => state.removeScreenShareStreamByUser,
+  );
   const upsertMessage = useMeetingStore((state) => state.upsertMessage);
   const markMessageEdited = useMeetingStore((state) => state.markMessageEdited);
   const removeMessage = useMeetingStore((state) => state.removeMessage);
+  const hydrateMessages = useMeetingStore(
+    (state) => state.hydrateMessages,
+  );
   const applyHostMuteAll = useMeetingStore((state) => state.applyHostMuteAll);
+  const applyHostMuteParticipant = useMeetingStore(
+    (state) => state.applyHostMuteParticipant,
+  );
+
+  const handleHostRemoved = useMeetingStore(
+    (state) => state.handleHostRemoved,
+  );
 
   const receiveWaitingRoomRequest = useMeetingStore(
     (state) => state.receiveWaitingRoomRequest,
@@ -109,6 +125,18 @@ export function useConfMeetingSocketEvents() {
     const handleUserLeft = (payload: { userId: string }) => {
       if (payload?.userId) {
         removeParticipant(payload.userId);
+      }
+    };
+
+    const handleProducerClosed = (payload: { producerId?: string }) => {
+      if (payload?.producerId) {
+        removeRemoteStreamByProducer(payload.producerId);
+      }
+    };
+
+    const handleScreenShareStopped = (payload: { userId?: string }) => {
+      if (payload?.userId) {
+        removeScreenShareStreamByUser(payload.userId);
       }
     };
 
@@ -214,6 +242,17 @@ export function useConfMeetingSocketEvents() {
       }
     };
 
+    const handleChatHistory = (payload: {
+      roomId?: string;
+      messages?: MeetingMessage[];
+    }) => {
+      if (!payload?.roomId || !Array.isArray(payload.messages)) {
+        return;
+      }
+
+      hydrateMessages(payload.messages);
+    };
+
     const handleWaitingRoomRequest = (payload: WaitingRoomRequest) => {
       if (!payload?.requestId || !payload?.roomId) {
         return;
@@ -293,6 +332,20 @@ export function useConfMeetingSocketEvents() {
       void applyHostMuteAll(payload);
     };
 
+    const handleHostMutedParticipant = (payload: {
+      roomId?: string;
+      targetUserId?: string;
+    }) => {
+      void applyHostMuteParticipant(payload);
+    };
+
+    const handleHostRemovedFromMeeting = (payload: {
+      roomId?: string;
+      message?: string;
+    }) => {
+      handleHostRemoved(payload);
+    };
+
     const attachListeners = (
       socket: NonNullable<ReturnType<typeof getActiveConfMeetingSocket>>,
     ) => {
@@ -308,12 +361,19 @@ export function useConfMeetingSocketEvents() {
 
       socket.on("user-left", handleUserLeft);
       socket.on("participant-left", handleUserLeft);
+      socket.on("producer-closed", handleProducerClosed);
+      socket.on("screen-share-stopped", handleScreenShareStopped);
 
       socket.on("user-mic-toggled", handleMicToggled);
       socket.on("user-camera-toggled", handleCameraToggled);
       socket.on("user-toggle-mic", handleMicToggled);
       socket.on("user-toggle-camera", handleCameraToggled);
       socket.on("muted-all", handleMutedAll);
+      socket.on(
+        "host-muted-participant",
+        handleHostMutedParticipant,
+      );
+      socket.on("host-removed", handleHostRemovedFromMeeting);
 
       socket.on("participant-media-state", handleParticipantMediaState);
       socket.on("hand-state-changed", handleHandStateChanged);
@@ -322,6 +382,7 @@ export function useConfMeetingSocketEvents() {
       socket.on("response-send-message", handleMessage);
       socket.on("response-edit-message", handleMessageEdited);
       socket.on("response-delete-message", handleMessageDeleted);
+      socket.on("chat-history", handleChatHistory);
 
       socket.on("waiting-room:request", handleWaitingRoomRequest);
       socket.on("waiting-room:sync", handleWaitingRoomSync);
@@ -352,12 +413,22 @@ export function useConfMeetingSocketEvents() {
 
       attachedSocket.off("user-left", handleUserLeft);
       attachedSocket.off("participant-left", handleUserLeft);
+      attachedSocket.off("producer-closed", handleProducerClosed);
+      attachedSocket.off(
+        "screen-share-stopped",
+        handleScreenShareStopped,
+      );
 
       attachedSocket.off("user-mic-toggled", handleMicToggled);
       attachedSocket.off("user-camera-toggled", handleCameraToggled);
       attachedSocket.off("user-toggle-mic", handleMicToggled);
       attachedSocket.off("user-toggle-camera", handleCameraToggled);
       attachedSocket.off("muted-all", handleMutedAll);
+      attachedSocket.off(
+        "host-muted-participant",
+        handleHostMutedParticipant,
+      );
+      attachedSocket.off("host-removed", handleHostRemovedFromMeeting);
 
       attachedSocket.off(
         "participant-media-state",
@@ -369,6 +440,7 @@ export function useConfMeetingSocketEvents() {
       attachedSocket.off("response-send-message", handleMessage);
       attachedSocket.off("response-edit-message", handleMessageEdited);
       attachedSocket.off("response-delete-message", handleMessageDeleted);
+      attachedSocket.off("chat-history", handleChatHistory);
 
       attachedSocket.off("waiting-room:request", handleWaitingRoomRequest);
       attachedSocket.off("waiting-room:sync", handleWaitingRoomSync);
@@ -385,10 +457,14 @@ export function useConfMeetingSocketEvents() {
   }, [
     addProducer,
     applyHostMuteAll,
+    applyHostMuteParticipant,
     consumeProducer,
+    handleHostRemoved,
     handleWaitingRoomDecision,
     markMessageEdited,
     receiveWaitingRoomRequest,
+    removeRemoteStreamByProducer,
+    removeScreenShareStreamByUser,
     removeMessage,
     removeParticipant,
     resolveWaitingRoomRequest,
@@ -398,5 +474,6 @@ export function useConfMeetingSocketEvents() {
     syncWaitingRoomRequests,
     upsertMessage,
     upsertParticipant,
+    hydrateMessages,
   ]);
 }

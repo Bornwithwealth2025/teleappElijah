@@ -26,7 +26,6 @@ import RecordingService, {
 } from "@/api/recording.service";
 import { RecordingStatusBadge } from "@/components/meeting/RecordingStatusBadge";
 import { AppButton } from "@/components/ui/AppButton";
-import { AppCard } from "@/components/ui/AppCard";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { IconButton } from "@/components/ui/IconButton";
@@ -34,7 +33,9 @@ import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
 function formatDate(value?: string) {
-  if (!value) return "Date unavailable";
+  if (!value) {
+    return "Date unavailable";
+  }
 
   const date = new Date(value);
 
@@ -74,6 +75,7 @@ function formatBytes(bytes?: number) {
 
 export default function RecordingDetailScreen() {
   const { colors } = useAppTheme();
+
   const { recordingId: routeRecordingId } =
     useLocalSearchParams<{ recordingId?: string | string[] }>();
 
@@ -117,14 +119,22 @@ export default function RecordingDetailScreen() {
   }, [loadRecording]);
 
   React.useEffect(() => {
-    if (isLoading || !recording) return;
+    if (isLoading || !recording) {
+      return;
+    }
 
-    Animated.spring(entrance, {
+    entrance.setValue(0);
+
+    const animation = Animated.spring(entrance, {
       toValue: 1,
       speed: 16,
       bounciness: 5,
       useNativeDriver: true,
-    }).start();
+    });
+
+    animation.start();
+
+    return () => animation.stop();
   }, [entrance, isLoading, recording]);
 
   const isReady = recording?.status === "ready";
@@ -137,8 +147,21 @@ export default function RecordingDetailScreen() {
     recording?.fileName ||
     "Telefya meeting recording";
 
+  const getPlaybackUrl = () => {
+    if (!recording) {
+      return null;
+    }
+
+    return (
+      recording.fileUrl ||
+      RecordingService.getPlaybackUrl(recording.recordingId)
+    );
+  };
+
   const handlePlay = async () => {
-    if (!recording || !isReady) {
+    const url = getPlaybackUrl();
+
+    if (!recording || !isReady || !url) {
       Alert.alert(
         "Recording unavailable",
         "This recording is still being processed.",
@@ -146,11 +169,14 @@ export default function RecordingDetailScreen() {
       return;
     }
 
-    const url =
-      recording.fileUrl ||
-      RecordingService.getPlaybackUrl(recording.recordingId);
-
-    await Linking.openURL(url);
+    try {
+      await Linking.openURL(url);
+    } catch {
+      Alert.alert(
+        "Unable to open recording",
+        "Please try again in a moment.",
+      );
+    }
   };
 
   const handleDownload = async () => {
@@ -162,36 +188,38 @@ export default function RecordingDetailScreen() {
       return;
     }
 
-    const url = RecordingService.getDownloadUrl(recording.recordingId);
-    await Linking.openURL(url);
+    try {
+      await Linking.openURL(
+        RecordingService.getDownloadUrl(recording.recordingId),
+      );
+    } catch {
+      Alert.alert(
+        "Unable to download recording",
+        "Please try again in a moment.",
+      );
+    }
   };
 
   const handleShare = async () => {
-    if (!recording) return;
+    const url = getPlaybackUrl();
 
-    const url =
-      recording.fileUrl ||
-      RecordingService.getPlaybackUrl(recording.recordingId);
+    if (!recording || !url) {
+      return;
+    }
 
-    await Share.share({
-      title,
-      message: `Watch this Telefya recording: ${url}`,
-    });
+    try {
+      await Share.share({
+        title,
+        message: `Watch this Telefya recording: ${url}`,
+      });
+    } catch {
+      // The native share sheet can be dismissed without an error message.
+    }
   };
 
   if (isLoading && !recording) {
     return (
-      <AppScreen
-        contentStyle={styles.loadingScreen}
-        refreshControl={
-          <RefreshControl
-            refreshing
-            onRefresh={() => void loadRecording()}
-            tintColor={colors.primary}
-            colors={[colors.primary]}
-          />
-        }
-      >
+      <AppScreen contentStyle={styles.loadingScreen}>
         <View
           style={[
             styles.loadingIcon,
@@ -201,8 +229,10 @@ export default function RecordingDetailScreen() {
           <Film color={colors.primary} size={28} />
         </View>
 
-        <AppText variant="subtitle">
-          Loading recording
+        <AppText variant="subtitle">Loading recording</AppText>
+
+        <AppText variant="caption" tone="muted">
+          Getting your meeting details ready.
         </AppText>
       </AppScreen>
     );
@@ -220,19 +250,25 @@ export default function RecordingDetailScreen() {
           />
         </View>
 
-        <AppCard style={styles.errorCard}>
+        <View
+          style={[
+            styles.errorCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: `${colors.danger}38`,
+            },
+          ]}
+        >
           <View
             style={[
               styles.errorIcon,
               { backgroundColor: `${colors.danger}18` },
             ]}
           >
-            <FileVideo color={colors.danger} size={26} />
+            <FileVideo color={colors.danger} size={27} />
           </View>
 
-          <AppText variant="subtitle">
-            Recording unavailable
-          </AppText>
+          <AppText variant="subtitle">Recording unavailable</AppText>
 
           <AppText
             variant="caption"
@@ -247,12 +283,14 @@ export default function RecordingDetailScreen() {
             variant="secondary"
             onPress={() => void loadRecording()}
           />
-        </AppCard>
+        </View>
       </AppScreen>
     );
   }
 
-  if (!recording) return null;
+  if (!recording) {
+    return null;
+  }
 
   return (
     <AppScreen
@@ -286,17 +324,21 @@ export default function RecordingDetailScreen() {
               {
                 translateY: entrance.interpolate({
                   inputRange: [0, 1],
-                  outputRange: [18, 0],
+                  outputRange: [16, 0],
                 }),
               },
             ],
           },
         ]}
       >
-        <AppCard
-          elevated
-          variant="soft"
-          style={styles.previewCard}
+        <View
+          style={[
+            styles.previewCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.glassBorder,
+            },
+          ]}
         >
           <View
             style={[
@@ -317,35 +359,52 @@ export default function RecordingDetailScreen() {
                   { backgroundColor: colors.primarySoft },
                 ]}
               >
-                <Film color={colors.primary} size={42} />
+                <Film color={colors.primary} size={40} />
               </View>
             )}
 
-            <View style={styles.previewOverlay} />
-
-            <IconButton
-              icon={<Play color="#FFFFFF" size={24} />}
-              variant="solid"
-              size={58}
-              accessibilityLabel="Play recording"
-              disabled={!isReady}
-              onPress={() => void handlePlay()}
+            <View
+              style={[
+                styles.previewOverlay,
+                { backgroundColor: colors.overlay },
+              ]}
             />
 
+            <View
+              style={[
+                styles.playButtonShell,
+                { backgroundColor: colors.primary },
+              ]}
+            >
+              <IconButton
+                icon={<Play color="#FFFFFF" size={25} />}
+                variant="solid"
+                size={58}
+                accessibilityLabel="Play recording"
+                disabled={!isReady}
+                onPress={() => void handlePlay()}
+              />
+            </View>
+
             {!isReady ? (
-              <View style={styles.processingLabel}>
+              <View
+                style={[
+                  styles.processingLabel,
+                  { backgroundColor: colors.glassStrong },
+                ]}
+              >
+                <Clock3 color={colors.warning} size={14} />
+
                 <AppText
                   variant="caption"
-                  style={styles.processingText}
+                  style={{ color: colors.text, fontWeight: "800" }}
                 >
-                  {isProcessing
-                    ? "Processing"
-                    : "Unavailable"}
+                  {isProcessing ? "Processing recording" : "Unavailable"}
                 </AppText>
               </View>
             ) : null}
           </View>
-        </AppCard>
+        </View>
 
         <View style={styles.titleBlock}>
           <AppText variant="title" numberOfLines={2}>
@@ -358,13 +417,12 @@ export default function RecordingDetailScreen() {
         </View>
 
         {error ? (
-          <AppCard
-            compact
+          <View
             style={[
               styles.errorNotice,
               {
                 backgroundColor: `${colors.danger}12`,
-                borderColor: `${colors.danger}40`,
+                borderColor: `${colors.danger}38`,
               },
             ]}
           >
@@ -374,54 +432,46 @@ export default function RecordingDetailScreen() {
             >
               {error}
             </AppText>
-          </AppCard>
+          </View>
         ) : null}
 
-        <AppCard style={styles.detailsCard}>
+        <View
+          style={[
+            styles.detailsCard,
+            {
+              backgroundColor: colors.card,
+              borderColor: colors.glassBorder,
+            },
+          ]}
+        >
+          <AppText variant="bodyStrong">Recording details</AppText>
+
           <View style={styles.detailGrid}>
-            <View style={styles.detailItem}>
-              <CalendarDays color={colors.primary} size={18} />
-              <View style={styles.detailCopy}>
-                <AppText variant="caption" tone="muted">
-                  Created
-                </AppText>
-                <AppText variant="bodyStrong">
-                  {formatDate(
-                    recording.createdAt || recording.startedAt,
-                  )}
-                </AppText>
-              </View>
-            </View>
+            <DetailItem
+              icon={<CalendarDays color={colors.primary} size={18} />}
+              label="Created"
+              value={formatDate(
+                recording.createdAt || recording.startedAt,
+              )}
+            />
 
-            <View style={styles.detailItem}>
-              <Clock3 color={colors.secondary} size={18} />
-              <View style={styles.detailCopy}>
-                <AppText variant="caption" tone="muted">
-                  Duration
-                </AppText>
-                <AppText variant="bodyStrong">
-                  {formatDuration(recording.durationSeconds)}
-                </AppText>
-              </View>
-            </View>
+            <DetailItem
+              icon={<Clock3 color={colors.secondary} size={18} />}
+              label="Duration"
+              value={formatDuration(recording.durationSeconds)}
+            />
 
-            <View style={styles.detailItem}>
-              <FileVideo color={colors.success} size={18} />
-              <View style={styles.detailCopy}>
-                <AppText variant="caption" tone="muted">
-                  File size
-                </AppText>
-                <AppText variant="bodyStrong">
-                  {formatBytes(recording.sizeBytes)}
-                </AppText>
-              </View>
-            </View>
+            <DetailItem
+              icon={<FileVideo color={colors.success} size={18} />}
+              label="File size"
+              value={formatBytes(recording.sizeBytes)}
+            />
           </View>
-        </AppCard>
+        </View>
 
         <View style={styles.actions}>
           <AppButton
-            title="Play recording"
+            title={isReady ? "Play recording" : "Recording processing"}
             leftIcon={<Play color="#FFFFFF" size={18} />}
             disabled={!isReady}
             onPress={() => void handlePlay()}
@@ -444,9 +494,7 @@ export default function RecordingDetailScreen() {
               title="Share"
               variant="outline"
               size="md"
-              leftIcon={
-                <Share2 color={colors.text} size={18} />
-              }
+              leftIcon={<Share2 color={colors.text} size={18} />}
               onPress={() => void handleShare()}
               containerStyle={styles.secondaryButton}
             />
@@ -457,9 +505,52 @@ export default function RecordingDetailScreen() {
   );
 }
 
+function DetailItem({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  const { colors } = useAppTheme();
+
+  return (
+    <View
+      style={[
+        styles.detailItem,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.detailIcon,
+          { backgroundColor: colors.card },
+        ]}
+      >
+        {icon}
+      </View>
+
+      <View style={styles.detailCopy}>
+        <AppText variant="caption" tone="muted">
+          {label}
+        </AppText>
+
+        <AppText variant="bodyStrong" numberOfLines={1}>
+          {value}
+        </AppText>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   content: {
-    gap: Spacing.five,
+    gap: Spacing.four,
   },
 
   loadingScreen: {
@@ -475,21 +566,22 @@ const styles = StyleSheet.create({
     borderRadius: Radius.large,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.two,
+    marginBottom: Spacing.one,
   },
 
   topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: Spacing.three,
   },
 
   animatedContent: {
-    gap: Spacing.five,
+    gap: Spacing.four,
   },
 
   previewCard: {
+    borderWidth: 1,
+    borderRadius: Radius.xLarge,
     padding: Spacing.two,
   },
 
@@ -502,8 +594,8 @@ const styles = StyleSheet.create({
   },
 
   previewIcon: {
-    width: 84,
-    height: 84,
+    width: 82,
+    height: 82,
     borderRadius: Radius.xLarge,
     alignItems: "center",
     justifyContent: "center",
@@ -511,22 +603,27 @@ const styles = StyleSheet.create({
 
   previewOverlay: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(3, 10, 24, 0.3)",
+    opacity: 0.52,
+  },
+
+  playButtonShell: {
+    borderRadius: Radius.pill,
+    shadowColor: "#000000",
+    shadowOpacity: 0.24,
+    shadowRadius: 14,
+    elevation: 5,
   },
 
   processingLabel: {
     position: "absolute",
     left: Spacing.three,
     bottom: Spacing.three,
+    borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
-    borderRadius: Radius.pill,
-    backgroundColor: "rgba(3, 10, 24, 0.72)",
-  },
-
-  processingText: {
-    color: "#FFFFFF",
-    fontWeight: "700",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
 
   titleBlock: {
@@ -534,26 +631,42 @@ const styles = StyleSheet.create({
   },
 
   detailsCard: {
-    gap: Spacing.four,
+    borderWidth: 1,
+    borderRadius: Radius.xLarge,
+    padding: Spacing.four,
+    gap: Spacing.three,
   },
 
   detailGrid: {
-    gap: Spacing.four,
+    gap: Spacing.two,
   },
 
   detailItem: {
+    minHeight: 64,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
 
+  detailIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   detailCopy: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
   },
 
   actions: {
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
 
   secondaryActions: {
@@ -566,7 +679,10 @@ const styles = StyleSheet.create({
   },
 
   errorCard: {
+    borderWidth: 1,
+    borderRadius: Radius.xLarge,
     alignItems: "center",
+    padding: Spacing.four,
     gap: Spacing.three,
   },
 
@@ -580,6 +696,8 @@ const styles = StyleSheet.create({
 
   errorNotice: {
     borderWidth: 1,
+    borderRadius: Radius.large,
+    padding: Spacing.three,
   },
 
   centerText: {

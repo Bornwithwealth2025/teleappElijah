@@ -5,6 +5,14 @@ import {
   ConfMeetingSocketCommands,
   getActiveConfMeetingSocket,
 } from "@/services/confMeetingSocket";
+import {
+  startScreenShare as createScreenShareStream,
+  stopScreenShare as stopScreenShareStream,
+} from "@/services/screenShare.service";
+import {
+  applyVideoEffect,
+  type VideoEffectId,
+} from "@/services/video-effects.service";
 import type {
   AnyRecord,
   ConsumedPayload,
@@ -51,7 +59,7 @@ async function getReactNativeWebrtc() {
   }
 
   try {
-    const webrtc = await import("react-native-webrtc");
+    const webrtc = await import("@stream-io/react-native-webrtc");
     webrtc.registerGlobals?.();
     return webrtc;
   } catch {
@@ -454,81 +462,88 @@ const MediasoupClient = {
   },
 
   startScreenShare: async (appData: AnyRecord = {}) => {
+    if (screenShareProducer || screenShareStream) {
+      throw new Error("You are already sharing your screen.");
+    }
+
     const transport =
       sendTransport || (await MediasoupClient.createSendTransport());
 
     let stream: any = null;
+    let producer: any = null;
 
-    if (Platform.OS === "web") {
-      if (
-        typeof navigator === "undefined" ||
-        !navigator.mediaDevices?.getDisplayMedia
-      ) {
-        throw new Error("Screen sharing is unavailable in this browser.");
-      }
-
-      stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
-    } else {
-      const webrtc = await getReactNativeWebrtc();
-      const mediaDevices: any = webrtc?.mediaDevices;
-
-      if (!mediaDevices?.getDisplayMedia) {
-        throw new Error(
-          "Screen sharing is unavailable in this Android development build.",
-        );
-      }
-
-      stream = await mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
-    }
-
-    const track = stream?.getVideoTracks?.()?.[0];
-
-    if (!track) {
-      stream?.getTracks?.().forEach((item: any) => {
-        item.stop?.();
-      });
-
-      throw new Error("No screen-share video track is available.");
-    }
-
-    const producer = await transport.produce({
-      track,
-      appData: {
-        ...appData,
-        source: "screen",
-        isScreen: true,
-      },
-    });
-
-    screenShareStream = stream;
-    screenShareProducer = producer;
-
-    track.addEventListener?.("ended", () => {
-      void MediasoupClient.stopScreenShare();
-    });
-
-    return {
-      stream,
-      producer,
-    };
-  },
-
-  stopScreenShare: async () => {
     try {
-      screenShareProducer?.close?.();
-    } finally {
-      screenShareStream?.getTracks?.().forEach((track: any) => {
-        track.stop?.();
+      stream = await createScreenShareStream();
+
+      const track = stream?.getVideoTracks?.()?.[0];
+
+      if (!track) {
+        throw new Error("No screen-share video track is available.");
+      }
+
+      producer = await transport.produce({
+        track,
+        appData: {
+          ...appData,
+          source: "screen",
+          isScreen: true,
+        },
       });
+
+      screenShareStream = stream;
+      screenShareProducer = producer;
+
+      track.addEventListener?.("ended", () => {
+        void MediasoupClient.stopScreenShare();
+      });
+
+      producer.on?.("transportclose", () => {
+        void MediasoupClient.stopScreenShare();
+      });
+
+      producer.on?.("trackended", () => {
+        void MediasoupClient.stopScreenShare();
+      });
+
+      return {
+        stream,
+        producer,
+      };
+    } catch (error) {
+      try {
+        producer?.close?.();
+      } catch {}
+
+      stopScreenShareStream(stream);
 
       screenShareProducer = null;
       screenShareStream = null;
+
+      throw error;
+    }
+  },
+
+  stopScreenShare: async () => {
+    const producer = screenShareProducer;
+    const stream = screenShareStream;
+    const userId = String(producer?.appData?.userId ?? "").trim();
+
+    screenShareProducer = null;
+    screenShareStream = null;
+
+    try {
+      if (userId) {
+        await ConfMeetingSocketCommands.stopScreenShare({
+          userId,
+          screenProducerIds: producer?.id ? [producer.id] : undefined,
+        });
+      }
+    } finally {
+      try {
+        producer?.close?.();
+      } catch {}
+
+      stopScreenShareStream(stream);
     }
   },
 
@@ -618,6 +633,46 @@ const MediasoupClient = {
     });
   },
 
+  applyVideoEffect: async (effectId: VideoEffectId) => {
+    if (!localStream) {
+      throw new Error(
+        "Turn your camera on before applying a background effect.",
+      );
+    }
+
+    return applyVideoEffect(localStream, effectId);
+  },
+
+  getTransportStats: async (): Promise<any[]> => {
+    const transports = [sendTransport, recvTransport].filter(Boolean);
+
+    const reports = await Promise.all(
+      transports.map(async (transport) => {
+        try {
+          const report = await transport.getStats?.();
+
+          if (!report) return [];
+
+          if (typeof report.forEach === "function") {
+            const values: any[] = [];
+            report.forEach((value: any) => values.push(value));
+            return values;
+          }
+
+          if (Array.isArray(report)) {
+            return report;
+          }
+
+          return Object.values(report);
+        } catch {
+          return [];
+        }
+      }),
+    );
+
+    return reports.flat();
+  },
+
   cleanup: () => {
     sendTransport?.close?.();
     recvTransport?.close?.();
@@ -626,11 +681,11 @@ const MediasoupClient = {
       track.stop?.();
     });
 
-    screenShareProducer?.close?.();
+    try {
+      screenShareProducer?.close?.();
+    } catch {}
 
-    screenShareStream?.getTracks?.().forEach((track: any) => {
-      track.stop?.();
-    });
+    stopScreenShareStream(screenShareStream);
 
     sendTransport = null;
     recvTransport = null;

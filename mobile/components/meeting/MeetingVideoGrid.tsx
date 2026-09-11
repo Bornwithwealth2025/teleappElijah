@@ -34,7 +34,7 @@ function NativeVideoView({ stream }: { stream?: any }) {
       if (Platform.OS === "web") return;
 
       try {
-        const webrtc = await import("react-native-webrtc");
+        const webrtc = await import("@stream-io/react-native-webrtc");
         if (mounted) setRTCView(() => webrtc.RTCView);
       } catch {}
     }

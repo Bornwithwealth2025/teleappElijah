@@ -63,10 +63,30 @@ const RecordingService = {
   async listRecordings(): Promise<Recording[]> {
     const { data } =
       await apiClient.get<RecordingListResponse>(
-        "/recordings",
+        "/user/recordings",
       );
 
-    return getList(data);
+    return getList(data).map((item: any) => ({
+      recordingId:
+        item.recordingId ??
+        item.recording_id ??
+        item.id,
+
+      roomId: item.roomId ?? item.room_id,
+      title: item.title,
+      status: item.status,
+      fileName: item.fileName ?? item.file_name,
+      mimeType: item.mimeType ?? item.mime_type,
+      fileUrl: item.fileUrl ?? item.file_url,
+      thumbnailUrl:
+        item.thumbnailUrl ?? item.thumbnail_url,
+      startedAt: item.startedAt ?? item.started_at,
+      stoppedAt: item.stoppedAt ?? item.stopped_at,
+      durationSeconds:
+        item.durationSeconds ?? item.duration_seconds,
+      sizeBytes: item.sizeBytes ?? item.size_bytes,
+      createdAt: item.createdAt ?? item.created_at,
+    }));
   },
 
   getPlaybackUrl(recordingId: string) {

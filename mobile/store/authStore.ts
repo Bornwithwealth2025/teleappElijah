@@ -52,7 +52,11 @@ function normalizeUser(
   user: Partial<AuthUser> & Record<string, any>,
   fallbackEmail = "",
 ): AuthUser {
-  const rawId = user.id ?? user.user_id ?? user._id;
+  const rawId =
+    user.user_id ??
+    user.userId ??
+    user.id ??
+    user._id;
   const email = String(user.email ?? fallbackEmail ?? "").trim();
   const id = String(rawId ?? "").trim() || email;
 
@@ -89,8 +93,16 @@ function getLoginUser(response: any, email: string): AuthUser {
 
   return normalizeUser(
     {
-      id: data?.id ?? response?.id,
-      user_id: data?.user_id ?? response?.user_id ?? response?.id,
+      id:
+        data?.user_id ??
+        response?.user_id ??
+        data?.id ??
+        response?.id,
+      user_id:
+        data?.user_id ??
+        response?.user_id ??
+        data?.id ??
+        response?.id,
       email: data?.email ?? response?.email ?? email,
       first_name: data?.first_name ?? response?.first_name ?? firstName,
       last_name:
