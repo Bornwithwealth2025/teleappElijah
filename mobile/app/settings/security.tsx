@@ -1,12 +1,16 @@
 import React from "react";
-import { router } from "expo-router";
+import { router, type Href } from "expo-router";
 import {
   ArrowRight,
   KeyRound,
   LockKeyhole,
   ShieldCheck,
 } from "lucide-react-native";
-import { StyleSheet, View } from "react-native";
+import {
+  Pressable,
+  StyleSheet,
+  View,
+} from "react-native";
 
 import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
@@ -20,126 +24,155 @@ export default function SecurityScreen() {
   const { colors } = useAppTheme();
 
   return (
-    <AppScreen contentStyle={styles.content}>
+    <AppScreen tone="aurora" contentStyle={styles.content}>
       <AppHeader
-        eyebrow="SETTINGS"
+        eyebrow="ACCOUNT PROTECTION"
         title="Security"
-        subtitle="Protect your account and meeting access."
+        subtitle="Review how your Telefya account and meeting access are protected."
+        size="page"
       />
 
-      <AppCard
-        variant="tinted"
-        style={styles.securityHeader}
-      >
+      <AppCard elevated style={styles.securityHero}>
         <View
           style={[
-            styles.iconBox,
+            styles.heroIcon,
             { backgroundColor: colors.primary },
           ]}
         >
-          <ShieldCheck color="#FFFFFF" size={22} />
+          <ShieldCheck color="#FFFFFF" size={24} />
         </View>
 
         <View style={styles.copy}>
           <AppText variant="bodyStrong">
-            Account protection
+            Your account is protected
           </AppText>
 
           <AppText variant="caption" tone="muted">
-            Your account is protected by authenticated Telefya sessions.
+            Telefya uses authenticated sessions to protect your account and meeting access.
           </AppText>
         </View>
       </AppCard>
 
-      <AppCard style={styles.card}>
-        <View style={styles.sectionHeader}>
-          <View
-            style={[
-              styles.iconBox,
-              { backgroundColor: colors.primarySoft },
-            ]}
-          >
-            <LockKeyhole
-              color={colors.primary}
-              size={21}
-            />
+      <View style={styles.section}>
+        <AppText variant="overline" tone="muted">
+          SIGN-IN
+        </AppText>
+
+        <AppCard style={styles.actionCard}>
+          <View style={styles.actionHeader}>
+            <View
+              style={[
+                styles.actionIcon,
+                { backgroundColor: colors.primarySoft },
+              ]}
+            >
+              <LockKeyhole color={colors.primary} size={21} />
+            </View>
+
+            <View style={styles.copy}>
+              <AppText variant="bodyStrong">
+                Password and sign-in
+              </AppText>
+
+              <AppText variant="caption" tone="muted">
+                Reset your password securely if you need to change it.
+              </AppText>
+            </View>
           </View>
 
-          <View style={styles.copy}>
-            <AppText variant="bodyStrong">
-              Password and sign-in
-            </AppText>
+          <AppButton
+            title="Change password"
+            variant="secondary"
+            leftIcon={
+              <KeyRound color={colors.primaryDeep} size={18} />
+            }
+            rightIcon={
+              <ArrowRight color={colors.primaryDeep} size={18} />
+            }
+            onPress={() =>
+              router.push("/auth/forget-password" as Href)
+            }
+          />
+        </AppCard>
+      </View>
 
-            <AppText variant="caption" tone="muted">
-              Use Telefya’s secure password reset flow to change your password.
-            </AppText>
-          </View>
-        </View>
-
-        <AppButton
-          title="Change password"
-          variant="secondary"
-          leftIcon={
-            <KeyRound
-              color={colors.primaryDeep}
-              size={18}
-            />
-          }
-          rightIcon={
-            <ArrowRight
-              color={colors.primaryDeep}
-              size={18}
-            />
-          }
-          onPress={() =>
-            router.push("/auth/forget-password")
-          }
-        />
-      </AppCard>
-
-      <AppCard
-        variant="soft"
-        style={styles.card}
-      >
-        <View style={styles.sectionHeader}>
-          <View
-            style={[
-              styles.iconBox,
-              { backgroundColor: colors.surfaceStrong },
-            ]}
-          >
-            <ShieldCheck
-              color={colors.textMuted}
-              size={21}
-            />
-          </View>
-
-          <View style={styles.copy}>
-            <AppText variant="bodyStrong">
-              Room approval
-            </AppText>
-
-            <AppText variant="caption" tone="muted">
-              Room approval controls will become available when workspace
-              meeting policies are enabled.
-            </AppText>
-          </View>
-        </View>
+      <View style={styles.section}>
+        <AppText variant="overline" tone="muted">
+          MEETING ACCESS
+        </AppText>
 
         <View
           style={[
-            styles.statusPill,
+            styles.policyRow,
             {
-              backgroundColor: colors.surfaceStrong,
+              backgroundColor: colors.card,
               borderColor: colors.border,
             },
           ]}
         >
-          <AppText variant="caption" tone="muted">
-            Managed by workspace policy
-          </AppText>
+          <View
+            style={[
+              styles.actionIcon,
+              { backgroundColor: colors.secondarySoft },
+            ]}
+          >
+            <ShieldCheck color={colors.secondary} size={21} />
+          </View>
+
+          <View style={styles.copy}>
+            <AppText variant="bodyStrong">
+              Waiting room and host controls
+            </AppText>
+
+            <AppText variant="caption" tone="muted">
+              Hosts can manage waiting-room access from inside live meetings.
+            </AppText>
+          </View>
         </View>
-      </AppCard>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() =>
+            router.push("/settings/meeting-default" as Href)
+          }
+          style={({ pressed }) => [
+            styles.policyLink,
+            {
+              backgroundColor: colors.surface,
+              borderColor: colors.border,
+              opacity: pressed ? 0.76 : 1,
+            },
+          ]}
+        >
+          <AppText
+            variant="caption"
+            style={{ color: colors.primary, fontWeight: "800" }}
+          >
+            Review meeting preferences
+          </AppText>
+
+          <ArrowRight color={colors.primary} size={17} />
+        </Pressable>
+      </View>
+
+      <View
+        style={[
+          styles.notice,
+          {
+            backgroundColor: `${colors.success}12`,
+            borderColor: `${colors.success}30`,
+          },
+        ]}
+      >
+        <ShieldCheck color={colors.success} size={19} />
+
+        <AppText
+          variant="caption"
+          style={{ color: colors.textMuted, flex: 1 }}
+        >
+          For best protection, use a unique password and sign out of shared devices after meetings.
+        </AppText>
+      </View>
     </AppScreen>
   );
 }
@@ -147,43 +180,67 @@ export default function SecurityScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.five,
+    paddingBottom: Spacing.five,
   },
-
-  card: {
+  securityHero: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+  heroIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: Radius.large,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  section: {
+    gap: Spacing.two,
+  },
+  actionCard: {
     gap: Spacing.four,
   },
-
-  securityHeader: {
+  actionHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
-
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.three,
-  },
-
-  iconBox: {
-    width: 46,
-    height: 46,
+  actionIcon: {
+    width: 44,
+    height: 44,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
-
   copy: {
     flex: 1,
     minWidth: 0,
-    gap: Spacing.one,
+    gap: 3,
   },
-
-  statusPill: {
-    alignSelf: "flex-start",
+  policyRow: {
+    minHeight: 82,
     borderWidth: 1,
-    borderRadius: Radius.pill,
+    borderRadius: Radius.large,
+    padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+  policyLink: {
+    minHeight: 50,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  notice: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
   },
 });

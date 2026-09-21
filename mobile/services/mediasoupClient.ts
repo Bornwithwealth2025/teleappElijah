@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import { Device } from "mediasoup-client";
 
 import {
@@ -31,6 +32,67 @@ let screenShareProducer: any = null;
 let creatingSendTransport: Promise<any> | null = null;
 let creatingRecvTransport: Promise<any> | null = null;
 
+function stopLocalStream(stream?: any) {
+  stream?.getTracks?.().forEach((track: any) => {
+    try {
+      track.stop?.();
+    } catch {
+      // A stopped native track does not need further handling.
+    }
+  });
+}
+
+function hasUsableLocalStream(stream?: any) {
+  const tracks = stream?.getTracks?.() ?? [];
+
+  return tracks.length > 0 &&
+    tracks.some((track: any) => track?.readyState !== "ended");
+}
+
+function getCameraCaptureError(error: unknown) {
+  const originalMessage =
+    error instanceof Error && error.message
+      ? error.message
+      : "";
+
+  const message = originalMessage.toLowerCase();
+
+  if (
+    message.includes("permission") ||
+    message.includes("notallowed") ||
+    message.includes("security")
+  ) {
+    return "Camera or microphone permission was denied. Enable both permissions in Android Settings and try again.";
+  }
+
+  if (
+    message.includes("notfound") ||
+    message.includes("no camera") ||
+    message.includes("device not found") ||
+    message.includes("no microphone")
+  ) {
+    return "No usable camera or microphone was found. Configure the emulator camera or test with a physical device.";
+  }
+
+  if (
+    message.includes("notreadable") ||
+    message.includes("in use") ||
+    message.includes("failed to allocate") ||
+    message.includes("could not start")
+  ) {
+    return "The camera or microphone is busy or unavailable. Close other apps using it, then try again.";
+  }
+
+  if (
+    message.includes("native module") ||
+    message.includes("webrtc")
+  ) {
+    return "Native WebRTC is unavailable. Open the installed Telefya development build, not Expo Go.";
+  }
+
+  return originalMessage || "Unable to start the camera and microphone.";
+}
+
 function createDevice() {
   if (Platform.OS === "web") {
     return new Device();
@@ -58,13 +120,19 @@ async function getReactNativeWebrtc() {
     return null;
   }
 
+  if (Constants.appOwnership === "expo") {
+    throw new Error(
+      "Live meeting video requires the installed Telefya development build. Expo Go cannot load Telefya’s native WebRTC camera.",
+    );
+  }
+
   try {
     const webrtc = await import("@stream-io/react-native-webrtc");
     webrtc.registerGlobals?.();
     return webrtc;
   } catch {
     throw new Error(
-      "Native WebRTC is unavailable. Rebuild the Expo development client.",
+      "Native WebRTC is unavailable. Rebuild and open the Telefya development build.",
     );
   }
 }
@@ -388,15 +456,20 @@ const MediasoupClient = {
   },
 
   getLocalStream: async () => {
-    if (localStream) {
+    // Reuse the stream acquired during pre-join preview or an existing meeting.
+    if (hasUsableLocalStream(localStream)) {
       return localStream;
     }
 
+    // Do not keep a stale stream whose tracks have ended.
+    stopLocalStream(localStream);
+    localStream = null;
+
     const webrtc = await getReactNativeWebrtc();
 
-    if (!webrtc?.mediaDevices) {
+    if (!webrtc?.mediaDevices?.getUserMedia) {
       throw new Error(
-        "Camera and microphone require a native Expo development build.",
+        "Camera and microphone require the Telefya native development build.",
       );
     }
 
@@ -411,9 +484,21 @@ const MediasoupClient = {
         },
       });
 
+      if (!hasUsableLocalStream(localStream)) {
+        stopLocalStream(localStream);
+        localStream = null;
+
+        throw new Error(
+          "The camera did not return a usable video or audio stream.",
+        );
+      }
+
       return localStream;
-    } catch {
-      throw new Error("Camera or microphone permission was denied.");
+    } catch (error) {
+      stopLocalStream(localStream);
+      localStream = null;
+
+      throw new Error(getCameraCaptureError(error));
     }
   },
 
@@ -677,9 +762,7 @@ const MediasoupClient = {
     sendTransport?.close?.();
     recvTransport?.close?.();
 
-    localStream?.getTracks?.().forEach((track: any) => {
-      track.stop?.();
-    });
+    stopLocalStream(localStream);
 
     try {
       screenShareProducer?.close?.();

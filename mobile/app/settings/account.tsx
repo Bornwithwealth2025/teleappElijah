@@ -2,44 +2,45 @@ import React from "react";
 import {
   RefreshControl,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
 import { router } from "expo-router";
 import {
   ArrowLeft,
+  BadgeCheck,
+  CheckCircle2,
+  Globe2,
   Mail,
   MapPin,
   Phone,
+  Save,
   ShieldCheck,
   UserRound,
 } from "lucide-react-native";
 
+import { BASE_URL } from "@/api/client";
+import {
+  AppButton,
+  BRAND_GRADIENT,
+} from "@/components/ui/AppButton";
 import { ProfileAvatar } from "@/components/shared/ProfileAvatar";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
-import { AppTextInput } from "@/components/ui/AppTextInput";
-import { BASE_URL } from "@/api/client";
-import { Spacing } from "@/constants/theme";
+import { IconButton } from "@/components/ui/IconButton";
+import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useAuthStore from "@/store/authStore";
 import useUserStore from "@/store/userStore";
 
-function getProfileName(profile: any) {
-  const fullName = [
-    profile?.first_name,
-    profile?.last_name,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
-
-  return (
-    fullName ||
-    profile?.name ||
-    profile?.email ||
-    "Telefya user"
+function getValue(...values: Array<unknown>) {
+  return values.find(
+    (value) =>
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== "",
   );
 }
 
@@ -50,79 +51,227 @@ function resolveImageUrl(value?: string | null) {
     return value;
   }
 
-  return `${BASE_URL.replace(
-    "/api/v2",
+  return `${BASE_URL.replace("/api/v2", "")}/${value.replace(
+    /^\/+/,
     "",
-  )}/${value.replace(/^\/+/, "")}`;
+  )}`;
+}
+
+function splitPhone(value?: string | null) {
+  const raw = String(value ?? "").trim();
+
+  if (!raw) {
+    return {
+      countryCode: "+234",
+      phoneNumber: "",
+    };
+  }
+
+  const match = raw.match(/^(\+\d{1,4})(\d+)$/);
+
+  if (!match) {
+    return {
+      countryCode: "+234",
+      phoneNumber: raw.replace(/[^\d]/g, ""),
+    };
+  }
+
+  return {
+    countryCode: match[1],
+    phoneNumber: match[2],
+  };
+}
+
+type FormFieldProps = {
+  label: string;
+  value: string;
+  placeholder: string;
+  icon: React.ReactNode;
+  onChangeText: (value: string) => void;
+  keyboardType?: "default" | "phone-pad";
+  autoCapitalize?: "none" | "words";
+  editable?: boolean;
+  helper?: string;
+};
+
+function FormField({
+  label,
+  value,
+  placeholder,
+  icon,
+  onChangeText,
+  keyboardType = "default",
+  autoCapitalize = "words",
+  editable = true,
+  helper,
+}: FormFieldProps) {
+  const { colors } = useAppTheme();
+
+  return (
+    <View style={styles.fieldGroup}>
+      <AppText variant="caption" tone="muted">
+        {label}
+      </AppText>
+
+      <View
+        style={[
+          styles.field,
+          {
+            backgroundColor: editable ? colors.card : colors.surface,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.fieldIcon,
+            { backgroundColor: colors.primarySoft },
+          ]}
+        >
+          {icon}
+        </View>
+
+        <TextInput
+          value={value}
+          editable={editable}
+          placeholder={placeholder}
+          placeholderTextColor={colors.textSoft}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={false}
+          onChangeText={onChangeText}
+          style={[
+            styles.input,
+            {
+              color: editable ? colors.text : colors.textMuted,
+            },
+          ]}
+        />
+      </View>
+
+      {helper ? (
+        <AppText variant="caption" tone="muted" style={styles.helper}>
+          {helper}
+        </AppText>
+      ) : null}
+    </View>
+  );
 }
 
 export default function AccountSettingsScreen() {
   const { colors } = useAppTheme();
 
-  const authUser = useAuthStore(
-    (state) => state.user,
-  );
+  const authUser = useAuthStore((state) => state.user);
 
-  const profile = useUserStore(
-    (state) => state.profile,
-  );
-  const isLoading = useUserStore(
-    (state) => state.isLoading,
-  );
-  const isUploading = useUserStore(
-    (state) => state.isUploading,
-  );
-  const error = useUserStore(
-    (state) => state.error,
-  );
-  const fetchProfile = useUserStore(
-    (state) => state.fetchProfile,
-  );
+  const profile = useUserStore((state) => state.profile);
+  const isLoading = useUserStore((state) => state.isLoading);
+  const isUploading = useUserStore((state) => state.isUploading);
+  const isUpdating = useUserStore((state) => state.isUpdating);
+  const error = useUserStore((state) => state.error);
+  const fetchProfile = useUserStore((state) => state.fetchProfile);
+  const updateProfile = useUserStore((state) => state.updateProfile);
   const uploadProfileImage = useUserStore(
     (state) => state.uploadProfileImage,
   );
-
-  React.useEffect(() => {
-    void fetchProfile();
-  }, [fetchProfile]);
 
   const activeProfile = {
     ...(authUser ?? {}),
     ...(profile ?? {}),
   };
 
-  const profileName = getProfileName(activeProfile);
-
   const email = String(
-    activeProfile.email ?? "Not provided",
+    getValue(activeProfile.email, authUser?.email) ?? "Not provided",
   );
-
-  const phone = String(
-    activeProfile.phone_number ??
-      activeProfile.phoneNumber ??
-      "Not provided",
-  );
-
-  const location = [
-    activeProfile.city,
-    activeProfile.state,
-    activeProfile.country,
-  ]
-    .filter(Boolean)
-    .join(", ");
 
   const imageUrl = resolveImageUrl(
-    activeProfile.profile_image ??
-      activeProfile.profileImage ??
-      null,
+    String(
+      getValue(
+        activeProfile.profile_image,
+        activeProfile.profileImage,
+        activeProfile.avatar,
+      ) ?? "",
+    ),
   );
 
   const isVerified =
     activeProfile.is_verified === true ||
     activeProfile.is_verified === 1;
 
+  const [firstName, setFirstName] = React.useState("");
+  const [lastName, setLastName] = React.useState("");
+  const [countryCode, setCountryCode] = React.useState("+234");
+  const [phoneNumber, setPhoneNumber] = React.useState("");
+  const [country, setCountry] = React.useState("");
+  const [state, setState] = React.useState("");
+  const [city, setCity] = React.useState("");
+  const [success, setSuccess] = React.useState("");
+
+  React.useEffect(() => {
+    void fetchProfile();
+  }, [fetchProfile]);
+
+  React.useEffect(() => {
+    const phone = splitPhone(
+      getValue(
+        activeProfile.phone_number,
+        activeProfile.phoneNumber,
+        activeProfile.phone,
+      ) as string | null,
+    );
+
+    setFirstName(String(activeProfile.first_name ?? ""));
+    setLastName(String(activeProfile.last_name ?? ""));
+    setCountryCode(phone.countryCode);
+    setPhoneNumber(phone.phoneNumber);
+    setCountry(String(activeProfile.country ?? ""));
+    setState(String(activeProfile.state ?? ""));
+    setCity(String(activeProfile.city ?? ""));
+  }, [
+    activeProfile.city,
+    activeProfile.country,
+    activeProfile.first_name,
+    activeProfile.last_name,
+    activeProfile.phone,
+    activeProfile.phoneNumber,
+    activeProfile.phone_number,
+    activeProfile.state,
+  ]);
+
+  const profileName =
+    [firstName, lastName].filter(Boolean).join(" ").trim() ||
+    email ||
+    "Telefya user";
+
+  const canSave =
+    firstName.trim().length >= 2 &&
+    lastName.trim().length >= 2 &&
+    !isUpdating;
+
+  async function handleSave() {
+    if (!canSave) return;
+
+    setSuccess("");
+
+    try {
+      await updateProfile({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        country_code: countryCode.trim(),
+        phone_number: phoneNumber.trim(),
+        country: country.trim(),
+        state: state.trim(),
+        city: city.trim(),
+      });
+
+      setSuccess("Profile changes saved.");
+    } catch {
+      // The store displays the API error in the screen-level error card.
+    }
+  }
+
   return (
     <AppScreen
+      tone="aurora"
       contentStyle={styles.content}
       refreshControl={
         <RefreshControl
@@ -134,162 +283,247 @@ export default function AccountSettingsScreen() {
       }
     >
       <AppHeader
-        eyebrow="SETTINGS"
-        title="Account settings"
-        subtitle="Manage your profile details and contact information."
+        eyebrow="ACCOUNT"
+        title="Your profile"
+        subtitle="Manage the information connected to your Telefya workspace."
+        size="page"
         leftSlot={
-          <View style={styles.headerBack}>
-            <AppText
-              variant="bodyStrong"
-              tone="primary"
-              onPress={() => router.back()}
-            >
-              ← Back
-            </AppText>
-          </View>
+          <IconButton
+            icon={<ArrowLeft color={colors.text} size={20} />}
+            variant="soft"
+            accessibilityLabel="Go back"
+            onPress={() => router.back()}
+          />
         }
       />
 
-      <AppCard
-        variant="tinted"
-        style={styles.avatarCard}
-      >
+      <AppCard elevated style={styles.identityCard}>
         <ProfileAvatar
           name={profileName}
           imageUri={imageUrl}
           editable
           uploading={isUploading}
-          size={88}
+          size={78}
           onImageSelected={uploadProfileImage}
         />
 
-        <View style={styles.avatarCopy}>
+        <View style={styles.identityCopy}>
           <View style={styles.nameRow}>
-            <AppText variant="bodyStrong">
-              {profileName}
+            <AppText variant="sectionTitle" numberOfLines={1}>
+              {isLoading && !profile ? "Loading profile…" : profileName}
             </AppText>
 
             {isVerified ? (
-              <ShieldCheck
-                color={colors.success}
-                size={18}
-              />
+              <BadgeCheck color={colors.success} size={19} />
             ) : null}
           </View>
 
-          <AppText
-            variant="caption"
-            tone="muted"
-            style={styles.avatarHelp}
-          >
-            Upload a clear photo for your Telefya account.
+          <AppText variant="caption" tone="muted" numberOfLines={1}>
+            {email}
           </AppText>
 
-          {isUploading ? (
-            <AppText variant="caption" tone="primary">
-              Uploading profile photo...
+          <View
+            style={[
+              styles.statusPill,
+              {
+                backgroundColor: isUploading
+                  ? colors.primarySoft
+                  : `${colors.success}12`,
+                borderColor: isUploading
+                  ? `${colors.primary}28`
+                  : `${colors.success}30`,
+              },
+            ]}
+          >
+            <ShieldCheck
+              color={isUploading ? colors.primary : colors.success}
+              size={14}
+            />
+
+            <AppText
+              variant="caption"
+              style={{
+                color: isUploading ? colors.primary : colors.success,
+                fontWeight: "800",
+              }}
+            >
+              {isUploading ? "Uploading photo…" : "Workspace verified"}
             </AppText>
-          ) : null}
+          </View>
         </View>
       </AppCard>
 
       {error ? (
-        <AppCard
-          compact
+        <View
           style={[
-            styles.errorCard,
+            styles.feedback,
             {
-              backgroundColor: colors.danger + "12",
-              borderColor: colors.danger + "45",
+              backgroundColor: `${colors.danger}10`,
+              borderColor: `${colors.danger}35`,
             },
           ]}
         >
           <AppText
             variant="caption"
-            style={{ color: colors.danger }}
+            style={{ color: colors.danger, fontWeight: "700" }}
           >
             {error}
           </AppText>
-        </AppCard>
+        </View>
       ) : null}
 
-      <AppCard style={styles.detailsCard}>
-        <AppText variant="sectionTitle">
-          Personal information
-        </AppText>
+      {success ? (
+        <View
+          style={[
+            styles.feedback,
+            {
+              backgroundColor: `${colors.success}12`,
+              borderColor: `${colors.success}35`,
+            },
+          ]}
+        >
+          <CheckCircle2 color={colors.success} size={18} />
 
-        <View style={styles.fields}>
-          <AppTextInput
-            label="Full name"
-            value={profileName}
-            editable={false}
-            leftSlot={
-              <UserRound
-                color={colors.textSoft}
-                size={18}
-              />
-            }
-          />
-
-          <AppTextInput
-            label="Email address"
-            value={email}
-            editable={false}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            leftSlot={
-              <Mail
-                color={colors.textSoft}
-                size={18}
-              />
-            }
-          />
-
-          <AppTextInput
-            label="Phone number"
-            value={phone}
-            editable={false}
-            keyboardType="phone-pad"
-            leftSlot={
-              <Phone
-                color={colors.textSoft}
-                size={18}
-              />
-            }
-          />
-
-          <AppTextInput
-            label="Location"
-            value={location || "Not provided"}
-            editable={false}
-            leftSlot={
-              <MapPin
-                color={colors.textSoft}
-                size={18}
-              />
-            }
-          />
+          <AppText
+            variant="caption"
+            style={{ color: colors.success, fontWeight: "800" }}
+          >
+            {success}
+          </AppText>
         </View>
-      </AppCard>
+      ) : null}
 
-      <AppCard
-        compact
-        variant="soft"
-        style={styles.noticeCard}
-      >
-        <ShieldCheck
-          color={colors.success}
-          size={20}
+      <AppCard style={styles.formCard}>
+        <View style={styles.formHeader}>
+          <View
+            style={[
+              styles.formHeaderIcon,
+              { backgroundColor: colors.primarySoft },
+            ]}
+          >
+            <UserRound color={colors.primary} size={20} />
+          </View>
+
+          <View style={styles.formHeaderCopy}>
+            <AppText variant="bodyStrong">
+              Personal information
+            </AppText>
+
+            <AppText variant="caption" tone="muted">
+              Keep your meeting profile current for invitations and workspace access.
+            </AppText>
+          </View>
+        </View>
+
+        <FormField
+          label="First name"
+          value={firstName}
+          placeholder="Your first name"
+          icon={<UserRound color={colors.primary} size={18} />}
+          onChangeText={(value) => {
+            setSuccess("");
+            setFirstName(value);
+          }}
         />
 
-        <AppText
-          variant="caption"
-          tone="muted"
-          style={styles.noticeText}
-        >
-          Your account information is securely loaded from your Telefya
-          workspace.
-        </AppText>
+        <FormField
+          label="Last name"
+          value={lastName}
+          placeholder="Your last name"
+          icon={<UserRound color={colors.primary} size={18} />}
+          onChangeText={(value) => {
+            setSuccess("");
+            setLastName(value);
+          }}
+        />
+
+        <FormField
+          label="Email address"
+          value={email}
+          placeholder=""
+          editable={false}
+          autoCapitalize="none"
+          icon={<Mail color={colors.textMuted} size={18} />}
+          onChangeText={() => undefined}
+          helper="Email changes require verification through account support."
+        />
+
+        <View style={styles.phoneRow}>
+          <View style={styles.countryCodeField}>
+            <FormField
+              label="Code"
+              value={countryCode}
+              placeholder="+234"
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+              icon={<Globe2 color={colors.primary} size={18} />}
+              onChangeText={(value) => {
+                setSuccess("");
+                setCountryCode(value);
+              }}
+            />
+          </View>
+
+          <View style={styles.phoneField}>
+            <FormField
+              label="Phone number"
+              value={phoneNumber}
+              placeholder="801 234 5678"
+              keyboardType="phone-pad"
+              autoCapitalize="none"
+              icon={<Phone color={colors.success} size={18} />}
+              onChangeText={(value) => {
+                setSuccess("");
+                setPhoneNumber(value);
+              }}
+            />
+          </View>
+        </View>
+
+        <FormField
+          label="Country"
+          value={country}
+          placeholder="Nigeria"
+          icon={<Globe2 color={colors.primary} size={18} />}
+          onChangeText={(value) => {
+            setSuccess("");
+            setCountry(value);
+          }}
+        />
+
+        <FormField
+          label="State"
+          value={state}
+          placeholder="Lagos"
+          icon={<MapPin color={colors.secondary} size={18} />}
+          onChangeText={(value) => {
+            setSuccess("");
+            setState(value);
+          }}
+        />
+
+        <FormField
+          label="City"
+          value={city}
+          placeholder="Lagos"
+          icon={<MapPin color={colors.secondary} size={18} />}
+          onChangeText={(value) => {
+            setSuccess("");
+            setCity(value);
+          }}
+        />
+
+        <AppButton
+          title={isUpdating ? "Saving changes..." : "Save profile changes"}
+          variant="gradient"
+          gradientColors={BRAND_GRADIENT}
+          loading={isUpdating}
+          disabled={!canSave}
+          leftIcon={<Save color="#FFFFFF" size={18} />}
+          rightIcon={<CheckCircle2 color="#FFFFFF" size={18} />}
+          contentAlign="spaceBetween"
+          onPress={() => void handleSave()}
+        />
       </AppCard>
     </AppScreen>
   );
@@ -298,19 +532,16 @@ export default function AccountSettingsScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.five,
+    paddingBottom: Spacing.five,
   },
 
-  headerBack: {
-    marginBottom: Spacing.two,
-  },
-
-  avatarCard: {
+  identityCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.four,
   },
 
-  avatarCopy: {
+  identityCopy: {
     flex: 1,
     minWidth: 0,
     gap: Spacing.one,
@@ -319,33 +550,100 @@ const styles = StyleSheet.create({
   nameRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.two,
+    gap: Spacing.one,
   },
 
-  avatarHelp: {
-    lineHeight: 20,
-  },
-
-  errorCard: {
+  statusPill: {
+    alignSelf: "flex-start",
+    minHeight: 28,
     borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.two,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: Spacing.one,
   },
 
-  detailsCard: {
-    gap: Spacing.four,
-  },
-
-  fields: {
-    gap: Spacing.three,
-  },
-
-  noticeCard: {
+  feedback: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
   },
 
-  noticeText: {
+  formCard: {
+    gap: Spacing.four,
+  },
+
+  formHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+
+  formHeaderIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  formHeaderCopy: {
     flex: 1,
-    lineHeight: 20,
+    minWidth: 0,
+    gap: 3,
+  },
+
+  fieldGroup: {
+    gap: Spacing.one,
+  },
+
+  field: {
+    minHeight: 56,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing.two,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+
+  fieldIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  input: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 48,
+    fontSize: 15,
+    fontWeight: "600",
+    padding: 0,
+  },
+
+  helper: {
+    lineHeight: 18,
+  },
+
+  phoneRow: {
+    flexDirection: "row",
+    gap: Spacing.two,
+  },
+
+  countryCodeField: {
+    width: 112,
+  },
+
+  phoneField: {
+    flex: 1,
+    minWidth: 0,
   },
 });

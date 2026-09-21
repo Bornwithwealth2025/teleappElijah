@@ -30,6 +30,19 @@ export interface UserProfile {
   updated_at?: string;
 }
 
+export type UpdateProfileRequest = {
+  first_name?: string;
+  last_name?: string;
+  phone_number?: string;
+  country_code?: string;
+  country?: string;
+  state?: string;
+  city?: string;
+  date_of_birth?: string;
+};
+
+export type UpdateProfileResponse = ApiResponse<UserProfile>;
+
 export interface ScheduledMeeting {
   id: number | string;
   meeting_url: string;
@@ -47,6 +60,29 @@ export interface ScheduledMeeting {
   participants_count?: number;
   participants?: unknown[] | number;
 }
+
+export type MeetingRelationship = "host" | "invitee";
+
+export interface InboxMeeting extends ScheduledMeeting {
+  room_id?: string;
+  scheduled_for?: string;
+  started_at?: string | null;
+  ended_at?: string | null;
+  relationship: MeetingRelationship;
+  membership_id?: string | number | null;
+  member_role?: "speaker" | "attendee" | null;
+  member_status?: "invited" | "accepted" | null;
+  host_name?: string | null;
+}
+
+export interface MeetingInbox {
+  live: InboxMeeting[];
+  upcoming: InboxMeeting[];
+  invitations: InboxMeeting[];
+}
+
+export type GetMeetingInboxResponse =
+  ApiResponse<MeetingInbox>;
 
 export interface ScheduleMeetingRequest {
   date: string;

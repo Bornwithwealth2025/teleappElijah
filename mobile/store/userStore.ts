@@ -4,16 +4,23 @@ import UserService, {
   UploadableImage,
 } from "@/api/user.service";
 import { UserProfile } from "@/types/user.types";
+import type {
+  UpdateProfileRequest,
+} from "@/types/user.types";
 
 type UserStore = {
   profile: UserProfile | null;
   isLoading: boolean;
   isUploading: boolean;
+  isUpdating: boolean;
   error: string | null;
 
   fetchProfile: () => Promise<void>;
   uploadProfileImage: (
     image: UploadableImage,
+  ) => Promise<void>;
+  updateProfile: (
+    payload: UpdateProfileRequest,
   ) => Promise<void>;
   clearProfile: () => void;
   clearError: () => void;
@@ -55,6 +62,7 @@ const useUserStore = create<UserStore>((set, get) => ({
   profile: null,
   isLoading: false,
   isUploading: false,
+  isUpdating: false,
   error: null,
 
   fetchProfile: async () => {
@@ -86,6 +94,39 @@ const useUserStore = create<UserStore>((set, get) => ({
       });
     } finally {
       set({ isLoading: false });
+    }
+  },
+
+  updateProfile: async (payload) => {
+    set({
+      isUpdating: true,
+      error: null,
+    });
+
+    try {
+      const response = await UserService.updateProfile(payload);
+      const profile = unwrapProfile(response);
+
+      if (!response.success || !profile) {
+        throw new Error(
+          response.message || "Unable to update profile.",
+        );
+      }
+
+      set({
+        profile,
+        error: null,
+      });
+    } catch (error) {
+      const message = getErrorMessage(
+        error,
+        "Unable to update profile.",
+      );
+
+      set({ error: message });
+      throw new Error(message);
+    } finally {
+      set({ isUpdating: false });
     }
   },
 

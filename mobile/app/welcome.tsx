@@ -7,15 +7,16 @@ import {
   Easing,
   Image,
   Platform,
+  Pressable,
   StatusBar,
   StyleSheet,
   useWindowDimensions,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { ArrowRight, LogIn, Sparkles, Users } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppButton, BRAND_GRADIENT } from "@/components/ui/AppButton";
 import { AppText } from "@/components/ui/AppText";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
@@ -196,14 +197,6 @@ export default function WelcomeScreen() {
               },
             ]}
           >
-            <View
-              pointerEvents="none"
-              style={[
-                styles.heroShadow,
-                { backgroundColor: isDark ? "rgba(0,0,0,0.35)" : "rgba(59,130,246,0.16)" },
-              ]}
-            />
-
             <Image
               source={globeImage}
               resizeMode="contain"
@@ -294,28 +287,99 @@ export default function WelcomeScreen() {
           </View>
 
           <View style={styles.actions}>
-            <AppButton
-              title="Create Account"
-              variant="gradient"
-              gradientColors={BRAND_GRADIENT}
-              contentAlign="spaceBetween"
-              leftIcon={<Users color="#FFFFFF" size={18} />}
-              rightIcon={<ArrowRight color="#FFFFFF" size={18} />}
-              onPress={() => router.push("/auth/register")}
-              accessibilityLabel="Create a Telefya account"
-            />
+            {/* Shadow lives on this OUTER view (no overflow:hidden here).
+               On Android, putting elevation + overflow:"hidden" on the
+               SAME view clips/collapses the children (that's what was
+               happening — buttons rendering as a thin sliver). Splitting
+               the shadow wrapper from the clipped gradient wrapper fixes it. */}
+            <View style={styles.createButtonShadow}>
+              <LinearGradient
+                colors={["#7B1CFF", "#0F6BFF", "#12D8B0"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.createButton}
+              >
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Create a Telefya account"
+                  onPress={() => router.push("/auth/register")}
+                  style={({ pressed }) => [
+                    styles.welcomeButtonPressable,
+                    pressed && styles.buttonPressed,
+                  ]}
+                >
+                  <View style={styles.welcomeButtonContent}>
+                    <View style={styles.buttonIconSlot}>
+                      <Users color="#FFFFFF" size={20} strokeWidth={2} />
+                    </View>
 
-            <AppButton
-              title="Sign In"
-              variant="gradientOutline"
-              gradientColors={BRAND_GRADIENT}
-              contentAlign="spaceBetween"
-              textColor={colors.text}
-              leftIcon={<LogIn color={colors.primary} size={18} />}
-              rightIcon={<ArrowRight color={colors.primary} size={18} />}
-              onPress={() => router.push("/auth/login")}
-              accessibilityLabel="Sign in to Telefya"
-            />
+                    <AppText style={styles.createButtonText}>
+                      Create Account
+                    </AppText>
+
+                    <View style={styles.buttonIconSlot}>
+                      <ArrowRight color="#FFFFFF" size={20} strokeWidth={2} />
+                    </View>
+                  </View>
+                </Pressable>
+              </LinearGradient>
+            </View>
+
+            {/* Gradient border, done as stacked absolute-fill layers instead of
+               the padding trick: gradient paints the full rect, a solid
+               "colors.background" layer sits on top inset by the border
+               width (so it always matches the page and reads as
+               transparent), and the pressable/content sit on top of that.
+               This can't ever show the gradient bleeding through the middle. */}
+            <View style={styles.signInBorderWrap}>
+              <LinearGradient
+                colors={["#8B22FF", "#0F6BFF", "#12D8B0"]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.signInInnerFill,
+                  { backgroundColor: colors.background },
+                ]}
+              />
+
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Sign in to Telefya"
+                onPress={() => router.push("/auth/login")}
+                style={({ pressed }) => [
+                  styles.signInPressable,
+                  pressed && styles.buttonPressed,
+                ]}
+              >
+                <View style={styles.welcomeButtonContent}>
+                  <View style={styles.buttonIconSlot}>
+                    <LogIn color={isDark ? "#FFFFFF" : "#071633"} size={20} strokeWidth={2} />
+                  </View>
+
+                  <AppText
+                    style={[
+                      styles.signInButtonText,
+                      { color: isDark ? "#FFFFFF" : "#071633" },
+                    ]}
+                  >
+                    Sign In
+                  </AppText>
+
+                  <View style={styles.buttonIconSlot}>
+                    <ArrowRight
+                      color={isDark ? "#FFFFFF" : "#071633"}
+                      size={20}
+                      strokeWidth={2}
+                    />
+                  </View>
+                </View>
+              </Pressable>
+            </View>
           </View>
 
           <AppText style={[styles.legal, { color: colors.textSoft }]}>
@@ -342,20 +406,12 @@ const styles = StyleSheet.create({
   logo: { width: 168, height: 54 },
   heroSection: {
     flex: 1,
-    minHeight: 250,
     alignItems: "center",
     justifyContent: "center",
     paddingTop: Spacing.two,
+    paddingBottom: Spacing.three,
   },
   hero: { alignItems: "center", justifyContent: "center" },
-  heroShadow: {
-    position: "absolute",
-    width: "58%",
-    height: "18%",
-    bottom: "2%",
-    borderRadius: 999,
-    transform: [{ scaleX: 1.3 }],
-  },
   globeImage: { width: "100%", height: "100%" },
   bottomContent: { width: "100%", alignItems: "center", gap: Spacing.three },
   connectionPill: {
@@ -411,7 +467,107 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textAlign: "center",
   },
-  actions: { width: "100%", gap: Spacing.three, marginTop: Spacing.one },
+
+  actions: {
+    width: "100%",
+    gap: Spacing.three,
+    marginTop: Spacing.three,
+  },
+
+  // Shadow lives here, on a plain view with NO overflow/borderRadius clipping.
+  // (Android bug: elevation + overflow:"hidden" on the same view collapses
+  // the children into a sliver — that was the "buttons not loading" issue.)
+  createButtonShadow: {
+    width: "100%",
+    height: 62,
+    borderRadius: Radius.medium,
+    shadowColor: "#0F6BFF",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 7,
+  },
+
+  createButton: {
+    width: "100%",
+    height: 62,
+    borderRadius: Radius.medium,
+    overflow: "hidden",
+  },
+
+  signInBorderWrap: {
+    width: "100%",
+    height: 62,
+    borderRadius: Radius.medium,
+    overflow: "hidden",
+  },
+
+  // Inset by the border width so the gradient behind it stays visible only
+  // as a thin ring. Using colors.background (not a hardcoded white/black)
+  // means it always matches the page and reads as "transparent".
+  signInInnerFill: {
+    position: "absolute",
+    top: 1.5,
+    left: 1.5,
+    right: 1.5,
+    bottom: 1.5,
+    borderRadius: Radius.medium - 1.5,
+  },
+
+  signInPressable: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+  },
+
+  // height: "100%" instead of flex: 1 — explicit heights at every level
+  // render reliably on Android; a flex chain through 3 nested views is
+  // what was collapsing.
+  welcomeButtonPressable: {
+    width: "100%",
+    height: "100%",
+    borderRadius: Radius.medium - 1.5,
+    justifyContent: "center",
+  },
+
+  welcomeButtonContent: {
+    width: "100%",
+    height: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.four,
+  },
+
+  buttonIconSlot: {
+    width: 42,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  createButtonText: {
+    flex: 1,
+    color: "#FFFFFF",
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  signInButtonText: {
+    flex: 1,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  buttonPressed: {
+    opacity: 0.84,
+  },
+
   legal: { maxWidth: 300, fontSize: 10, lineHeight: 15, textAlign: "center", marginTop: Spacing.one },
   legalLink: { fontSize: 10, lineHeight: 15, fontWeight: "700" },
 });

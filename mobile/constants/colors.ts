@@ -38,81 +38,80 @@ export type AppColorTokens = {
 };
 
 export const LightColors: AppColorTokens = {
-
-  background: "#F8F8FD",
-  surface: "#FAFBFD",
-  surfaceStrong: "#F2F4F8",
-  surfaceHover: "#ECEFF4",
+  background: "#F7F9FF",
+  surface: "#FBFCFF",
+  surfaceStrong: "#F0F5FF",
+  surfaceHover: "#E8F0FF",
   card: "#FFFFFF",
 
-  primary: "#0F6BFF",
-  primarySoft: "#EAF1FF",
+  primary: "#176BFF",
+  primarySoft: "#E9F1FF",
   primaryDeep: "#0757D7",
 
-  secondary: "#6426FF",
-  secondarySoft: "#F0EAFF",
-  accent: "#8B22FF",
+  secondary: "#7357FF",
+  secondarySoft: "#F0EDFF",
+  accent: "#12BFA8",
 
   text: "#071633",
-  textMuted: "#5B6B85",
-  textSoft: "#8996AC",
+  textMuted: "#5D6F8C",
+  textSoft: "#8A98B1",
 
-  border: "#E5E9F0",
-  borderStrong: "#D5DCE7",
-  divider: "#EEF1F5",
+  border: "#DCE6F5",
+  borderStrong: "#C6D5EA",
+  divider: "#EAF0F8",
 
-  success: "#22D386",
-  warning: "#FFB21C",
-  danger: "#FF4B3E",
+  success: "#18BD7A",
+  warning: "#F4A51C",
+  danger: "#F04F4A",
 
-  tabInactive: "#8A96AC",
+  tabInactive: "#8190AA",
 
-  overlay: "rgba(7, 22, 51, 0.4)",
-  focusRing: "rgba(15, 107, 255, 0.35)",
+  overlay: "rgba(7, 22, 51, 0.42)",
+  focusRing: "rgba(23, 107, 255, 0.28)",
 
-  glass: "rgba(255, 255, 255, 0.86)",
-  glassStrong: "rgba(255, 255, 255, 0.97)",
-  glassBorder: "rgba(15, 23, 42, 0.06)",
+  glass: "rgba(255, 255, 255, 0.88)",
+  glassStrong: "rgba(255, 255, 255, 0.98)",
+  glassBorder: "rgba(23, 107, 255, 0.10)",
   glassHighlight: "rgba(255, 255, 255, 0.98)",
 };
 
 export const DarkColors: AppColorTokens = {
 
-  background: "#020618",
-  surface: "#0F1D3A",
-  surfaceStrong: "#142542",
-  surfaceHover: "#1A2C4C",
-  card: "#0F1D3A",
+  background: "#030817",
+  surface: "#071A37",
+  surfaceStrong: "#0A2348",
+  surfaceHover: "#0D2B57",
+  card: "#082040",
 
-  primary: "#4A8DFF",
-  primarySoft: "#142D5D",
-  primaryDeep: "#A9C8FF",
+  primary: "#428BFF",
+  primarySoft: "#12396F",
+  primaryDeep: "#A8C8FF",
 
-  secondary: "#9B75FF",
-  secondarySoft: "#2B1D56",
-  accent: "#C18CFF",
+  secondary: "#8B70FF",
+  secondarySoft: "#282060",
+  accent: "#19D1B5",
 
   text: "#F5F8FF",
-  textMuted: "#A7B4CC",
-  textSoft: "#7C8AA6",
+  textMuted: "#ADBCD5",
+  textSoft: "#8394B2",
 
-  border: "#223154",
-  borderStrong: "#2D3F66",
-  divider: "#172848",
+  border: "#1D416B",
+  borderStrong: "#28547F",
+  divider: "#14345B",
 
-  success: "#42E5A0",
-  warning: "#FFC553",
-  danger: "#FF756B",
+  success: "#3FE0A1",
+  warning: "#FFC857",
+  danger: "#FF7A73",
 
-  tabInactive: "#8291AB",
+  tabInactive: "#8A9AB4",
 
-  overlay: "rgba(2, 6, 16, 0.6)",
-  focusRing: "rgba(74, 141, 255, 0.4)",
+  overlay: "rgba(1, 5, 15, 0.68)",
+  focusRing: "rgba(66, 139, 255, 0.35)",
 
-  glass: "rgba(10, 20, 40, 0.82)",
-  glassStrong: "rgba(15, 29, 58, 0.96)",
-  glassBorder: "rgba(255, 255, 255, 0.08)",
-  glassHighlight: "rgba(255, 255, 255, 0.04)",
+  glass: "rgba(7, 26, 55, 0.84)",
+  glassStrong: "rgba(8, 32, 64, 0.97)",
+  glassBorder: "rgba(120, 171, 255, 0.14)",
+  glassHighlight: "rgba(255, 255, 255, 0.05)",
 };
 
 export const Colors = {
@@ -121,9 +120,9 @@ export const Colors = {
 };
 
 export const TelefyaGradients = {
-  primary: ["#0F6BFF", "#6426FF"] as const,
+  primary: ["#7B1CFF", "#0F6BFF", "#12D8B0"] as const,
   logo: ["#0F6BFF", "#FF4B3E", "#FFB21C", "#22D386", "#8B22FF"] as const,
-  aurora: ["#F4F8FF", "#F8F3FF", "#F3FFF9"] as const,
+  aurora: ["#F4F8FF", "#F8F3FF", "#F2FFFB"] as const,
 };
 
 export type AppColorScheme = keyof typeof Colors;

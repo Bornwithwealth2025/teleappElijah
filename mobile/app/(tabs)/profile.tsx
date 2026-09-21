@@ -1,28 +1,33 @@
 import React from "react";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, type Href } from "expo-router";
 import {
-  Bell,
-  ChevronRight,
-  Contrast,
-  CreditCard,
-  UserRound,
-  Video,
-  Volume2,
-} from "lucide-react-native";
-import {
+  Alert,
   Pressable,
   RefreshControl,
   StyleSheet,
   Switch,
   View,
 } from "react-native";
+import {
+  Bell,
+  ChevronRight,
+  Contrast,
+  CreditCard,
+  LogOut,
+  Settings2,
+  ShieldCheck,
+  UserRound,
+  Video,
+} from "lucide-react-native";
 
 import { BASE_URL } from "@/api/client";
 import { ProfileAvatar } from "@/components/shared/ProfileAvatar";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
-import { Spacing } from "@/constants/theme";
+import { TelefyaGradients } from "@/constants/colors";
+import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useAuthStore from "@/store/authStore";
 import useUserStore from "@/store/userStore";
@@ -57,17 +62,84 @@ function resolveImageUrl(value?: string | null) {
     return value;
   }
 
-  return `${BASE_URL.replace("/api/v2", "")}/${value.replace(/^\/+/, "")}`;
+  return `${BASE_URL.replace("/api/v2", "")}/${value.replace(
+    /^\/+/,
+    "",
+  )}`;
 }
 
-type SettingsRow = {
-  key: string;
+type MenuRowProps = {
+  icon: React.ReactNode;
   label: string;
   subtitle?: string;
-  icon: React.ReactNode;
   onPress?: () => void;
   rightSlot?: React.ReactNode;
 };
+
+function MenuRow({
+  icon,
+  label,
+  subtitle,
+  onPress,
+  rightSlot,
+}: MenuRowProps) {
+  const { colors } = useAppTheme();
+
+  const content = (
+    <View
+      style={[
+        styles.menuRow,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.menuIcon,
+          { backgroundColor: colors.primarySoft },
+        ]}
+      >
+        {icon}
+      </View>
+
+      <View style={styles.menuCopy}>
+        <AppText variant="bodyStrong">{label}</AppText>
+
+        {subtitle ? (
+          <AppText variant="caption" tone="muted" numberOfLines={1}>
+            {subtitle}
+          </AppText>
+        ) : null}
+      </View>
+
+      {rightSlot ?? (
+        <View style={styles.menuArrow}>
+          <ChevronRight color={colors.textSoft} size={20} />
+        </View>
+      )}
+    </View>
+  );
+
+  if (!onPress) {
+    return content;
+  }
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${label}`}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.menuPressable,
+        { opacity: pressed ? 0.78 : 1 },
+      ]}
+    >
+      {content}
+    </Pressable>
+  );
+}
 
 export default function ProfileScreen() {
   const {
@@ -114,76 +186,74 @@ export default function ProfileScreen() {
   );
 
   const email = String(
-    getValue(activeProfile.email, authUser?.email) ?? "No email available",
+    getValue(activeProfile.email, authUser?.email) ??
+      "No email available",
   );
 
-  const handleLogout = async () => {
+  async function handleLogout() {
     clearProfile();
     await logout();
     router.replace("/welcome" as Href);
-  };
+  }
 
-  const settingsRows: SettingsRow[] = [
-    {
-      key: "account",
-      label: "Account",
-      icon: <UserRound color={colors.text} size={20} />,
-      onPress: () => router.push("/settings/account" as Href),
-    },
-    {
-      key: "billing",
-      label: "Billing",
-      icon: <CreditCard color={colors.text} size={20} />,
-      onPress: () => router.push("/settings/billing" as Href),
-    },
-    {
-      key: "meetings",
-      label: "Meetings",
-      icon: <Video color={colors.text} size={20} />,
-      onPress: () => router.push("/(tabs)/meetings" as Href),
-    },
-    {
-      key: "audio-video",
-      label: "Audio & Video",
-      subtitle: "Meeting defaults",
-      icon: <Volume2 color={colors.text} size={20} />,
-      onPress: () => router.push("/settings/meeting-default" as Href),
-    },
-    {
-      key: "notifications",
-      label: "Notifications",
-      icon: <Bell color={colors.text} size={20} />,
-      onPress: () => router.push("/settings/notifications" as Href),
-    },
-    {
-      key: "appearance",
-      label: "Appearance",
-      subtitle:
-        preference === "system"
-          ? "Use device setting"
-          : isDark
-            ? "Dark mode"
-            : "Light mode",
-      icon: <Contrast color={colors.text} size={20} />,
-      rightSlot: (
-        <Switch
-          value={isDark}
-          onValueChange={(enabled) =>
-            setPreference(enabled ? "dark" : "light")
-          }
-          trackColor={{
-            false: colors.border,
-            true: colors.primary,
-          }}
-          thumbColor="#FFFFFF"
-          accessibilityLabel="Toggle dark mode"
-        />
-      ),
-    },
-  ];
+  function confirmLogout() {
+    Alert.alert(
+      "Log out of Telefya?",
+      "You will need to sign in again to access your meetings and workspace.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Log out",
+          style: "destructive",
+          onPress: () => void handleLogout(),
+        },
+      ],
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <AppScreen tone="aurora" contentStyle={styles.guestContent}>
+        <View
+          style={[
+            styles.guestIcon,
+            { backgroundColor: colors.primarySoft },
+          ]}
+        >
+          <UserRound color={colors.primary} size={30} />
+        </View>
+
+        <AppText variant="title" style={styles.guestTitle}>
+          Your Telefya workspace
+        </AppText>
+
+        <AppText
+          variant="body"
+          tone="muted"
+          style={styles.guestDescription}
+        >
+          Sign in to manage your profile, meeting preferences, recordings, and security settings.
+        </AppText>
+
+        <View style={styles.guestActions}>
+          <AppButton
+            title="Sign in"
+            onPress={() => router.push("/auth/login" as Href)}
+          />
+
+          <AppButton
+            title="Create account"
+            variant="outline"
+            onPress={() => router.push("/auth/register" as Href)}
+          />
+        </View>
+      </AppScreen>
+    );
+  }
 
   return (
     <AppScreen
+      tone="aurora"
       contentStyle={styles.content}
       refreshControl={
         <RefreshControl
@@ -194,136 +264,162 @@ export default function ProfileScreen() {
         />
       }
     >
-      <View style={styles.header}>
-        <ProfileAvatar
-          name={profileName}
-          imageUri={imageUrl}
-          editable={isAuthenticated}
-          uploading={isUploading}
-          size={64}
-          onImageSelected={uploadProfileImage}
-        />
+      <AppText variant="overline" tone="primary">
+        PERSONAL WORKSPACE
+      </AppText>
 
-        <View style={styles.headerCopy}>
-          <AppText
-            numberOfLines={1}
-            style={[styles.name, { color: colors.text }]}
-          >
-            {isLoading && !profile ? "Loading profile…" : profileName}
-          </AppText>
+      <LinearGradient
+        colors={TelefyaGradients.primary}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.profileHero}
+      >
+        <View style={styles.profileTop}>
+          <ProfileAvatar
+            name={profileName}
+            imageUri={imageUrl}
+            editable
+            uploading={isUploading}
+            size={72}
+            onImageSelected={uploadProfileImage}
+          />
 
-          <AppText
-            numberOfLines={1}
-            style={[styles.email, { color: colors.textMuted }]}
-          >
-            {email}
-          </AppText>
-
-          {isAuthenticated ? (
-            <Pressable
-              onPress={() =>
-                router.push("/settings/account" as Href)
-              }
-              hitSlop={8}
+          <View style={styles.profileCopy}>
+            <AppText
+              variant="sectionTitle"
+              numberOfLines={1}
+              style={styles.profileHeroTitle}
             >
-              <AppText
-                style={[styles.editLink, { color: colors.primary }]}
-              >
-                Edit Profile
+              {isLoading && !profile ? "Loading profile…" : profileName}
+            </AppText>
+
+            <AppText
+              variant="caption"
+              numberOfLines={1}
+              style={styles.profileHeroEmail}
+            >
+              {email}
+            </AppText>
+
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push("/settings/account" as Href)}
+              style={styles.editProfile}
+            >
+              <AppText variant="caption" style={styles.profileHeroAction}>
+                Edit profile
               </AppText>
             </Pressable>
-          ) : null}
+          </View>
         </View>
+
+        <View style={styles.workspaceStatus}>
+          <View style={styles.statusDot} />
+
+          <AppText variant="caption" style={styles.workspaceStatusText}>
+            Your Telefya workspace is active
+          </AppText>
+        </View>
+      </LinearGradient>
+
+      <View style={styles.section}>
+        <AppText variant="overline" tone="muted">
+          WORKSPACE
+        </AppText>
+
+        <MenuRow
+          icon={<Settings2 color={colors.primary} size={20} />}
+          label="Settings"
+          subtitle="Account, preferences, billing, and privacy"
+          onPress={() => router.push("/settings" as Href)}
+        />
+
+        <MenuRow
+          icon={<Video color={colors.primary} size={20} />}
+          label="Meeting defaults"
+          subtitle="Camera, microphone, and joining preferences"
+          onPress={() =>
+            router.push("/settings/meeting-default" as Href)
+          }
+        />
+
+        <MenuRow
+          icon={<CreditCard color={colors.primary} size={20} />}
+          label="Billing and plan"
+          subtitle="Subscription, invoices, and plan details"
+          onPress={() => router.push("/settings/billing" as Href)}
+        />
       </View>
 
-      {isAuthenticated ? (
-        <View style={styles.menu}>
-          {settingsRows.map((row) => {
-            const content = (
-              <View style={styles.row}>
-                <View style={styles.rowLeft}>
-                  {row.icon}
+      <View style={styles.section}>
+        <AppText variant="overline" tone="muted">
+          PREFERENCES
+        </AppText>
 
-                  <View style={styles.rowCopy}>
-                    <AppText
-                      style={[styles.rowLabel, { color: colors.text }]}
-                    >
-                      {row.label}
-                    </AppText>
+        <MenuRow
+          icon={<Bell color={colors.primary} size={20} />}
+          label="Notifications"
+          subtitle="Meeting invitations, reminders, and recordings"
+          onPress={() =>
+            router.push("/settings/notifications" as Href)
+          }
+        />
 
-                    {row.subtitle ? (
-                      <AppText
-                        style={[
-                          styles.rowSubtitle,
-                          { color: colors.textMuted },
-                        ]}
-                      >
-                        {row.subtitle}
-                      </AppText>
-                    ) : null}
-                  </View>
-                </View>
+        <MenuRow
+          icon={<ShieldCheck color={colors.primary} size={20} />}
+          label="Privacy and security"
+          subtitle="Sign-in security and account protection"
+          onPress={() => router.push("/settings/security" as Href)}
+        />
 
-                {row.rightSlot ?? (
-                  <ChevronRight color={colors.textSoft} size={19} />
-                )}
-              </View>
-            );
+        <MenuRow
+          icon={<Contrast color={colors.primary} size={20} />}
+          label="Appearance"
+          subtitle={
+            preference === "system"
+              ? "Using device setting"
+              : isDark
+                ? "Dark mode"
+                : "Light mode"
+          }
+          rightSlot={
+            <Switch
+              value={isDark}
+              onValueChange={(enabled) =>
+                setPreference(enabled ? "dark" : "light")
+              }
+              trackColor={{
+                false: colors.borderStrong,
+                true: colors.primary,
+              }}
+              thumbColor="#FFFFFF"
+              accessibilityLabel="Toggle dark mode"
+            />
+          }
+        />
+      </View>
 
-            if (!row.onPress) {
-              return (
-                <View key={row.key} style={styles.rowWrap}>
-                  {content}
-                </View>
-              );
-            }
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Log out"
+        onPress={confirmLogout}
+        style={[
+          styles.logout,
+          {
+            backgroundColor: `${colors.danger}0D`,
+            borderColor: `${colors.danger}30`,
+          },
+        ]}
+      >
+        <LogOut color={colors.danger} size={19} />
 
-            return (
-              <Pressable
-                key={row.key}
-                onPress={row.onPress}
-                style={({ pressed }) => [
-                  styles.rowWrap,
-                  pressed && styles.pressed,
-                ]}
-              >
-                {content}
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : (
-        <View style={styles.authActions}>
-          <AppButton
-            title="Sign in"
-            variant="secondary"
-            onPress={() => router.push("/auth/login" as Href)}
-            containerStyle={styles.authButton}
-          />
-
-          <AppButton
-            title="Create account"
-            onPress={() => router.push("/auth/register" as Href)}
-            containerStyle={styles.authButton}
-          />
-        </View>
-      )}
-
-      {isAuthenticated ? (
-        <Pressable
-          onPress={() => void handleLogout()}
-          style={({ pressed }) => [
-            styles.logoutWrap,
-            pressed && styles.pressed,
-          ]}
+        <AppText
+          variant="bodyStrong"
+          style={{ color: colors.danger }}
         >
-          <AppText
-            style={[styles.logoutText, { color: colors.danger }]}
-          >
-            Log Out
-          </AppText>
-        </Pressable>
-      ) : null}
+          Log out
+        </AppText>
+      </Pressable>
     </AppScreen>
   );
 }
@@ -331,96 +427,136 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.five,
+    paddingBottom: Spacing.five,
   },
-
-  header: {
+  profileHero: {
+    gap: Spacing.three,
+    padding: Spacing.four,
+    borderRadius: Radius.xLarge,
+    shadowColor: "#0F6BFF",
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 7,
+  },
+  profileHeroTitle: {
+    color: "#FFFFFF",
+  },
+  profileHeroEmail: {
+    color: "rgba(255, 255, 255, 0.78)",
+  },
+  profileHeroAction: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+  profileTop: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
-
-  headerCopy: {
+  profileCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 3,
   },
-
-  name: {
-    fontSize: 16,
-    fontWeight: "800",
+  editProfile: {
+    alignSelf: "flex-start",
+    marginTop: Spacing.one,
   },
-
-  email: {
-    fontSize: 12,
-  },
-
-  editLink: {
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-
-  menu: {
-    gap: Spacing.one,
-  },
-
-  rowWrap: {
-    borderRadius: 14,
-  },
-
-  row: {
-    minHeight: 52,
+  workspaceStatus: {
+    minHeight: 40,
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing.three,
+    backgroundColor: "rgba(3, 15, 40, 0.28)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.18)",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: Spacing.two,
+  },
+  workspaceStatusText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.pill,
+    backgroundColor: "#42E5A0",
+  },
+  section: {
+    gap: Spacing.two,
+  },
+  menuPressable: {
+    borderRadius: Radius.large,
+  },
+  menuRow: {
+    minHeight: 76,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.one,
-  },
-
-  rowLeft: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
+  },
+  menuIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuCopy: {
     flex: 1,
     minWidth: 0,
+    justifyContent: "center",
+    gap: 3,
   },
-
-  rowCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 1,
+  menuArrow: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
   },
-
-  rowLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-  },
-
-  rowSubtitle: {
-    fontSize: 11,
-  },
-
-  authActions: {
+  logout: {
+    minHeight: 54,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    alignItems: "center",
+    justifyContent: "center",
     flexDirection: "row",
+    gap: Spacing.two,
+    marginTop: Spacing.one,
+  },
+  guestContent: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: Spacing.five,
     gap: Spacing.three,
   },
-
-  authButton: {
-    flex: 1,
-  },
-
-  logoutWrap: {
+  guestIcon: {
+    width: 76,
+    height: 76,
+    borderRadius: Radius.xLarge,
     alignItems: "center",
-    paddingVertical: Spacing.three,
+    justifyContent: "center",
+  },
+  guestTitle: {
+    textAlign: "center",
+    marginTop: Spacing.one,
+  },
+  guestDescription: {
+    maxWidth: 320,
+    textAlign: "center",
+    lineHeight: 22,
+  },
+  guestActions: {
+    width: "100%",
+    maxWidth: 360,
+    gap: Spacing.two,
     marginTop: Spacing.two,
-  },
-
-  logoutText: {
-    fontSize: 15,
-    fontWeight: "800",
-  },
-
-  pressed: {
-    opacity: 0.7,
   },
 });

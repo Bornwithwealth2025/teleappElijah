@@ -49,7 +49,6 @@ export async function startScreenShare(): Promise<ScreenShareStream> {
           video: true,
           audio: false,
           android: {
-            createConfigForDefaultDisplay: true,
             resolutionScale: 0.7,
           },
         }

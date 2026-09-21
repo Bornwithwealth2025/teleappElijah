@@ -16,13 +16,25 @@ import { AppText } from "@/components/ui/AppText";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
+type StreamLike = {
+  toURL?: () => string;
+};
+
+type RtcViewProps = {
+  streamURL: string;
+  objectFit?: "cover" | "contain";
+  style?: object;
+  mirror?: boolean;
+};
+
 type Props = {
   name: string;
-  stream?: any;
+  stream?: StreamLike | null;
   muted?: boolean;
   cameraOff?: boolean;
   featured?: boolean;
   compact?: boolean;
+  fill?: boolean;
 };
 
 function getInitials(name: string) {
@@ -30,6 +42,7 @@ function getInitials(name: string) {
     name
       .trim()
       .split(/\s+/)
+      .filter(Boolean)
       .map((part) => part[0])
       .join("")
       .slice(0, 2)
@@ -44,186 +57,188 @@ export function LocalVideoTile({
   cameraOff = false,
   featured = false,
   compact = false,
+  fill = false,
 }: Props) {
   const { colors } = useAppTheme();
   const opacity = useRef(new Animated.Value(0)).current;
-  const scale = useRef(new Animated.Value(0.98)).current;
+  const scale = useRef(new Animated.Value(0.985)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    const animation = Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 420,
+        duration: 280,
         useNativeDriver: true,
       }),
       Animated.spring(scale, {
         toValue: 1,
         speed: 18,
-        bounciness: 5,
+        bounciness: 4,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]);
+
+    animation.start();
+
+    return () => animation.stop();
   }, [opacity, scale]);
 
-  let RTCView: any = null;
+  let RTCView: React.ComponentType<RtcViewProps> | null = null;
 
   if (Platform.OS !== "web") {
     try {
-      RTCView = require("@stream-io/react-native-webrtc").RTCView;
+      const webrtc = require("@stream-io/react-native-webrtc") as {
+        RTCView?: React.ComponentType<RtcViewProps>;
+      };
+
+      RTCView = webrtc.RTCView ?? null;
     } catch {
       RTCView = null;
     }
   }
 
+  const streamURL = stream?.toURL?.();
   const canRenderVideo =
-    !cameraOff &&
-    RTCView &&
-    stream &&
-    typeof stream.toURL === "function";
+    !cameraOff && Boolean(RTCView) && Boolean(streamURL);
 
-  const tileStyle = featured
-    ? styles.featuredTile
-    : compact
-      ? styles.compactTile
-      : styles.tile;
-
-  const fallbackStyle = featured
-    ? styles.featuredFallback
-    : compact
-      ? styles.compactFallback
-      : styles.fallback;
+  const tileStyle = [
+    styles.root,
+    featured && styles.featured,
+    compact && styles.compact,
+    fill && styles.fill,
+    {
+      backgroundColor: colors.surfaceStrong,
+      borderColor: canRenderVideo
+        ? `${colors.primary}75`
+        : colors.border,
+    },
+  ];
 
   return (
     <Animated.View
-      accessibilityLabel={`${name}, local video`}
       style={[
         tileStyle,
         {
           opacity,
           transform: [{ scale }],
-          borderColor: colors.primary,
         },
       ]}
     >
-      {canRenderVideo ? (
+      {canRenderVideo && RTCView && streamURL ? (
         <RTCView
-          streamURL={stream.toURL()}
-          style={StyleSheet.absoluteFill}
-          objectFit="cover"
+          streamURL={streamURL}
           mirror
+          objectFit="cover"
+          style={StyleSheet.absoluteFill}
         />
       ) : (
-        <View
-          style={[
-            fallbackStyle,
-            { backgroundColor: colors.surfaceStrong },
-          ]}
+        <LinearGradient
+          colors={
+            cameraOff
+              ? [colors.surfaceStrong, colors.surfaceHover]
+              : [colors.primaryDeep, colors.secondary]
+          }
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.fallback}
         >
           <View
             style={[
-              styles.avatar,
-              compact && styles.compactAvatar,
-              featured && styles.featuredAvatar,
-              { backgroundColor: colors.primary },
+              styles.initials,
+              {
+                backgroundColor: `${colors.card}24`,
+                borderColor: `${colors.card}52`,
+              },
             ]}
           >
             {cameraOff ? (
-              <VideoOff
-                color="#FFFFFF"
-                size={compact ? 16 : 27}
-              />
+              <VideoOff color="#FFFFFF" size={compact ? 16 : 24} />
             ) : (
               <AppText
-                variant={compact ? "bodyStrong" : "title"}
-                style={styles.white}
+                style={[
+                  styles.initialsText,
+                  compact && styles.compactInitialsText,
+                ]}
               >
                 {getInitials(name)}
               </AppText>
             )}
           </View>
-
-          {!compact ? (
-            <AppText
-              variant="caption"
-              style={styles.fallbackText}
-            >
-              {cameraOff
-                ? "Camera off"
-                : "Preparing video"}
-            </AppText>
-          ) : null}
-        </View>
+        </LinearGradient>
       )}
 
-      {!compact ? (
-        <LinearGradient
-          pointerEvents="none"
-          colors={[
-            "transparent",
-            "rgba(3, 10, 24, 0.9)",
+      <LinearGradient
+        pointerEvents="none"
+        colors={["rgba(2, 6, 24, 0)", "rgba(2, 6, 24, 0.82)"]}
+        style={styles.bottomShade}
+      />
+
+      <View style={styles.topRow}>
+        <View
+          style={[
+            styles.youBadge,
+            {
+              backgroundColor: "rgba(2, 6, 24, 0.62)",
+              borderColor: "rgba(255, 255, 255, 0.16)",
+            },
           ]}
-          style={styles.gradient}
-        />
-      ) : null}
+        >
+          <View
+            style={[
+              styles.liveDot,
+              {
+                backgroundColor: cameraOff
+                  ? colors.textSoft
+                  : colors.success,
+              },
+            ]}
+          />
+          <AppText style={styles.youBadgeText}>You</AppText>
+        </View>
 
-      <View
-        style={[
-          styles.topBadge,
-          compact && styles.compactBadge,
-        ]}
-      >
-        <View style={styles.liveDot} />
-
-        {!compact ? (
-          <AppText
-            variant="label"
-            style={styles.badgeText}
-          >
-            You
-          </AppText>
+        {cameraOff ? (
+          <View style={styles.statusButton}>
+            <VideoOff color="#FFFFFF" size={compact ? 13 : 16} />
+          </View>
         ) : null}
       </View>
 
-      <View
-        style={[
-          styles.bottomOverlay,
-          compact && styles.compactOverlay,
-        ]}
-      >
-        <View style={styles.namePill}>
+      <View style={styles.bottomRow}>
+        <View style={styles.nameWrap}>
           <AppText
-            variant="caption"
             numberOfLines={1}
             style={[
               styles.name,
               compact && styles.compactName,
             ]}
           >
-            {compact ? "You" : name}
+            {name || "You"}
           </AppText>
+
+          {!compact ? (
+            <AppText
+              numberOfLines={1}
+              style={styles.subLabel}
+            >
+              {cameraOff ? "Camera off" : "Local preview"}
+            </AppText>
+          ) : null}
         </View>
 
         <View
           style={[
-            styles.status,
-            compact && styles.compactStatus,
+            styles.micStatus,
             {
               backgroundColor: muted
-                ? "rgba(220, 38, 38, 0.88)"
-                : "rgba(15, 107, 255, 0.9)",
+                ? `${colors.danger}E6`
+                : "rgba(2, 6, 24, 0.66)",
             },
           ]}
         >
           {muted ? (
-            <MicOff
-              color="#FFFFFF"
-              size={compact ? 12 : 15}
-            />
+            <MicOff color="#FFFFFF" size={compact ? 13 : 16} />
           ) : (
-            <Mic
-              color="#FFFFFF"
-              size={compact ? 12 : 15}
-            />
+            <Mic color="#FFFFFF" size={compact ? 13 : 16} />
           )}
         </View>
       </View>
@@ -232,164 +247,139 @@ export function LocalVideoTile({
 }
 
 const styles = StyleSheet.create({
-  tile: {
-    flex: 1,
-    minWidth: "46%",
-    minHeight: 210,
-    overflow: "hidden",
-    borderWidth: 1.5,
-    borderRadius: Radius.xLarge,
-    backgroundColor: "#0B1220",
-  },
-
-  featuredTile: {
+  root: {
     width: "100%",
-    minHeight: 290,
-    overflow: "hidden",
-    borderWidth: 1.5,
+    minHeight: 236,
+    borderWidth: 1,
     borderRadius: Radius.xLarge,
-    backgroundColor: "#0B1220",
+    overflow: "hidden",
   },
 
-  compactTile: {
-    width: 148,
-    minWidth: 148,
-    height: 104,
-    minHeight: 104,
-    overflow: "hidden",
-    borderWidth: 1,
+  featured: {
+    minHeight: 300,
+  },
+
+  fill: {
+    flex: 1,
+    minHeight: 0,
+    borderWidth: 0,
+    borderRadius: 0,
+  },
+
+  compact: {
+    width: 132,
+    height: 94,
+    minHeight: 94,
     borderRadius: Radius.medium,
-    backgroundColor: "#0B1220",
   },
 
   fallback: {
-    flex: 1,
-    minHeight: 210,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.three,
-  },
-
-  featuredFallback: {
-    flex: 1,
-    minHeight: 290,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.three,
-  },
-
-  compactFallback: {
-    flex: 1,
-    minHeight: 104,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: Radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  featuredAvatar: {
-    width: 88,
-    height: 88,
-  },
-
-  compactAvatar: {
-    width: 36,
-    height: 36,
-  },
-
-  fallbackText: {
-    color: "#B7C2D5",
-    fontWeight: "700",
-  },
-
-  gradient: {
     ...StyleSheet.absoluteFill,
-    top: "42%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  topBadge: {
+  initials: {
+    width: 74,
+    height: 74,
+    borderWidth: 1,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  initialsText: {
+    color: "#FFFFFF",
+    fontSize: 25,
+    fontWeight: "900",
+  },
+
+  compactInitialsText: {
+    fontSize: 17,
+  },
+
+  bottomShade: {
+    ...StyleSheet.absoluteFill,
+  },
+
+  topRow: {
     position: "absolute",
-    top: Spacing.three,
-    left: Spacing.three,
+    top: Spacing.two,
+    left: Spacing.two,
+    right: Spacing.two,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 6,
-    borderRadius: Radius.pill,
-    backgroundColor: "rgba(3, 10, 24, 0.72)",
+    justifyContent: "space-between",
   },
 
-  compactBadge: {
-    top: 7,
-    left: 7,
-    padding: 0,
-    backgroundColor: "transparent",
+  youBadge: {
+    minHeight: 25,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
   },
 
   liveDot: {
-    width: 7,
-    height: 7,
-    borderRadius: Radius.pill,
-    backgroundColor: "#38D996",
+    width: 6,
+    height: 6,
+    borderRadius: 999,
   },
 
-  badgeText: {
+  youBadgeText: {
     color: "#FFFFFF",
-    letterSpacing: 0.6,
+    fontSize: 10,
+    fontWeight: "800",
   },
 
-  bottomOverlay: {
-    position: "absolute",
-    left: Spacing.three,
-    right: Spacing.three,
-    bottom: Spacing.three,
-    flexDirection: "row",
+  statusButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    backgroundColor: "rgba(2, 6, 24, 0.66)",
     alignItems: "center",
+    justifyContent: "center",
+  },
+
+  bottomRow: {
+    position: "absolute",
+    left: Spacing.two,
+    right: Spacing.two,
+    bottom: Spacing.two,
+    flexDirection: "row",
+    alignItems: "flex-end",
     justifyContent: "space-between",
     gap: Spacing.two,
   },
 
-  compactOverlay: {
-    left: 7,
-    right: 7,
-    bottom: 7,
-  },
-
-  namePill: {
+  nameWrap: {
     flex: 1,
     minWidth: 0,
   },
 
   name: {
     color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: "800",
   },
 
   compactName: {
-    fontSize: 12,
+    fontSize: 11,
   },
 
-  status: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.pill,
+  subLabel: {
+    color: "rgba(255, 255, 255, 0.72)",
+    fontSize: 10,
+    marginTop: 2,
+  },
+
+  micStatus: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  compactStatus: {
-    width: 24,
-    height: 24,
-  },
-
-  white: {
-    color: "#FFFFFF",
   },
 });

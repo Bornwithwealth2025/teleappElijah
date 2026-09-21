@@ -9,7 +9,6 @@ import { cn } from "@/lib/cn";
 import {
   Motion,
   Shadows,
-  Spacing,
 } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
@@ -23,6 +22,10 @@ type AppCardProps = ViewProps & {
   padded?: boolean;
   elevated?: boolean;
   compact?: boolean;
+  /**
+   * Use only for an intentional entrance animation.
+   * List, dashboard, and form cards should remain still by default.
+   */
   animated?: boolean;
   variant?: AppCardVariant;
   className?: string;
@@ -32,7 +35,7 @@ export function AppCard({
   padded = true,
   elevated = false,
   compact = false,
-  animated = true,
+  animated = false,
   variant = "default",
   className,
   style,
@@ -41,7 +44,10 @@ export function AppCard({
 }: AppCardProps) {
   const { colors, isDark } = useAppTheme();
 
-  const opacity = useRef(new Animated.Value(animated ? 0 : 1)).current;
+  const opacity = useRef(
+    new Animated.Value(animated ? 0 : 1),
+  ).current;
+
   const translateY = useRef(
     new Animated.Value(animated ? 8 : 0),
   ).current;
@@ -84,7 +90,7 @@ export function AppCard({
     },
     tinted: {
       backgroundColor: colors.primarySoft,
-      borderColor: colors.border,
+      borderColor: `${colors.primary}26`,
     },
     transparent: {
       backgroundColor: "transparent",
@@ -101,8 +107,10 @@ export function AppCard({
         className,
       )}
       style={[
+        styles.card,
         surfaceStyle,
         elevated && !isDark && Shadows.card,
+        elevated && isDark && styles.darkElevation,
         {
           opacity,
           transform: [{ translateY }],
@@ -114,3 +122,17 @@ export function AppCard({
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  card: {
+    width: "100%",
+  },
+
+  darkElevation: {
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 22,
+    elevation: 8,
+  },
+});

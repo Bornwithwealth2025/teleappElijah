@@ -8,14 +8,7 @@ export function useMeetingOrientation(enabled: boolean) {
       return;
     }
 
-    void ScreenOrientation.lockAsync(
-      ScreenOrientation.OrientationLock.LANDSCAPE,
-    ).catch(() => undefined);
-
-    return () => {
-      void ScreenOrientation.lockAsync(
-        ScreenOrientation.OrientationLock.PORTRAIT_UP,
-      ).catch(() => undefined);
-    };
+    // Do not force landscape. The meeting follows normal device rotation.
+    void ScreenOrientation.unlockAsync().catch(() => undefined);
   }, [enabled]);
 }

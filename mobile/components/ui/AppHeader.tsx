@@ -1,4 +1,3 @@
-// components/ui/AppHeader.tsx
 import type { ReactNode } from "react";
 import {
   StyleSheet,
@@ -7,7 +6,7 @@ import {
   type ViewStyle,
 } from "react-native";
 
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
 import { AppText } from "./AppText";
@@ -21,27 +20,18 @@ type TitlePart = {
 
 type AppHeaderBadge = {
   icon?: ReactNode;
-  /** Plain-colored lead text, e.g. "ONE APP." */
   label: string;
-  /** Accent-colored trailing text, e.g. "ALL CONNECTIONS." */
   highlightLabel?: string;
   highlightColor?: string;
 };
 
 type AppHeaderProps = {
   eyebrow?: string;
-  /**
-   * Plain title text. Ignored if `titleParts` is provided — use whichever
-   * fits: a single string for ordinary pages, `titleParts` when a screen
-   * needs a brand wordmark mixed into the title (e.g. "Welcome to Telefya"
-   * with each brand letter individually colored).
-   */
   title: string;
   titleParts?: TitlePart[];
   subtitle?: string;
   leftSlot?: ReactNode;
   rightSlot?: ReactNode;
-  /** Small pill above the title — matches the welcome screen's badge. */
   badge?: AppHeaderBadge;
   size?: AppHeaderSize;
   style?: StyleProp<ViewStyle>;
@@ -58,7 +48,7 @@ export function AppHeader({
   size = "hero",
   style,
 }: AppHeaderProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
   const titleVariant = {
     hero: "display",
@@ -67,11 +57,20 @@ export function AppHeader({
   } as const;
 
   return (
-    <View style={[styles.root, size === "compact" && styles.compactRoot, style]}>
+    <View
+      style={[
+        styles.root,
+        size === "compact" && styles.compactRoot,
+        style,
+      ]}
+    >
       {leftSlot || rightSlot ? (
         <View style={styles.actionRow}>
           <View style={styles.leftSlot}>{leftSlot}</View>
-          <View style={styles.rightSlot}>{rightSlot}</View>
+
+          {rightSlot ? (
+            <View style={styles.rightSlot}>{rightSlot}</View>
+          ) : null}
         </View>
       ) : null}
 
@@ -80,15 +79,22 @@ export function AppHeader({
           style={[
             styles.badge,
             {
-              backgroundColor: colors.glass,
-              borderColor: colors.glassBorder,
+              backgroundColor: isDark
+                ? "rgba(255,255,255,0.06)"
+                : colors.glass,
+              borderColor: isDark
+                ? "rgba(255,255,255,0.12)"
+                : colors.glassBorder,
             },
           ]}
         >
           {badge.icon}
 
           <AppText style={styles.badgeText}>
-            <AppText style={{ color: colors.text }}>{badge.label}</AppText>
+            <AppText style={{ color: colors.text }}>
+              {badge.label}
+            </AppText>
+
             {badge.highlightLabel ? (
               <AppText
                 style={{
@@ -103,9 +109,18 @@ export function AppHeader({
         </View>
       ) : null}
 
-      <View style={[styles.copyWrap, size === "compact" && styles.compactCopy]}>
+      <View
+        style={[
+          styles.copyWrap,
+          size === "compact" && styles.compactCopy,
+        ]}
+      >
         {eyebrow ? (
-          <AppText variant="overline" tone="primary" style={styles.eyebrow}>
+          <AppText
+            variant="overline"
+            tone="primary"
+            style={styles.eyebrow}
+          >
             {eyebrow}
           </AppText>
         ) : null}
@@ -118,14 +133,16 @@ export function AppHeader({
           {titleParts ? (
             titleParts.map((part, index) => (
               <AppText
-                key={index}
+                key={`${part.text}-${index}`}
                 style={{ color: part.color ?? colors.text }}
               >
                 {part.text}
               </AppText>
             ))
           ) : (
-            <AppText style={{ color: colors.text }}>{title}</AppText>
+            <AppText style={{ color: colors.text }}>
+              {title}
+            </AppText>
           )}
         </AppText>
 
@@ -150,12 +167,12 @@ const styles = StyleSheet.create({
   },
 
   compactRoot: {
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
 
   actionRow: {
     width: "100%",
-    minHeight: 48,
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -163,6 +180,7 @@ const styles = StyleSheet.create({
 
   leftSlot: {
     flex: 1,
+    minWidth: 0,
     alignItems: "flex-start",
     justifyContent: "center",
   },
@@ -176,25 +194,26 @@ const styles = StyleSheet.create({
   },
 
   badge: {
+    alignSelf: "flex-start",
+    minHeight: 32,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
-    alignSelf: "flex-start",
     gap: 7,
-    minHeight: 34,
-    paddingHorizontal: Spacing.three,
-    borderRadius: 999,
-    borderWidth: 1,
   },
 
   badgeText: {
     fontSize: 10,
+    lineHeight: 13,
     fontWeight: "900",
-    letterSpacing: 0.6,
+    letterSpacing: 0.55,
   },
 
   copyWrap: {
     width: "100%",
-    maxWidth: 430,
+    maxWidth: 440,
   },
 
   compactCopy: {
@@ -206,11 +225,12 @@ const styles = StyleSheet.create({
   },
 
   title: {
-    maxWidth: 390,
+    maxWidth: 410,
   },
 
   subtitle: {
-    maxWidth: 360,
+    maxWidth: 380,
     marginTop: Spacing.two,
+    lineHeight: 23,
   },
 });

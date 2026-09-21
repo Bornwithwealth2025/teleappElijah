@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "157643334450",
+    "project_id": "telefya",
+    "storage_bucket": "telefya.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157643334450:android:bc5c948681db2fbabd6d2b",
+        "android_client_info": {
+          "package_name": "com.telefya.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBdivWtEYQmcI_qY2vkm3Pti2Xv1V0FUJs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

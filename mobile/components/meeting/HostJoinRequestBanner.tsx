@@ -11,10 +11,11 @@ import {
   StyleSheet,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
 import { AppText } from "@/components/ui/AppText";
+import { BRAND_GRADIENT } from "@/components/ui/AppButton";
 import { Radius, Spacing } from "@/constants/theme";
-import { useAppTheme } from "@/hooks/use-app-themes";
 import type { WaitingRoomRequest } from "@/types/meeting.types";
 
 type Props = {
@@ -25,6 +26,10 @@ type Props = {
   onAdmitAll: () => void;
 };
 
+function getInitial(name?: string) {
+  return name?.trim().charAt(0).toUpperCase() || "P";
+}
+
 export function HostJoinRequestBanner({
   requests,
   busy = false,
@@ -32,8 +37,6 @@ export function HostJoinRequestBanner({
   onDecline,
   onAdmitAll,
 }: Props) {
-  const { colors } = useAppTheme();
-
   if (!requests.length) {
     return null;
   }
@@ -42,52 +45,40 @@ export function HostJoinRequestBanner({
   const remainingCount = requests.length - 1;
 
   return (
-    <View
-      style={[
-        styles.card,
-        {
-          backgroundColor: "rgba(15, 107, 255, 0.16)",
-          borderColor: "rgba(91, 155, 255, 0.48)",
-        },
-      ]}
-    >
+    <View style={styles.overlay}>
+      <View style={styles.topLine} />
+
       <View style={styles.header}>
-        <View
-          style={[
-            styles.icon,
-            { backgroundColor: "rgba(15, 107, 255, 0.24)" },
-          ]}
-        >
-          <UserPlus color="#78ADFF" size={19} />
+        <View style={styles.avatar}>
+          <AppText style={styles.avatarText}>
+            {getInitial(request.userName)}
+          </AppText>
+
+          <View style={styles.avatarStatus} />
         </View>
 
         <View style={styles.copy}>
-          <AppText
-            variant="bodyStrong"
-            style={styles.title}
-            numberOfLines={1}
-          >
-            {request.userName} wants to join
-          </AppText>
+          <View style={styles.titleRow}>
+            <AppText
+              variant="bodyStrong"
+              style={styles.title}
+              numberOfLines={1}
+            >
+              {request.userName || "Participant"} wants to join
+            </AppText>
+
+            <View style={styles.waitingPill}>
+              <UsersRound color="#A9CBFF" size={12} />
+              <AppText style={styles.waitingCount}>
+                {requests.length}
+              </AppText>
+            </View>
+          </View>
 
           <AppText variant="caption" style={styles.subtitle}>
             {remainingCount > 0
-              ? `Plus ${remainingCount} more waiting`
-              : "Review their request to enter"}
-          </AppText>
-        </View>
-
-        <View
-          style={[
-            styles.count,
-            { backgroundColor: "rgba(120, 173, 255, 0.18)" },
-          ]}
-        >
-          <AppText
-            variant="caption"
-            style={{ color: "#A9CBFF", fontWeight: "800" }}
-          >
-            {requests.length}
+              ? `${remainingCount} more waiting in the lobby`
+              : "Waiting in the lobby"}
           </AppText>
         </View>
       </View>
@@ -99,19 +90,17 @@ export function HostJoinRequestBanner({
           accessibilityRole="button"
           accessibilityLabel={`Decline ${request.userName}`}
           style={({ pressed }) => [
-            styles.actionButton,
             styles.declineButton,
             {
-              borderColor: "rgba(255, 107, 94, 0.55)",
-              opacity: busy ? 0.5 : pressed ? 0.78 : 1,
+              opacity: busy ? 0.55 : pressed ? 0.74 : 1,
             },
           ]}
         >
           {busy ? (
-            <ActivityIndicator color="#FF8478" size="small" />
+            <ActivityIndicator color="#FF958B" size="small" />
           ) : (
             <>
-              <X color="#FF8478" size={16} />
+              <X color="#FF958B" size={16} />
               <AppText style={styles.declineText}>Decline</AppText>
             </>
           )}
@@ -123,15 +112,21 @@ export function HostJoinRequestBanner({
           accessibilityRole="button"
           accessibilityLabel={`Admit ${request.userName}`}
           style={({ pressed }) => [
-            styles.actionButton,
             styles.approveButton,
             {
-              opacity: busy ? 0.5 : pressed ? 0.82 : 1,
+              opacity: busy ? 0.55 : pressed ? 0.8 : 1,
             },
           ]}
         >
-          <Check color="#FFFFFF" size={16} />
-          <AppText style={styles.approveText}>Admit</AppText>
+          <LinearGradient
+            colors={BRAND_GRADIENT}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.approveGradient}
+          >
+            <Check color="#FFFFFF" size={17} />
+            <AppText style={styles.approveText}>Admit</AppText>
+          </LinearGradient>
         </Pressable>
       </View>
 
@@ -144,14 +139,13 @@ export function HostJoinRequestBanner({
           style={({ pressed }) => [
             styles.admitAll,
             {
-              borderColor: colors.border,
-              opacity: busy ? 0.5 : pressed ? 0.78 : 1,
+              opacity: busy ? 0.55 : pressed ? 0.75 : 1,
             },
           ]}
         >
-          <UsersRound color="#A9CBFF" size={16} />
+          <UserPlus color="#A9CBFF" size={15} />
           <AppText style={styles.admitAllText}>
-            Admit all {requests.length} participants
+            Admit all {requests.length}
           </AppText>
         </Pressable>
       ) : null}
@@ -160,12 +154,29 @@ export function HostJoinRequestBanner({
 }
 
 const styles = StyleSheet.create({
-  card: {
+  overlay: {
     width: "100%",
+    overflow: "hidden",
     borderWidth: 1,
+    borderColor: "rgba(104, 170, 255, 0.42)",
     borderRadius: Radius.large,
+    backgroundColor: "rgba(7, 22, 51, 0.94)",
     padding: Spacing.three,
     gap: Spacing.three,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    elevation: 12,
+  },
+
+  topLine: {
+    position: "absolute",
+    top: 0,
+    left: 20,
+    right: 20,
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.20)",
   },
 
   header: {
@@ -174,34 +185,74 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
 
-  icon: {
+  avatar: {
     width: 40,
     height: 40,
-    borderRadius: Radius.medium,
+    borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(120, 173, 255, 0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(120, 173, 255, 0.50)",
+  },
+
+  avatarText: {
+    color: "#DDEAFF",
+    fontWeight: "900",
+  },
+
+  avatarStatus: {
+    position: "absolute",
+    right: -1,
+    bottom: -1,
+    width: 11,
+    height: 11,
+    borderRadius: Radius.pill,
+    backgroundColor: "#42E5A0",
+    borderWidth: 2,
+    borderColor: "#071633",
   },
 
   copy: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 3,
+  },
+
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.one,
   },
 
   title: {
-    color: "#F4F7FF",
+    flex: 1,
+    color: "#F5F8FF",
   },
 
   subtitle: {
     color: "rgba(218, 231, 255, 0.72)",
   },
 
-  count: {
-    minWidth: 28,
-    height: 28,
+  waitingPill: {
+    minWidth: 30,
+    height: 24,
     borderRadius: Radius.pill,
+    paddingHorizontal: 7,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
+    backgroundColor: "rgba(120, 173, 255, 0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(120, 173, 255, 0.25)",
+  },
+
+  waitingCount: {
+    color: "#A9CBFF",
+    fontSize: 11,
+    lineHeight: 13,
+    fontWeight: "900",
   },
 
   actions: {
@@ -209,48 +260,60 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
   },
 
-  actionButton: {
+  declineButton: {
     flex: 1,
-    minHeight: 40,
+    minHeight: 42,
+    borderWidth: 1,
     borderRadius: Radius.medium,
+    borderColor: "rgba(255, 107, 94, 0.52)",
+    backgroundColor: "rgba(255, 75, 62, 0.10)",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 6,
   },
 
-  declineButton: {
-    borderWidth: 1,
-    backgroundColor: "rgba(255, 75, 62, 0.08)",
+  approveButton: {
+    flex: 1.15,
+    minHeight: 42,
+    overflow: "hidden",
+    borderRadius: Radius.medium,
   },
 
-  approveButton: {
-    backgroundColor: "#0F6BFF",
+  approveGradient: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 6,
   },
 
   declineText: {
-    color: "#FF8478",
+    color: "#FF958B",
     fontWeight: "800",
   },
 
   approveText: {
     color: "#FFFFFF",
-    fontWeight: "800",
+    fontWeight: "900",
   },
 
   admitAll: {
-    minHeight: 38,
+    minHeight: 34,
     borderWidth: 1,
     borderRadius: Radius.medium,
+    borderColor: "rgba(169, 203, 255, 0.28)",
+    backgroundColor: "rgba(255,255,255,0.045)",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 7,
+    gap: 6,
   },
 
   admitAllText: {
     color: "#A9CBFF",
-    fontSize: 13,
+    fontSize: 12,
+    lineHeight: 15,
     fontWeight: "800",
   },
 });

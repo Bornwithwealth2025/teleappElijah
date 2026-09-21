@@ -52,6 +52,22 @@ function getInitials(name?: string) {
   );
 }
 
+function getParticipantState(participant: MeetingParticipant) {
+  if (participant.isHandRaised) {
+    return "Hand raised";
+  }
+
+  if (participant.isMuted) {
+    return "Microphone muted";
+  }
+
+  if (participant.isCameraOff) {
+    return "Camera off";
+  }
+
+  return "In the meeting";
+}
+
 export function MeetingParticipantSheet({
   visible,
   participants,
@@ -63,7 +79,7 @@ export function MeetingParticipantSheet({
   onMuteParticipant,
   onRemoveParticipant,
 }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
 
   const raisedHands = participants.filter(
@@ -73,6 +89,21 @@ export function MeetingParticipantSheet({
   const mutedParticipantCount = participants.filter(
     (participant) => !participant.isHost && participant.isMuted,
   ).length;
+
+  // Raised hands are first, followed by host, then all other participants.
+  const sortedParticipants = [...participants].sort((left, right) => {
+    const leftPriority =
+      (left.isHandRaised ? 4 : 0) +
+      (left.isHost ? 2 : 0) +
+      (!left.isMuted ? 1 : 0);
+
+    const rightPriority =
+      (right.isHandRaised ? 4 : 0) +
+      (right.isHost ? 2 : 0) +
+      (!right.isMuted ? 1 : 0);
+
+    return rightPriority - leftPriority;
+  });
 
   return (
     <Modal
@@ -94,8 +125,12 @@ export function MeetingParticipantSheet({
           style={[
             styles.sheet,
             {
-              backgroundColor: colors.card,
-              borderColor: colors.glassBorder,
+              backgroundColor: isDark
+                ? "rgba(9, 21, 45, 0.99)"
+                : colors.card,
+              borderColor: isDark
+                ? "rgba(255,255,255,0.12)"
+                : colors.glassBorder,
               paddingBottom: Math.max(insets.bottom, Spacing.four),
             },
           ]}
@@ -109,25 +144,24 @@ export function MeetingParticipantSheet({
 
           <View style={styles.header}>
             <View style={styles.headerCopy}>
-              <View style={styles.titleRow}>
-                <LinearGradient
-                  colors={BRAND_GRADIENT}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={styles.titleIcon}
-                >
-                  <Users color="#FFFFFF" size={17} />
-                </LinearGradient>
+              <LinearGradient
+                colors={BRAND_GRADIENT}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.titleIcon}
+              >
+                <Users color="#FFFFFF" size={18} />
+              </LinearGradient>
 
-                <View style={styles.titleCopy}>
-                  <AppText variant="sectionTitle">
-                    Participants
-                  </AppText>
+              <View style={styles.titleCopy}>
+                <AppText variant="sectionTitle">
+                  People
+                </AppText>
 
-                  <AppText variant="caption" tone="muted">
-                    {participants.length} people in this meeting
-                  </AppText>
-                </View>
+                <AppText variant="caption" tone="muted">
+                  {participants.length} participant
+                  {participants.length === 1 ? "" : "s"} in this meeting
+                </AppText>
               </View>
             </View>
 
@@ -154,15 +188,12 @@ export function MeetingParticipantSheet({
                 styles.summaryPill,
                 {
                   backgroundColor: colors.primarySoft,
-                  borderColor: colors.border,
+                  borderColor: `${colors.primary}30`,
                 },
               ]}
             >
               <Users color={colors.primary} size={14} />
-              <AppText
-                variant="label"
-                style={{ color: colors.primary }}
-              >
+              <AppText variant="label" style={{ color: colors.primary }}>
                 {participants.length} live
               </AppText>
             </View>
@@ -173,15 +204,12 @@ export function MeetingParticipantSheet({
                   styles.summaryPill,
                   {
                     backgroundColor: `${colors.warning}18`,
-                    borderColor: `${colors.warning}42`,
+                    borderColor: `${colors.warning}45`,
                   },
                 ]}
               >
                 <Hand color={colors.warning} size={14} />
-                <AppText
-                  variant="label"
-                  style={{ color: colors.warning }}
-                >
+                <AppText variant="label" style={{ color: colors.warning }}>
                   {raisedHands.length} raised
                 </AppText>
               </View>
@@ -198,10 +226,7 @@ export function MeetingParticipantSheet({
                 ]}
               >
                 <Users color={colors.secondary} size={14} />
-                <AppText
-                  variant="label"
-                  style={{ color: colors.secondary }}
-                >
+                <AppText variant="label" style={{ color: colors.secondary }}>
                   {pendingRequestCount} waiting
                 </AppText>
               </View>
@@ -214,7 +239,7 @@ export function MeetingParticipantSheet({
                 styles.waitingNotice,
                 {
                   backgroundColor: colors.primarySoft,
-                  borderColor: `${colors.primary}28`,
+                  borderColor: `${colors.primary}30`,
                 },
               ]}
             >
@@ -229,11 +254,11 @@ export function MeetingParticipantSheet({
 
               <View style={styles.waitingCopy}>
                 <AppText variant="bodyStrong">
-                  Join requests are waiting
+                  Join requests waiting
                 </AppText>
 
                 <AppText variant="caption" tone="muted">
-                  Admit or decline them from the banner in the meeting.
+                  Admit or decline requests from the meeting banner.
                 </AppText>
               </View>
             </View>
@@ -274,7 +299,7 @@ export function MeetingParticipantSheet({
                 <AppText variant="caption" tone="muted">
                   {mutedParticipantCount > 0
                     ? `${mutedParticipantCount} already muted`
-                    : "You can unmute yourself at any time"}
+                    : "Participants can unmute themselves afterwards"}
                 </AppText>
               </View>
             </Pressable>
@@ -284,9 +309,10 @@ export function MeetingParticipantSheet({
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.list}
           >
-            {participants.map((participant) => {
+            {sortedParticipants.map((participant) => {
               const name = participant.name || "Participant";
               const participantKey = participant.userId || participant.id;
+              const isRaised = Boolean(participant.isHandRaised);
 
               return (
                 <View
@@ -294,8 +320,12 @@ export function MeetingParticipantSheet({
                   style={[
                     styles.row,
                     {
-                      backgroundColor: colors.surface,
-                      borderColor: colors.border,
+                      backgroundColor: isRaised
+                        ? `${colors.warning}0D`
+                        : colors.surface,
+                      borderColor: isRaised
+                        ? `${colors.warning}45`
+                        : colors.border,
                     },
                   ]}
                 >
@@ -330,7 +360,12 @@ export function MeetingParticipantSheet({
                       <View
                         style={[
                           styles.onlineDot,
-                          { backgroundColor: colors.success },
+                          {
+                            backgroundColor: colors.success,
+                            borderColor: isDark
+                              ? colors.background
+                              : colors.card,
+                          },
                         ]}
                       />
                     ) : null}
@@ -356,11 +391,7 @@ export function MeetingParticipantSheet({
                             },
                           ]}
                         >
-                          <ShieldCheck
-                            color={colors.secondary}
-                            size={12}
-                          />
-
+                          <ShieldCheck color={colors.secondary} size={12} />
                           <AppText
                             variant="label"
                             style={[
@@ -374,21 +405,21 @@ export function MeetingParticipantSheet({
                       ) : null}
                     </View>
 
-                    <AppText variant="caption" tone="muted">
-                      {participant.isHandRaised
-                        ? "Hand raised"
-                        : participant.isMuted
-                          ? "Microphone muted"
-                          : "Listening"}
+                    <AppText
+                      variant="caption"
+                      tone="muted"
+                      numberOfLines={1}
+                    >
+                      {getParticipantState(participant)}
                     </AppText>
                   </View>
 
                   <View style={styles.status}>
-                    {participant.isHandRaised ? (
+                    {isRaised ? (
                       <View
                         style={[
                           styles.statusIcon,
-                          { backgroundColor: `${colors.warning}18` },
+                          { backgroundColor: `${colors.warning}20` },
                         ]}
                       >
                         <Hand color={colors.warning} size={15} />
@@ -400,8 +431,8 @@ export function MeetingParticipantSheet({
                         styles.statusIcon,
                         {
                           backgroundColor: participant.isMuted
-                            ? `${colors.danger}14`
-                            : `${colors.success}16`,
+                            ? `${colors.danger}15`
+                            : `${colors.success}18`,
                         },
                       ]}
                     >
@@ -417,7 +448,7 @@ export function MeetingParticipantSheet({
                         styles.statusIcon,
                         {
                           backgroundColor: participant.isCameraOff
-                            ? `${colors.danger}14`
+                            ? `${colors.danger}15`
                             : colors.primarySoft,
                         },
                       ]}
@@ -443,7 +474,7 @@ export function MeetingParticipantSheet({
                           styles.hostAction,
                           {
                             backgroundColor: `${colors.warning}16`,
-                            borderColor: `${colors.warning}35`,
+                            borderColor: `${colors.warning}36`,
                             opacity: busy ? 0.5 : pressed ? 0.72 : 1,
                           },
                         ]}
@@ -492,7 +523,7 @@ const styles = StyleSheet.create({
   },
 
   sheet: {
-    maxHeight: "84%",
+    maxHeight: "86%",
     borderTopWidth: 1,
     borderTopLeftRadius: Radius.xLarge,
     borderTopRightRadius: Radius.xLarge,
@@ -518,17 +549,14 @@ const styles = StyleSheet.create({
   headerCopy: {
     flex: 1,
     minWidth: 0,
-  },
-
-  titleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
   },
 
   titleIcon: {
-    width: 38,
-    height: 38,
+    width: 40,
+    height: 40,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
@@ -649,7 +677,6 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: Radius.pill,
     borderWidth: 2,
-    borderColor: "#FFFFFF",
   },
 
   copy: {

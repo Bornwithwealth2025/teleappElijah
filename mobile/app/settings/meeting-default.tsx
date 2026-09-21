@@ -6,8 +6,8 @@ import {
   View,
 } from "react-native";
 import {
-  Clock,
-  Link as LinkIcon,
+  Clock3,
+  Link2,
   Video,
 } from "lucide-react-native";
 
@@ -22,6 +22,52 @@ import { useAppTheme } from "@/hooks/use-app-themes";
 import useAuthStore from "@/store/authStore";
 import usePreferencesStore from "@/store/preferencesStore";
 
+type PreferenceRowProps = {
+  title: string;
+  description: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+};
+
+function PreferenceRow({
+  title,
+  description,
+  value,
+  onValueChange,
+}: PreferenceRowProps) {
+  const { colors } = useAppTheme();
+
+  return (
+    <View
+      style={[
+        styles.preferenceRow,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+        },
+      ]}
+    >
+      <View style={styles.preferenceCopy}>
+        <AppText variant="bodyStrong">{title}</AppText>
+
+        <AppText variant="caption" tone="muted">
+          {description}
+        </AppText>
+      </View>
+
+      <Switch
+        value={value}
+        onValueChange={onValueChange}
+        trackColor={{
+          false: colors.borderStrong,
+          true: colors.primary,
+        }}
+        thumbColor="#FFFFFF"
+      />
+    </View>
+  );
+}
+
 export default function MeetingDefaultsScreen() {
   const { colors } = useAppTheme();
 
@@ -29,9 +75,7 @@ export default function MeetingDefaultsScreen() {
 
   const meeting = usePreferencesStore((state) => state.meeting);
   const isReady = usePreferencesStore((state) => state.isReady);
-  const initialize = usePreferencesStore(
-    (state) => state.initialize,
-  );
+  const initialize = usePreferencesStore((state) => state.initialize);
   const updateMeetingDefaults = usePreferencesStore(
     (state) => state.updateMeetingDefaults,
   );
@@ -54,7 +98,9 @@ export default function MeetingDefaultsScreen() {
   }, [initialize, user?.email, user?.id, user?.user_id]);
 
   React.useEffect(() => {
-    if (!isReady) return;
+    if (!isReady) {
+      return;
+    }
 
     setDuration(String(meeting.durationMinutes));
     setRoomName(meeting.roomName);
@@ -86,150 +132,119 @@ export default function MeetingDefaultsScreen() {
 
     Alert.alert(
       "Defaults saved",
-      "Your meeting preferences will be used on this device.",
+      "Your preferences will be used when you create meetings on this device.",
     );
   }
 
   return (
-    <AppScreen contentStyle={styles.content}>
+    <AppScreen tone="aurora" contentStyle={styles.content}>
       <AppHeader
-        eyebrow="SETTINGS"
+        eyebrow="MEETING EXPERIENCE"
         title="Meeting defaults"
-        subtitle="Configure how new Telefya rooms should begin."
+        subtitle="Set how your next Telefya meeting begins."
+        size="page"
       />
 
-      <AppCard
-        variant="tinted"
-        style={styles.heroCard}
-      >
+      <AppCard elevated style={styles.heroCard}>
         <View
           style={[
             styles.heroIcon,
-            { backgroundColor: colors.primary },
+            { backgroundColor: colors.primarySoft },
           ]}
         >
-          <Video color="#FFFFFF" size={22} />
+          <Video color={colors.primary} size={23} />
         </View>
 
         <View style={styles.copy}>
           <AppText variant="bodyStrong">
-            Your meeting preferences
+            Personal meeting setup
           </AppText>
 
           <AppText variant="caption" tone="muted">
-            These settings are used when you create a new room on this device.
+            These settings apply before you join or create a meeting.
           </AppText>
         </View>
       </AppCard>
 
-      <AppCard style={styles.card}>
-        <View style={styles.fields}>
+      <View style={styles.section}>
+        <AppText variant="overline" tone="muted">
+          DEFAULTS
+        </AppText>
+
+        <AppCard style={styles.formCard}>
           <AppTextInput
-            label="Default meeting duration (minutes)"
+            label="Default meeting duration"
             value={duration}
             onChangeText={setDuration}
             placeholder="45"
             keyboardType="number-pad"
-            leftSlot={
-              <Clock
-                color={colors.textSoft}
-                size={18}
-              />
-            }
+            leftSlot={<Clock3 color={colors.textSoft} size={18} />}
           />
+
+          <AppText
+            variant="caption"
+            tone="muted"
+            style={styles.inputHint}
+          >
+            Enter a duration from 1 minute up to 24 hours.
+          </AppText>
 
           <AppTextInput
             label="Default room name"
             value={roomName}
             onChangeText={setRoomName}
             placeholder="My Telefya room"
-            leftSlot={
-              <LinkIcon
-                color={colors.textSoft}
-                size={18}
-              />
-            }
+            leftSlot={<Link2 color={colors.textSoft} size={18} />}
           />
-        </View>
+        </AppCard>
+      </View>
 
-        <View style={styles.optionRow}>
-          <View style={styles.copy}>
-            <AppText variant="bodyStrong">
-              Camera on by default
-            </AppText>
+      <View style={styles.section}>
+        <AppText variant="overline" tone="muted">
+          JOINING PREFERENCES
+        </AppText>
 
-            <AppText variant="caption" tone="muted">
-              Start meetings with video enabled.
-            </AppText>
-          </View>
-
-          <Switch
+        <View style={styles.preferenceList}>
+          <PreferenceRow
+            title="Camera on by default"
+            description="Start meetings with your camera enabled."
             value={cameraEnabled}
             onValueChange={setCameraEnabled}
-            trackColor={{
-              false: colors.border,
-              true: colors.primarySoft,
-            }}
-            thumbColor={
-              cameraEnabled
-                ? colors.primary
-                : colors.textSoft
-            }
           />
-        </View>
 
-        <View style={styles.optionRow}>
-          <View style={styles.copy}>
-            <AppText variant="bodyStrong">
-              Auto-create meeting link
-            </AppText>
-
-            <AppText variant="caption" tone="muted">
-              Generate a shareable link when scheduling a room.
-            </AppText>
-          </View>
-
-          <Switch
+          <PreferenceRow
+            title="Create a shareable link"
+            description="Generate a meeting link when scheduling a room."
             value={autoCreateLink}
             onValueChange={setAutoCreateLink}
-            trackColor={{
-              false: colors.border,
-              true: colors.primarySoft,
-            }}
-            thumbColor={
-              autoCreateLink
-                ? colors.primary
-                : colors.textSoft
-            }
           />
         </View>
+      </View>
 
-        <AppButton
-          title="Save defaults"
-          onPress={handleSave}
-          containerStyle={styles.action}
-        />
-      </AppCard>
-
-      <AppCard
-        variant="soft"
-        compact
-        style={styles.infoCard}
+      <View
+        style={[
+          styles.notice,
+          {
+            backgroundColor: colors.secondarySoft,
+            borderColor: `${colors.secondary}26`,
+          },
+        ]}
       >
-        <Video
-          color={colors.primary}
-          size={20}
-        />
+        <Video color={colors.secondary} size={19} />
 
         <AppText
           variant="caption"
-          tone="muted"
-          style={styles.infoText}
+          style={{ color: colors.textMuted, flex: 1 }}
         >
-          Camera and microphone permissions are requested securely when you
-          join a meeting.
+          Camera and microphone access are requested only when you enter a live meeting.
         </AppText>
-      </AppCard>
+      </View>
+
+      <AppButton
+        title={isReady ? "Save meeting defaults" : "Loading preferences..."}
+        disabled={!isReady}
+        onPress={() => void handleSave()}
+      />
     </AppScreen>
   );
 }
@@ -237,55 +252,57 @@ export default function MeetingDefaultsScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.five,
+    paddingBottom: Spacing.five,
   },
-
   heroCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
-
   heroIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: Radius.medium,
+    width: 48,
+    height: 48,
+    borderRadius: Radius.large,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  card: {
-    gap: Spacing.four,
-  },
-
-  fields: {
-    gap: Spacing.three,
-  },
-
-  optionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: Spacing.four,
-  },
-
   copy: {
     flex: 1,
     minWidth: 0,
-    gap: Spacing.one,
+    gap: 3,
   },
-
-  action: {
-    marginTop: Spacing.one,
+  section: {
+    gap: Spacing.two,
   },
-
-  infoCard: {
+  formCard: {
+    gap: Spacing.three,
+  },
+  inputHint: {
+    marginTop: -Spacing.two,
+  },
+  preferenceList: {
+    gap: Spacing.two,
+  },
+  preferenceRow: {
+    minHeight: 78,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
-
-  infoText: {
+  preferenceCopy: {
     flex: 1,
-    lineHeight: 20,
+    minWidth: 0,
+    gap: 3,
+  },
+  notice: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
   },
 });

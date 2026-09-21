@@ -40,8 +40,8 @@ export function AppScreen({
   safeAreaStyle,
   className,
   tone = "plain",
-  keyboardShouldPersistTaps = "always",
-  keyboardDismissMode = "none",
+  keyboardShouldPersistTaps = "handled",
+  keyboardDismissMode = "on-drag",
   refreshControl,
 }: AppScreenProps) {
   const { colors, isDark } = useAppTheme();
@@ -52,10 +52,12 @@ export function AppScreen({
       ? StatusBar.currentHeight ?? insets.top
       : insets.top;
 
+  // Immersive meeting/video screens must reach edge-to-edge. Their overlays
+  // position themselves using useSafeAreaInsets.
   const contentInsets = immersive
     ? {
-        paddingTop: topInset,
-        paddingBottom: insets.bottom,
+        paddingTop: 0,
+        paddingBottom: 0,
       }
     : {
         paddingTop: topInset + Layout.screenTopPadding,
@@ -72,8 +74,8 @@ export function AppScreen({
       contentContainerStyle={[
         styles.content,
         immersive && styles.immersiveContent,
-        contentInsets,
         contentStyle,
+        contentInsets,
       ]}
     >
       {children}
@@ -85,62 +87,83 @@ export function AppScreen({
         styles.content,
         styles.staticContent,
         immersive && styles.immersiveContent,
-        contentInsets,
         contentStyle,
+        contentInsets,
       ]}
     >
       {children}
     </View>
   );
 
+  const keyboardBehavior = immersive
+    ? undefined
+    : Platform.OS === "ios"
+      ? "padding"
+      : "height";
+
+  const statusBarStyle = immersive
+    ? "light-content"
+    : isDark
+      ? "light-content"
+      : "dark-content";
+
   return (
     <View
       className={cn("flex-1 w-full", className)}
-      style={safeAreaStyle}
+      style={[
+        styles.root,
+        { backgroundColor: colors.background },
+        safeAreaStyle,
+      ]}
     >
       <StatusBar
-        barStyle={isDark ? "light-content" : "dark-content"}
-        backgroundColor="transparent"
         translucent
+        backgroundColor="transparent"
+        barStyle={statusBarStyle}
       />
 
-      {tone === "plain" ? (
-        <View
-          className="flex-1 w-full"
-          style={{ backgroundColor: colors.background }}
-        >
-          <KeyboardAvoidingView
-            className="flex-1 w-full"
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-          >
-            {screenContent}
-          </KeyboardAvoidingView>
-        </View>
-      ) : (
+      {tone === "aurora" ? (
         <LinearGradient
-          colors={[colors.primarySoft, colors.background]}
-          locations={[0, 0.35]}
-          start={{ x: 0, y: 1 }}
-          end={{ x: 0, y: 0 }}
+          colors={[
+            colors.primarySoft,
+            colors.background,
+            colors.background,
+          ]}
+          locations={[0, 0.38, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.2, y: 1 }}
           style={styles.gradient}
         >
           <KeyboardAvoidingView
             className="flex-1 w-full"
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={keyboardBehavior}
           >
             {screenContent}
           </KeyboardAvoidingView>
         </LinearGradient>
+      ) : (
+        <KeyboardAvoidingView
+          className="flex-1 w-full"
+          behavior={keyboardBehavior}
+        >
+          {screenContent}
+        </KeyboardAvoidingView>
       )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    width: "100%",
+  },
+
   gradient: {
     flex: 1,
     width: "100%",
   },
+
   content: {
     width: "100%",
     maxWidth: Layout.maxContentWidth,
@@ -148,12 +171,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: Layout.screenPadding,
     gap: Layout.compactGap,
   },
+
   immersiveContent: {
     flex: 1,
     maxWidth: undefined,
     paddingHorizontal: 0,
     gap: 0,
   },
+
   staticContent: {
     flex: 1,
   },

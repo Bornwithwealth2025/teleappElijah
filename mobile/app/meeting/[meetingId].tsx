@@ -5,12 +5,9 @@ import {
   Clock3,
   Copy,
   LogIn,
-  Pencil,
   Radio,
-  Send,
   Share2,
   ShieldCheck,
-  Trash2,
   Users,
   X,
 } from "lucide-react-native";
@@ -18,17 +15,15 @@ import {
   Alert,
   Animated,
   Image,
-  Keyboard,
   Platform,
   Pressable,
-  ScrollView,
   Share,
   StyleSheet,
-  TextInput,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ChatPanel } from "@/components/meeting/ChatPanel";
 import { HostJoinRequestBanner } from "@/components/meeting/HostJoinRequestBanner";
 import { MeetingControls } from "@/components/meeting/MeetingControls";
 import { MeetingGrid } from "@/components/meeting/MeetingGrid";
@@ -53,8 +48,8 @@ import { useMeetingOrientation } from "@/hooks/useMeetingOrientation";
 import useAuthStore from "@/store/authStore";
 import useMeetingStore from "@/store/meetingStore";
 import usePreferencesStore from "@/store/preferencesStore";
-
-const CHAT_SHEET_HEIGHT = 420;
+import MediasoupClient from "@/services/mediasoupClient";
+import UserService from "@/api/user.service";
 
 function getUserName(user: any) {
   const fullName = [
@@ -79,13 +74,19 @@ function getUserId(user: any) {
 }
 
 export default function MeetingRoomScreen() {
-  const { meetingId: routeMeetingId } = useLocalSearchParams<{
+  const {
+    meetingId: routeMeetingId,
+    host: hostParam,
+  } = useLocalSearchParams<{
     meetingId?: string | string[];
+    host?: string | string[];
   }>();
 
   const meetingId = Array.isArray(routeMeetingId)
     ? routeMeetingId[0]
     : routeMeetingId;
+  const isHostRoute =
+    (Array.isArray(hostParam) ? hostParam[0] : hostParam) === "true";
 
   const { colors, isDark } = useAppTheme();
   const insets = useSafeAreaInsets();
@@ -145,12 +146,20 @@ export default function MeetingRoomScreen() {
   const localStream = useMeetingStore(
     (state) => state.localStream,
   );
+  const setLocalStream = useMeetingStore(
+    (state) => state.setLocalStream,
+  );
   const remoteStreams = useMeetingStore(
     (state) => state.remoteStreams,
   );
 
   const requestMeetingAccess = useMeetingStore(
     (state) => state.requestMeetingAccess,
+  );
+  const joinMeeting = useMeetingStore((state) => state.joinMeeting);
+
+  const startLocalMedia = useMeetingStore(
+    (state) => state.startLocalMedia,
   );
   const leaveMeeting = useMeetingStore(
     (state) => state.leaveMeeting,
@@ -215,18 +224,15 @@ export default function MeetingRoomScreen() {
     }).start();
   }, [entrance]);
 
-  const [chatOpen, setChatOpen] = React.useState(false);
   const [chatVisible, setChatVisible] = React.useState(false);
   const [participantsVisible, setParticipantsVisible] =
     React.useState(false);
-  const [chatText, setChatText] = React.useState("");
-  const [editingMessageId, setEditingMessageId] = React.useState<
-    string | null
-  >(null);
   const [recordingVisible, setRecordingVisible] =
     React.useState(false);
   const [effectsVisible, setEffectsVisible] =
     React.useState(false);
+  const [controlsVisible, setControlsVisible] =
+    React.useState(true);
 
   const [effectBusy, setEffectBusy] =
     React.useState(false);
@@ -252,65 +258,64 @@ export default function MeetingRoomScreen() {
     [setVideoEffect],
   );
 
-  const chatInputRef = React.useRef<TextInput | null>(null);
-  const chatScrollRef = React.useRef<ScrollView | null>(null);
-
-  const chatTranslateY = React.useRef(
-    new Animated.Value(CHAT_SHEET_HEIGHT),
-  ).current;
-
-  const backdropOpacity = React.useRef(
-    new Animated.Value(0),
-  ).current;
-
   const roomCode = String(meetingId ?? "room");
   const userName = getUserName(user);
   const userId = getUserId(user);
 
+  const prepareCameraPreview = React.useCallback(async () => {
+    try {
+      const stream = await MediasoupClient.getLocalStream();
+      setLocalStream(stream);
+    } catch (previewError) {
+      const message =
+        previewError instanceof Error
+          ? previewError.message
+          : "Unable to start the camera preview.";
+
+      Alert.alert("Camera preview unavailable", message);
+    }
+  }, [setLocalStream]);
+
   const openChat = React.useCallback(() => {
     setChatVisible(true);
-    setChatOpen(true);
-
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 1,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-      Animated.spring(chatTranslateY, {
-        toValue: 0,
-        damping: 20,
-        stiffness: 220,
-        mass: 0.9,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [backdropOpacity, chatTranslateY]);
+  }, []);
 
   const closeChat = React.useCallback(() => {
-    setChatOpen(false);
-    setEditingMessageId(null);
-    setChatText("");
-    Keyboard.dismiss();
-    chatInputRef.current?.blur();
+    setChatVisible(false);
+  }, []);
 
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 180,
-        useNativeDriver: true,
-      }),
-      Animated.timing(chatTranslateY, {
-        toValue: CHAT_SHEET_HEIGHT,
-        duration: 220,
-        useNativeDriver: true,
-      }),
-    ]).start(({ finished }) => {
-      if (finished) setChatVisible(false);
-    });
-  }, [backdropOpacity, chatTranslateY]);
+  const handleJoin = async () => {
+    if (cameraEnabledByDefault && !localStream) {
+      await prepareCameraPreview();
+    }
 
-    const handleJoin = async () => {
+    if (isHostRoute) {
+      const lifecycle = await UserService.updateMeetingLifecycle(
+        roomCode,
+        "start",
+      );
+
+      if (lifecycle?.success === false) {
+        throw new Error(
+          lifecycle.message || "Unable to start this meeting.",
+        );
+      }
+
+      await joinMeeting({
+        roomId: roomCode,
+        userId,
+        userName,
+        isHost: true,
+        cameraOn: cameraEnabledByDefault,
+      });
+
+      if (useMeetingStore.getState().status === "joined") {
+        await startLocalMedia();
+      }
+
+      return;
+    }
+
     await requestMeetingAccess({
       roomId: roomCode,
       userId,
@@ -320,11 +325,19 @@ export default function MeetingRoomScreen() {
   };
 
   const handleLeave = async () => {
-    if (chatOpen) {
+    if (chatVisible) {
       closeChat();
     }
 
     setRecordingVisible(false);
+
+    if (isHost) {
+      try {
+        await UserService.updateMeetingLifecycle(roomCode, "end");
+      } catch (error) {
+        console.warn("[meeting] Unable to mark meeting ended:", error);
+      }
+    }
 
     await leaveMeeting();
     router.back();
@@ -345,83 +358,31 @@ export default function MeetingRoomScreen() {
   };
 
   const handleShare = async () => {
+    const webMeetingBase = (
+      process.env.EXPO_PUBLIC_WEB_MEETING_URL ?? ""
+    ).replace(/\/+$/, "");
+
+    const meetingLink = webMeetingBase
+      ? `${webMeetingBase}/live/${encodeURIComponent(roomCode)}`
+      : roomCode;
+
     await Share.share({
-      message: `Join my Telefya meeting: ${roomCode}`,
+      title: "Join my Telefya meeting",
+      message: `Join my Telefya meeting: ${meetingLink}`,
     });
   };
 
-  const handleSendMessage = async () => {
-    const message = chatText.trim();
-
-    if (!message || !joined) return;
-
-    const messageId = editingMessageId;
-
+  const handleToggleScreenShare = async () => {
     try {
-      if (messageId) {
-        await editMessage(messageId, message);
-        setEditingMessageId(null);
-      } else {
-        await sendMessage(message);
-      }
-
-      setChatText("");
-      requestAnimationFrame(() => {
-        chatScrollRef.current?.scrollToEnd({ animated: true });
-      });
-    } catch {
+      await toggleScreenShare();
+    } catch (error) {
       Alert.alert(
-        "Chat unavailable",
-        "Your message could not be sent. Please try again.",
+        "Screen sharing unavailable",
+        error instanceof Error
+          ? error.message
+          : "Please try again.",
       );
     }
-  };
-
-  const handleMessageOptions = (message: {
-    messageId: string;
-    message: string;
-    socketId?: string;
-  }) => {
-    if (!socketId || message.socketId !== socketId) {
-      return;
-    }
-
-    Alert.alert("Your message", undefined, [
-      {
-        text: "Edit",
-        onPress: () => {
-          setEditingMessageId(message.messageId);
-          setChatText(message.message);
-          requestAnimationFrame(() => chatInputRef.current?.focus());
-        },
-      },
-      {
-        text: "Delete",
-        style: "destructive",
-        onPress: () => {
-          void deleteMessage(message.messageId).catch(() => {
-            Alert.alert(
-              "Unable to delete",
-              "Please try again in a moment.",
-            );
-          });
-        },
-      },
-      { text: "Cancel", style: "cancel" },
-    ]);
-  };
-
-  const formatMessageTime = (value: string) => {
-    const date = new Date(value);
-
-    if (Number.isNaN(date.getTime())) {
-      return "";
-    }
-
-    return date.toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-    });
   };
 
   const networkPillColor =
@@ -455,17 +416,25 @@ export default function MeetingRoomScreen() {
           ]}
         >
           <View style={styles.stageShell}>
-            <MeetingPermissionGate>
-              <MeetingGrid
-                fullScreen
-                localStream={localStream}
-                localName={userName}
-                localMuted={isMuted}
-                localCameraOff={isCameraOff}
-                remoteStreams={remoteStreams}
-                participants={participants}
-              />
-            </MeetingPermissionGate>
+            <MeetingGrid
+              fullScreen
+              localStream={localStream}
+              localName={userName}
+              localMuted={isMuted}
+              localCameraOff={isCameraOff}
+              remoteStreams={remoteStreams}
+              participants={participants}
+            />
+            <Pressable
+              style={styles.controlsTapLayer}
+              onPress={() => setControlsVisible((value) => !value)}
+              accessibilityRole="button"
+              accessibilityLabel={
+                controlsVisible
+                  ? "Hide meeting controls"
+                  : "Show meeting controls"
+              }
+            />
           </View>
 
           <LinearGradient
@@ -480,18 +449,17 @@ export default function MeetingRoomScreen() {
             style={styles.bottomScrim}
           />
 
-          <View
-            style={[
-              styles.liveTopBar,
-              {
-                top: insets.top + Spacing.two,
-                backgroundColor: isDark
-                  ? colors.glassStrong
-                  : colors.card,
-                borderColor: colors.glassBorder,
-              },
-            ]}
-          >
+          {controlsVisible ? (
+            <View
+              style={[
+                styles.liveTopBar,
+                {
+                  top: insets.top + Spacing.two,
+                  backgroundColor: "transparent",
+                  borderColor: "transparent",
+                },
+              ]}
+            >
             <Image
               source={require("@/assets/images/telefya-logo.png")}
               resizeMode="contain"
@@ -541,7 +509,8 @@ export default function MeetingRoomScreen() {
                 onPress={handleShare}
               />
             </View>
-          </View>
+            </View>
+          ) : null}
 
           <View
             pointerEvents="box-none"
@@ -594,18 +563,19 @@ export default function MeetingRoomScreen() {
             ) : null}
           </View>
 
-          <View
-            style={[
-              styles.liveMeta,
-              {
-                bottom: 108 + insets.bottom,
-                backgroundColor: isDark
-                  ? colors.glassStrong
-                  : colors.card,
-                borderColor: colors.glassBorder,
-              },
-            ]}
-          >
+          {controlsVisible ? (
+            <View
+              style={[
+                styles.liveMeta,
+                {
+                  bottom: 108 + insets.bottom,
+                  backgroundColor: isDark
+                    ? colors.glassStrong
+                    : colors.card,
+                  borderColor: colors.glassBorder,
+                },
+              ]}
+            >
             <View style={styles.metaLeft}>
               <AppText
                 numberOfLines={1}
@@ -663,14 +633,16 @@ export default function MeetingRoomScreen() {
                 </AppText>
               </View>
             </View>
-          </View>
+            </View>
+          ) : null}
 
-          <View
-            style={[
-              styles.meetingControlsOverlay,
-              { bottom: Spacing.two + insets.bottom },
-            ]}
-          >
+          {controlsVisible ? (
+            <View
+              style={[
+                styles.meetingControlsOverlay,
+                { bottom: Spacing.two + insets.bottom },
+              ]}
+            >
             <MeetingControls
               muted={isMuted}
               cameraOff={isCameraOff}
@@ -685,7 +657,7 @@ export default function MeetingRoomScreen() {
               }}
               onToggleHand={() => void toggleHand()}
               onToggleScreenShare={() =>
-                void toggleScreenShare()
+                void handleToggleScreenShare()
               }
               onOpenChat={openChat}
               onOpenParticipants={() => {
@@ -693,7 +665,8 @@ export default function MeetingRoomScreen() {
               }}
               onLeave={() => void handleLeave()}
             />
-          </View>
+            </View>
+          ) : null}
         </Animated.View>
 
         {chatVisible ? (
@@ -701,232 +674,35 @@ export default function MeetingRoomScreen() {
             style={StyleSheet.absoluteFill}
             pointerEvents="box-none"
           >
-            <Animated.View
-              style={[
-                styles.chatBackdrop,
-                { opacity: backdropOpacity },
-              ]}
-            >
-              <Pressable
-                style={StyleSheet.absoluteFill}
-                onPress={closeChat}
-              />
-            </Animated.View>
+            <Pressable
+              style={styles.chatBackdrop}
+              onPress={closeChat}
+              accessibilityRole="button"
+              accessibilityLabel="Close meeting chat"
+            />
 
-            <Animated.View
+            <View
               style={[
-                styles.chatSheet,
+                styles.chatPanelOverlay,
                 {
-                  backgroundColor: colors.card,
-                  borderColor: colors.border,
-                  transform: [{ translateY: chatTranslateY }],
+                  bottom: Math.max(insets.bottom, Spacing.three),
                 },
               ]}
             >
-              <View
-                style={[
-                  styles.chatHandle,
-                  { backgroundColor: colors.borderStrong },
-                ]}
+              <ChatPanel
+                messages={messages}
+                joined={joined}
+                currentSocketId={socketId}
+                onClose={closeChat}
+                onSend={(message) => sendMessage(message)}
+                onEdit={(messageId, message) =>
+                  editMessage(messageId, message)
+                }
+                onDelete={(messageId) =>
+                  deleteMessage(messageId)
+                }
               />
-
-              <View style={styles.chatHeader}>
-                <View style={styles.chatHeaderCopy}>
-                  <AppText variant="bodyStrong">
-                    Meeting chat
-                  </AppText>
-
-                  <AppText variant="caption" tone="muted">
-                    {messages.length === 0
-                      ? "No messages yet"
-                      : `${messages.length} message${
-                          messages.length === 1 ? "" : "s"
-                        }`}
-                  </AppText>
-                </View>
-
-                <IconButton
-                  icon={<X color={colors.text} size={18} />}
-                  variant="ghost"
-                  accessibilityLabel="Close chat"
-                  onPress={closeChat}
-                />
-              </View>
-
-              <ScrollView
-                ref={chatScrollRef}
-                style={styles.chatMessages}
-                contentContainerStyle={styles.chatMessagesContent}
-                showsVerticalScrollIndicator={false}
-                onContentSizeChange={() => {
-                  chatScrollRef.current?.scrollToEnd({
-                    animated: true,
-                  });
-                }}
-              >
-                {messages.slice(-30).map((message) => {
-                  const isMine =
-                    Boolean(socketId) &&
-                    message.socketId === socketId;
-
-                  return (
-                    <Pressable
-                      key={message.messageId}
-                      disabled={!isMine}
-                      onLongPress={() => handleMessageOptions(message)}
-                      delayLongPress={350}
-                      accessibilityRole={isMine ? "button" : undefined}
-                      accessibilityLabel={
-                        isMine
-                          ? "Message options. Long press to edit or delete."
-                          : undefined
-                      }
-                      style={({ pressed }) => [
-                        styles.chatMessageRow,
-                        isMine
-                          ? styles.chatMessageRowMine
-                          : styles.chatMessageRowTheirs,
-                        {
-                          backgroundColor: isMine
-                            ? colors.primarySoft
-                            : colors.surface,
-                          borderColor: isMine
-                            ? `${colors.primary}45`
-                            : colors.border,
-                          opacity: pressed && isMine ? 0.78 : 1,
-                        },
-                      ]}
-                    >
-                      {!isMine ? (
-                        <AppText
-                          variant="caption"
-                          style={{
-                            color: colors.textMuted,
-                            fontWeight: "800",
-                          }}
-                        >
-                          {message.userName}
-                        </AppText>
-                      ) : null}
-
-                      <AppText variant="body">
-                        {message.message}
-                      </AppText>
-
-                      <View style={styles.chatMessageFooter}>
-                        {message.edited ? (
-                          <AppText variant="caption" tone="muted">
-                            Edited ·{" "}
-                          </AppText>
-                        ) : null}
-
-                        <AppText variant="caption" tone="muted">
-                          {formatMessageTime(message.time)}
-                        </AppText>
-                      </View>
-                    </Pressable>
-                  );
-                })}
-
-                {messages.length === 0 ? (
-                  <AppText
-                    variant="caption"
-                    tone="muted"
-                    style={styles.chatEmpty}
-                  >
-                    Start the conversation.
-                  </AppText>
-                ) : null}
-              </ScrollView>
-
-              <View style={styles.chatComposer}>
-                {editingMessageId ? (
-                  <View
-                    style={[
-                      styles.editingBar,
-                      {
-                        backgroundColor: colors.primarySoft,
-                        borderColor: `${colors.primary}35`,
-                      },
-                    ]}
-                  >
-                    <Pencil color={colors.primary} size={14} />
-
-                    <AppText
-                      variant="caption"
-                      style={[
-                        styles.editingText,
-                        { color: colors.primary },
-                      ]}
-                    >
-                      Editing message
-                    </AppText>
-
-                    <Pressable
-                      onPress={() => {
-                        setEditingMessageId(null);
-                        setChatText("");
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel="Cancel editing message"
-                    >
-                      <X color={colors.primary} size={16} />
-                    </Pressable>
-                  </View>
-                ) : null}
-
-                <View style={styles.chatInputRow}>
-                  <TextInput
-                    ref={chatInputRef}
-                    value={chatText}
-                    onChangeText={setChatText}
-                    placeholder={
-                      editingMessageId
-                        ? "Update your message..."
-                        : "Write a message..."
-                    }
-                    placeholderTextColor={colors.textSoft}
-                    onSubmitEditing={handleSendMessage}
-                    style={[
-                      styles.chatInput,
-                      {
-                        color: colors.text,
-                        borderColor: colors.border,
-                        backgroundColor: colors.surface,
-                      },
-                    ]}
-                  />
-
-                  <Pressable
-                    onPress={handleSendMessage}
-                    disabled={!chatText.trim()}
-                    accessibilityRole="button"
-                    accessibilityLabel={
-                      editingMessageId
-                        ? "Save edited message"
-                        : "Send message"
-                    }
-                    style={({ pressed }) => [
-                      styles.chatSendButton,
-                      {
-                        backgroundColor: colors.primary,
-                        opacity: !chatText.trim()
-                          ? 0.4
-                          : pressed
-                            ? 0.85
-                            : 1,
-                      },
-                    ]}
-                  >
-                    {editingMessageId ? (
-                      <Pencil color="#FFFFFF" size={17} />
-                    ) : (
-                      <Send color="#FFFFFF" size={17} />
-                    )}
-                  </Pressable>
-                </View>
-              </View>
-            </Animated.View>
+            </View>
           </View>
         ) : null}
 
@@ -1093,8 +869,8 @@ export default function MeetingRoomScreen() {
           style={[
             styles.roomPanel,
             {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
+              backgroundColor: "transparent",
+              borderColor: "transparent",
             },
           ]}
         >
@@ -1174,11 +950,13 @@ export default function MeetingRoomScreen() {
             <View style={styles.preJoinActions}>
               <AppButton
                 title={
-                  joining
-                    ? "Joining..."
-                    : waitingRoomStatus === "declined"
-                      ? "Request again"
-                      : "Request to join"
+                  isHostRoute
+                    ? "Start meeting"
+                    : joining
+                      ? "Joining..."
+                      : waitingRoomStatus === "declined"
+                        ? "Request again"
+                        : "Request to join"
                 }
                 loading={joining}
                 disabled={joining || leaving}
@@ -1247,7 +1025,11 @@ export default function MeetingRoomScreen() {
             </AppText>
           </View>
 
-          <MeetingPermissionGate>
+          <MeetingPermissionGate
+            onGranted={() => {
+              void prepareCameraPreview();
+            }}
+          >
             <MeetingGrid
               localStream={localStream}
               localName={userName}
@@ -1277,8 +1059,14 @@ const styles = StyleSheet.create({
   },
 
   stageShell: {
-   ...StyleSheet.absoluteFill,
+    ...StyleSheet.absoluteFill,
     overflow: "hidden",
+    backgroundColor: "#020618",
+  },
+
+  controlsTapLayer: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 10,
   },
 
   topScrim: {
@@ -1306,9 +1094,7 @@ const styles = StyleSheet.create({
     right: Spacing.three,
     zIndex: 20,
     minHeight: 52,
-    borderWidth: 1,
-    borderRadius: Radius.large,
-    paddingHorizontal: Spacing.three,
+    paddingHorizontal: Spacing.one,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1434,120 +1220,15 @@ const styles = StyleSheet.create({
 
   chatBackdrop: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(2, 6, 24, 0.58)",
+    backgroundColor: "rgba(2, 6, 24, 0.64)",
   },
 
-  chatSheet: {
+  chatPanelOverlay: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    height: CHAT_SHEET_HEIGHT,
-    borderTopLeftRadius: Radius.xLarge,
-    borderTopRightRadius: Radius.xLarge,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.two,
-    paddingBottom: Spacing.four,
-    gap: Spacing.three,
-  },
-
-  chatHandle: {
-    width: 42,
-    height: 4,
-    borderRadius: Radius.pill,
-    alignSelf: "center",
-  },
-
-  chatHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  chatHeaderCopy: {
-    gap: 2,
-  },
-
-  chatMessages: {
-    flex: 1,
-  },
-
-  chatMessagesContent: {
-    gap: Spacing.two,
-    paddingBottom: Spacing.two,
-  },
-
-  chatMessageRow: {
-    gap: 3,
-    maxWidth: "82%",
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    padding: Spacing.three,
-  },
-
-  chatMessageRowMine: {
-    alignSelf: "flex-end",
-    borderBottomRightRadius: 4,
-  },
-
-  chatMessageRowTheirs: {
-    alignSelf: "flex-start",
-    borderBottomLeftRadius: 4,
-  },
-
-  chatMessageFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    alignSelf: "flex-end",
-    gap: 2,
-  },
-
-  chatEmpty: {
-    textAlign: "center",
-    paddingTop: Spacing.four,
-  },
-
-  chatComposer: {
-    gap: Spacing.two,
-  },
-
-  editingBar: {
-    minHeight: 34,
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    paddingHorizontal: Spacing.two,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.one,
-  },
-
-  editingText: {
-    flex: 1,
-    fontWeight: "800",
-  },
-
-  chatInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
-  },
-
-  chatInput: {
-    flex: 1,
-    minHeight: 46,
-    borderWidth: 1,
-    borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.four,
-    fontSize: 15,
-  },
-
-  chatSendButton: {
-    width: 46,
-    height: 46,
-    borderRadius: Radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
+    left: Spacing.two,
+    right: Spacing.two,
+    height: "76%",
+    maxHeight: 680,
   },
 
   recordingBackdrop: {
@@ -1606,10 +1287,8 @@ const styles = StyleSheet.create({
   },
 
   roomPanel: {
-    borderWidth: 1,
-    borderRadius: Radius.card,
-    padding: Spacing.four,
-    gap: Spacing.four,
+    paddingVertical: Spacing.two,
+    gap: Spacing.three,
   },
 
   roomHeader: {

@@ -15,15 +15,17 @@ const { width, height } = Dimensions.get("window");
 export const SCREEN = {
   width,
   height,
+  isCompact: width < 360,
   isSmallWidth: width < 380,
   isShortHeight: height < 720,
   isTablet: width >= 768,
+  isLargeTablet: width >= 1024,
 };
 
 export function scaleSize(size: number) {
   const scaled = (width / 390) * size;
-  const min = size * 0.88;
-  const max = size * 1.08;
+  const min = size * 0.9;
+  const max = size * 1.1;
 
   return Math.round(
     PixelRatio.roundToNearestPixel(
@@ -34,8 +36,8 @@ export function scaleSize(size: number) {
 
 export function verticalScale(size: number) {
   const scaled = (height / 844) * size;
-  const min = size * 0.82;
-  const max = size * 1.06;
+  const min = size * 0.84;
+  const max = size * 1.08;
 
   return Math.round(
     PixelRatio.roundToNearestPixel(
@@ -62,10 +64,10 @@ export const Spacing = {
 
 export const Radius = {
   small: scaleSize(10),
-  medium: scaleSize(16),
-  large: scaleSize(22),
-  xLarge: scaleSize(28),
-  card: scaleSize(24),
+  medium: scaleSize(14),
+  large: scaleSize(20),
+  xLarge: scaleSize(26),
+  card: scaleSize(22),
   pill: 999,
 };
 
@@ -77,12 +79,18 @@ export const FontSize = {
   lg: scaleSize(18),
   xl: scaleSize(22),
   xxl: scaleSize(28),
-  title: SCREEN.isSmallWidth
-    ? scaleSize(30)
-    : scaleSize(34),
-  display: SCREEN.isSmallWidth
-    ? scaleSize(36)
-    : scaleSize(42),
+
+  title: SCREEN.isCompact
+    ? scaleSize(28)
+    : SCREEN.isTablet
+      ? scaleSize(38)
+      : scaleSize(34),
+
+  display: SCREEN.isCompact
+    ? scaleSize(34)
+    : SCREEN.isTablet
+      ? scaleSize(46)
+      : scaleSize(42),
 };
 
 export const FontWeight = {
@@ -120,42 +128,55 @@ export const FontFamily = {
 export const Typography = {
   display: {
     fontSize: FontSize.display,
-    lineHeight: scaleSize(48),
+    lineHeight: scaleSize(50),
     fontWeight: FontWeight.black,
-    letterSpacing: -1.2,
+    letterSpacing: -1.25,
   },
+
   title: {
     fontSize: FontSize.title,
     lineHeight: scaleSize(42),
     fontWeight: FontWeight.extraBold,
     letterSpacing: -0.8,
   },
+
   heading: {
     fontSize: FontSize.xxl,
-    lineHeight: scaleSize(34),
+    lineHeight: scaleSize(35),
     fontWeight: FontWeight.extraBold,
-    letterSpacing: -0.4,
+    letterSpacing: -0.45,
   },
+
+  sectionTitle: {
+    fontSize: FontSize.lg,
+    lineHeight: scaleSize(25),
+    fontWeight: FontWeight.extraBold,
+    letterSpacing: -0.2,
+  },
+
   body: {
     fontSize: FontSize.md,
     lineHeight: scaleSize(24),
     fontWeight: FontWeight.regular,
   },
+
   bodyStrong: {
     fontSize: FontSize.md,
     lineHeight: scaleSize(24),
     fontWeight: FontWeight.semibold,
   },
+
   caption: {
     fontSize: FontSize.sm,
     lineHeight: scaleSize(20),
     fontWeight: FontWeight.medium,
   },
+
   overline: {
     fontSize: FontSize.caption,
     lineHeight: scaleSize(16),
     fontWeight: FontWeight.extraBold,
-    letterSpacing: 1.1,
+    letterSpacing: 1.05,
     textTransform: "uppercase" as const,
   },
 };
@@ -163,29 +184,32 @@ export const Typography = {
 export const Shadows = {
   soft: {
     shadowColor: "#10213F",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.055,
+    shadowRadius: 14,
+    elevation: 2,
   },
+
   card: {
     shadowColor: "#10213F",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.075,
     shadowRadius: 24,
     elevation: 5,
   },
+
   enterprise: {
     shadowColor: "#10213F",
     shadowOffset: { width: 0, height: 18 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.11,
     shadowRadius: 34,
     elevation: 8,
   },
+
   floating: {
     shadowColor: "#0F6BFF",
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.18,
     shadowRadius: 24,
     elevation: 10,
   },
@@ -198,9 +222,9 @@ export const Motion = {
   slow: 480,
 
   spring: {
-    damping: 16,
-    stiffness: 180,
-    mass: 0.8,
+    damping: 18,
+    stiffness: 210,
+    mass: 0.82,
   },
 
   easing: Easing.out(Easing.cubic),
@@ -217,30 +241,48 @@ export const Motion = {
 };
 
 export const Layout = {
-  maxContentWidth: SCREEN.isTablet ? 720 : 620,
-  bottomTabInset: 100,
+  maxContentWidth: SCREEN.isLargeTablet
+    ? 860
+    : SCREEN.isTablet
+      ? 720
+      : 620,
 
-  screenPadding: SCREEN.isSmallWidth
+  bottomTabInset: SCREEN.isTablet ? 112 : 100,
+
+  screenPadding: SCREEN.isCompact
     ? Spacing.three
-    : Spacing.four,
+    : SCREEN.isTablet
+      ? Spacing.six
+      : Spacing.four,
 
   screenTopPadding: SCREEN.isShortHeight
     ? Spacing.three
-    : Spacing.five,
+    : SCREEN.isTablet
+      ? Spacing.six
+      : Spacing.five,
 
   screenBottomPadding: SCREEN.isShortHeight
     ? Spacing.six
-    : Spacing.twelve,
+    : SCREEN.isTablet
+      ? Spacing.fourteen
+      : Spacing.twelve,
 
   compactGap: SCREEN.isShortHeight
     ? Spacing.three
     : Spacing.four,
 
-  sectionGap: Spacing.six,
+  sectionGap: SCREEN.isTablet
+    ? Spacing.eight
+    : Spacing.six,
 
-  cardPadding: SCREEN.isSmallWidth
-    ? Spacing.four
-    : Spacing.five,
+  cardPadding: SCREEN.isCompact
+    ? Spacing.three
+    : SCREEN.isTablet
+      ? Spacing.six
+      : Spacing.four,
+
+  touchTarget: 44,
+  compactTouchTarget: 40,
 };
 
 export function getAppTheme(mode: AppColorScheme) {

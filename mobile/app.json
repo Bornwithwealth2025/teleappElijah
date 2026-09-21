@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "telefya-app",
+    "name": "Telefya",
     "slug": "telefya-app",
     "version": "1.0.0",
     "orientation": "default",
@@ -22,12 +22,17 @@
       }
     },
     "android": {
+      "package": "com.telefya.app",
+      "versionCode": 1,
+      "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
         "MODIFY_AUDIO_SETTINGS",
         "INTERNET",
         "ACCESS_NETWORK_STATE",
+        "POST_NOTIFICATIONS",
+        "VIBRATE",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MEDIA_PROJECTION",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK"
@@ -38,8 +43,7 @@
         "backgroundImage": "./assets/images/app-icon.png",
         "monochromeImage": "./assets/images/app-icon.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.telefyaapp"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "output": "static",
@@ -87,7 +91,8 @@
           "project": "telefya-app",
           "organization": "logicsoft-technologies"
         }
-      ]
+      ],
+      "@sentry/react-native"
     ],
     "experiments": {
       "typedRoutes": true,

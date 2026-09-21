@@ -7,7 +7,14 @@ import {
   StyleSheet,
   View,
 } from "react-native";
-import { Check, Sparkles, X } from "lucide-react-native";
+import Constants from "expo-constants";
+import {
+  Check,
+  CircleAlert,
+  LockKeyhole,
+  Sparkles,
+  X,
+} from "lucide-react-native";
 
 import { AppText } from "@/components/ui/AppText";
 import { IconButton } from "@/components/ui/IconButton";
@@ -29,19 +36,21 @@ type Props = {
 function getEffectDescription(effectId: VideoEffectId) {
   switch (effectId) {
     case "none":
-      return "Use your regular camera background.";
+      return "Keep your real camera background.";
     case "blur-light":
       return "A subtle blur behind you.";
     case "blur-medium":
-      return "Balance privacy and a natural look.";
+      return "Privacy with a natural appearance.";
     case "blur-heavy":
-      return "Hide your surroundings more strongly.";
+      return "Hide more of your surroundings.";
     case "ocean":
-      return "A calm ocean scene.";
+      return "A calm ocean background.";
     case "office":
       return "A professional workspace.";
     case "mountains":
-      return "A scenic mountain view.";
+      return "A scenic mountain background.";
+    default:
+      return "Video background effect.";
   }
 }
 
@@ -52,30 +61,59 @@ export function VideoEffectsSheet({
   onClose,
   onSelect,
 }: Props) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
+
+  // Video filters require the custom Telefya native build.
+  const isExpoGo = Constants.appOwnership === "expo";
+
+  function handleSelect(effectId: VideoEffectId) {
+    if (busy || isExpoGo) {
+      return;
+    }
+
+    onSelect(effectId);
+  }
 
   return (
     <Modal
       visible={visible}
       transparent
       animationType="slide"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
       <View style={styles.root}>
         <Pressable
           style={[styles.backdrop, { backgroundColor: colors.overlay }]}
           onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close camera effects"
         />
 
         <View
           style={[
             styles.sheet,
             {
-              backgroundColor: colors.surface,
-              borderColor: colors.border,
+              backgroundColor: isDark
+                ? "rgba(9, 21, 45, 0.99)"
+                : colors.card,
+              borderColor: isDark
+                ? "rgba(255,255,255,0.12)"
+                : colors.border,
             },
           ]}
         >
+          <View
+            style={[
+              styles.topHighlight,
+              {
+                backgroundColor: isDark
+                  ? "rgba(255,255,255,0.12)"
+                  : colors.glassHighlight,
+              },
+            ]}
+          />
+
           <View style={styles.handleWrap}>
             <View
               style={[
@@ -93,14 +131,16 @@ export function VideoEffectsSheet({
                   { backgroundColor: colors.primarySoft },
                 ]}
               >
-                <Sparkles color={colors.primary} size={18} />
+                <Sparkles color={colors.primary} size={19} />
               </View>
 
               <View style={styles.titleCopy}>
-                <AppText variant="bodyStrong">Camera effects</AppText>
+                <AppText variant="sectionTitle">
+                  Video effects
+                </AppText>
 
                 <AppText variant="caption" tone="muted">
-                  Blur your surroundings or choose a virtual background.
+                  Blur your background or choose a virtual scene.
                 </AppText>
               </View>
             </View>
@@ -109,10 +149,63 @@ export function VideoEffectsSheet({
               icon={<X color={colors.text} size={20} />}
               variant="surface"
               size={38}
-              accessibilityLabel="Close camera effects"
+              accessibilityLabel="Close video effects"
               onPress={onClose}
             />
           </View>
+
+          {isExpoGo ? (
+            <View
+              style={[
+                styles.notice,
+                {
+                  backgroundColor: colors.secondarySoft,
+                  borderColor: `${colors.secondary}40`,
+                },
+              ]}
+            >
+              <LockKeyhole color={colors.secondary} size={18} />
+
+              <View style={styles.noticeCopy}>
+                <AppText
+                  variant="caption"
+                  style={{ color: colors.secondary, fontWeight: "800" }}
+                >
+                  Requires the Telefya development build
+                </AppText>
+
+                <AppText variant="caption" tone="muted">
+                  Expo Go cannot apply native video effects to your meeting
+                  camera.
+                </AppText>
+              </View>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.notice,
+                {
+                  backgroundColor: colors.primarySoft,
+                  borderColor: `${colors.primary}32`,
+                },
+              ]}
+            >
+              <CircleAlert color={colors.primary} size={18} />
+
+              <View style={styles.noticeCopy}>
+                <AppText
+                  variant="caption"
+                  style={{ color: colors.primary, fontWeight: "800" }}
+                >
+                  Effects apply to your outgoing video
+                </AppText>
+
+                <AppText variant="caption" tone="muted">
+                  Start your camera first, then select an effect.
+                </AppText>
+              </View>
+            </View>
+          )}
 
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -120,22 +213,34 @@ export function VideoEffectsSheet({
           >
             {VIDEO_EFFECT_OPTIONS.map((effect) => {
               const selected = effect.id === selectedEffect;
+              const isNone = effect.kind === "none";
 
               return (
                 <Pressable
                   key={effect.id}
-                  disabled={busy}
-                  onPress={() => onSelect(effect.id)}
+                  disabled={busy || isExpoGo}
+                  onPress={() => handleSelect(effect.id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${effect.label} video effect`}
+                  accessibilityState={{
+                    selected,
+                    disabled: busy || isExpoGo,
+                  }}
                   style={({ pressed }) => [
                     styles.option,
                     {
                       backgroundColor: selected
-                        ? colors.primarySoft
-                        : colors.card,
+                        ? `${colors.primary}14`
+                        : isDark
+                          ? "rgba(255,255,255,0.045)"
+                          : colors.surface,
                       borderColor: selected
                         ? colors.primary
-                        : colors.border,
-                      opacity: pressed || busy ? 0.76 : 1,
+                        : isDark
+                          ? "rgba(255,255,255,0.1)"
+                          : colors.border,
+                      opacity:
+                        busy || isExpoGo ? 0.5 : pressed ? 0.76 : 1,
                     },
                   ]}
                 >
@@ -143,10 +248,9 @@ export function VideoEffectsSheet({
                     style={[
                       styles.preview,
                       {
-                        backgroundColor:
-                          effect.kind === "none"
-                            ? colors.surfaceStrong
-                            : colors.secondarySoft,
+                        backgroundColor: isNone
+                          ? colors.surfaceStrong
+                          : colors.secondarySoft,
                       },
                     ]}
                   >
@@ -159,17 +263,49 @@ export function VideoEffectsSheet({
                     ) : (
                       <Sparkles
                         color={
-                          effect.kind === "none"
-                            ? colors.textMuted
-                            : colors.secondary
+                          isNone ? colors.textMuted : colors.secondary
                         }
                         size={24}
                       />
                     )}
+
+                    {selected ? (
+                      <View
+                        style={[
+                          styles.selectedOverlay,
+                          { backgroundColor: `${colors.primary}55` },
+                        ]}
+                      >
+                        <Check color="#FFFFFF" size={20} strokeWidth={3} />
+                      </View>
+                    ) : null}
                   </View>
 
                   <View style={styles.optionCopy}>
-                    <AppText variant="bodyStrong">{effect.label}</AppText>
+                    <View style={styles.optionTitleRow}>
+                      <AppText variant="bodyStrong">
+                        {effect.label}
+                      </AppText>
+
+                      {selected ? (
+                        <View
+                          style={[
+                            styles.activePill,
+                            { backgroundColor: colors.primarySoft },
+                          ]}
+                        >
+                          <AppText
+                            variant="label"
+                            style={{
+                              color: colors.primary,
+                              fontSize: 9,
+                            }}
+                          >
+                            Active
+                          </AppText>
+                        </View>
+                      ) : null}
+                    </View>
 
                     <AppText variant="caption" tone="muted">
                       {getEffectDescription(effect.id)}
@@ -214,23 +350,33 @@ const styles = StyleSheet.create({
   },
 
   sheet: {
-    maxHeight: "78%",
+    maxHeight: "84%",
+    overflow: "hidden",
     borderTopWidth: 1,
-    borderTopLeftRadius: Radius.large,
-    borderTopRightRadius: Radius.large,
+    borderTopLeftRadius: Radius.xLarge,
+    borderTopRightRadius: Radius.xLarge,
     paddingHorizontal: Spacing.four,
     paddingBottom: Spacing.five,
+    gap: Spacing.three,
+  },
+
+  topHighlight: {
+    position: "absolute",
+    top: 0,
+    left: 28,
+    right: 28,
+    height: 1,
   },
 
   handleWrap: {
     alignItems: "center",
-    paddingVertical: Spacing.three,
+    paddingTop: Spacing.two,
   },
 
   handle: {
     width: 42,
     height: 4,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
   },
 
   header: {
@@ -238,11 +384,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     gap: Spacing.three,
-    marginBottom: Spacing.four,
   },
 
   headerCopy: {
     flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
@@ -258,27 +404,44 @@ const styles = StyleSheet.create({
 
   titleCopy: {
     flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+
+  notice: {
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.two,
+  },
+
+  noticeCopy: {
+    flex: 1,
+    minWidth: 0,
     gap: 3,
   },
 
   options: {
     gap: Spacing.two,
+    paddingBottom: Spacing.two,
   },
 
   option: {
-    minHeight: 76,
+    minHeight: 78,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
     padding: Spacing.two,
     borderWidth: 1,
-    borderRadius: Radius.medium,
+    borderRadius: Radius.large,
   },
 
   preview: {
-    width: 58,
-    height: 58,
-    borderRadius: Radius.small,
+    width: 60,
+    height: 60,
+    borderRadius: Radius.medium,
     overflow: "hidden",
     alignItems: "center",
     justifyContent: "center",
@@ -289,16 +452,35 @@ const styles = StyleSheet.create({
     height: "100%",
   },
 
+  selectedOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   optionCopy: {
     flex: 1,
-    gap: 3,
+    minWidth: 0,
+    gap: 4,
+  },
+
+  optionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.one,
+  },
+
+  activePill: {
+    borderRadius: Radius.pill,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
   },
 
   check: {
     width: 24,
     height: 24,
     borderWidth: 1,
-    borderRadius: 999,
+    borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
   ACCESS_TOKEN: "telefya_access_token",
   USER: "telefya_user",
   REGISTERED_PROFILES: "telefya_registered_profiles",
+  SESSION_BACKGROUND_AT: "telefya_session_background_at",
 } as const;
 
 export const authStorage = {
@@ -105,6 +106,9 @@ function clearExpiredSession() {
   sessionClearPromise = (async () => {
     await authStorage.deleteItem(STORAGE_KEYS.ACCESS_TOKEN);
     await authStorage.deleteItem(STORAGE_KEYS.USER);
+    await authStorage.deleteItem(
+      STORAGE_KEYS.SESSION_BACKGROUND_AT,
+    );
     authEventEmitter.emit("logout");
   })().finally(() => {
     sessionClearPromise = null;

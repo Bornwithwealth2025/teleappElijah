@@ -5,6 +5,7 @@ import {
   View,
 } from "react-native";
 import {
+  CircleAlert,
   CircleStop,
   Radio,
   Video,
@@ -19,7 +20,7 @@ import useMeetingStore from "@/store/meetingStore";
 import useRecordingStore from "@/store/recordingStore";
 
 export function RecordingControls() {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
   const roomId = useMeetingStore((state) => state.roomId);
   const isHost = useMeetingStore((state) => state.isHost);
@@ -54,7 +55,7 @@ export function RecordingControls() {
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
-          toValue: 1.16,
+          toValue: 1.18,
           duration: 720,
           useNativeDriver: true,
         }),
@@ -68,9 +69,7 @@ export function RecordingControls() {
 
     animation.start();
 
-    return () => {
-      animation.stop();
-    };
+    return () => animation.stop();
   }, [isRecording, pulse]);
 
   if (!isHost || !roomId) {
@@ -78,20 +77,34 @@ export function RecordingControls() {
   }
 
   const description = isRecording
-    ? "This meeting is being recorded. Participants can see the recording indicator."
+    ? "Recording is live and visible to all participants."
     : isProcessing
-      ? "Your previous recording is being prepared and saved."
-      : "Start a recording for this meeting. It will appear in your library when ready.";
+      ? "Your last recording is being prepared for the library."
+      : "Capture this meeting for replay, download, and sharing.";
+
+  const actionTitle = isRecording
+    ? isStopping
+      ? "Stopping recording..."
+      : "Stop recording"
+    : isStarting
+      ? "Starting recording..."
+      : isProcessing
+        ? "Recording processing..."
+        : "Start recording";
 
   return (
     <View
       style={[
-        styles.card,
+        styles.container,
         {
-          backgroundColor: colors.card,
+          backgroundColor: isDark
+            ? "rgba(255,255,255,0.055)"
+            : colors.surface,
           borderColor: isRecording
-            ? `${colors.danger}45`
-            : colors.glassBorder,
+            ? `${colors.danger}52`
+            : isDark
+              ? "rgba(255,255,255,0.12)"
+              : colors.border,
         },
       ]}
     >
@@ -101,8 +114,11 @@ export function RecordingControls() {
             styles.iconShell,
             {
               backgroundColor: isRecording
-                ? `${colors.danger}16`
+                ? `${colors.danger}18`
                 : colors.primarySoft,
+              borderColor: isRecording
+                ? `${colors.danger}30`
+                : `${colors.primary}24`,
             },
           ]}
         >
@@ -117,7 +133,7 @@ export function RecordingControls() {
               ]}
             />
           ) : (
-            <Video color={colors.primary} size={19} />
+            <Video color={colors.primary} size={18} />
           )}
         </View>
 
@@ -136,30 +152,27 @@ export function RecordingControls() {
         </View>
       </View>
 
-      {isRecording ? (
-        <AppButton
-          title={isStopping ? "Stopping recording..." : "Stop recording"}
-          variant="danger"
-          loading={isStopping}
-          disabled={isStopping}
-          leftIcon={<CircleStop color="#FFFFFF" size={18} />}
-          onPress={() => void stopRecording(roomId)}
-        />
-      ) : (
-        <AppButton
-          title={
-            isStarting
-              ? "Starting recording..."
-              : isProcessing
-                ? "Recording processing..."
-                : "Start recording"
+      <AppButton
+        title={actionTitle}
+        variant={isRecording ? "danger" : "primary"}
+        loading={isStarting || isStopping}
+        disabled={isStarting || isStopping || isProcessing}
+        leftIcon={
+          isRecording ? (
+            <CircleStop color="#FFFFFF" size={18} />
+          ) : (
+            <Radio color="#FFFFFF" size={18} />
+          )
+        }
+        onPress={() => {
+          if (isRecording) {
+            void stopRecording(roomId);
+            return;
           }
-          loading={isStarting}
-          disabled={isStarting || isProcessing}
-          leftIcon={<Radio color="#FFFFFF" size={18} />}
-          onPress={() => void startRecording(roomId)}
-        />
-      )}
+
+          void startRecording(roomId);
+        }}
+      />
 
       {error ? (
         <View
@@ -171,9 +184,14 @@ export function RecordingControls() {
             },
           ]}
         >
+          <CircleAlert color={colors.danger} size={16} />
+
           <AppText
             variant="caption"
-            style={{ color: colors.danger, fontWeight: "700" }}
+            style={[
+              styles.errorText,
+              { color: colors.danger },
+            ]}
           >
             {error}
           </AppText>
@@ -184,30 +202,31 @@ export function RecordingControls() {
 }
 
 const styles = StyleSheet.create({
-  card: {
+  container: {
     borderWidth: 1,
-    borderRadius: Radius.xLarge,
-    padding: Spacing.four,
+    borderRadius: Radius.large,
+    padding: Spacing.three,
     gap: Spacing.three,
   },
 
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
 
   iconShell: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.large,
+    width: 42,
+    height: 42,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
 
   recordingDot: {
-    width: 13,
-    height: 13,
+    width: 12,
+    height: 12,
     borderRadius: Radius.pill,
   },
 
@@ -227,6 +246,15 @@ const styles = StyleSheet.create({
   errorNotice: {
     borderWidth: 1,
     borderRadius: Radius.medium,
-    padding: Spacing.three,
+    padding: Spacing.two,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.two,
+  },
+
+  errorText: {
+    flex: 1,
+    lineHeight: 18,
+    fontWeight: "700",
   },
 });

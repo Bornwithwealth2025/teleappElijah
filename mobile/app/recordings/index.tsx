@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { router } from "expo-router";
 import {
   CalendarDays,
@@ -6,12 +6,17 @@ import {
   Clock3,
   Film,
   Play,
+  RefreshCw,
+  Search,
+  X,
 } from "lucide-react-native";
 import {
   Animated,
+  Image,
   Pressable,
   RefreshControl,
   StyleSheet,
+  TextInput,
   View,
 } from "react-native";
 
@@ -19,13 +24,14 @@ import RecordingService, {
   type Recording,
 } from "@/api/recording.service";
 import { RecordingStatusBadge } from "@/components/meeting/RecordingStatusBadge";
-import { AppButton } from "@/components/ui/AppButton";
-import { AppCard } from "@/components/ui/AppCard";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
+import { IconButton } from "@/components/ui/IconButton";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
+
+type Filter = "all" | "ready" | "processing";
 
 function formatDate(value?: string) {
   if (!value) {
@@ -56,12 +62,29 @@ function formatDuration(seconds?: number) {
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
+function getRecordingTitle(recording: Recording) {
+  return (
+    recording.title ||
+    recording.fileName ||
+    "Telefya meeting recording"
+  );
+}
+
+function isProcessing(recording: Recording) {
+  return (
+    recording.status === "recording" ||
+    recording.status === "processing"
+  );
+}
+
 export default function RecordingsScreen() {
   const { colors } = useAppTheme();
 
-  const [recordings, setRecordings] = React.useState<Recording[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
+  const [recordings, setRecordings] = useState<Recording[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
 
   const entrance = useRef(new Animated.Value(0)).current;
 
@@ -79,7 +102,7 @@ export default function RecordingsScreen() {
       Animated.spring(entrance, {
         toValue: 1,
         speed: 18,
-        bounciness: 5,
+        bounciness: 4,
         useNativeDriver: true,
       }).start();
     } catch (loadError) {
@@ -98,8 +121,36 @@ export default function RecordingsScreen() {
     void loadRecordings();
   }, [loadRecordings]);
 
+  const visibleRecordings = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+
+    return recordings.filter((recording) => {
+      const title = getRecordingTitle(recording).toLowerCase();
+      const matchesQuery =
+        !normalizedQuery ||
+        title.includes(normalizedQuery) ||
+        String(recording.roomId ?? "")
+          .toLowerCase()
+          .includes(normalizedQuery);
+
+      const matchesFilter =
+        filter === "all"
+          ? true
+          : filter === "ready"
+            ? recording.status === "ready"
+            : isProcessing(recording);
+
+      return matchesQuery && matchesFilter;
+    });
+  }, [filter, query, recordings]);
+
+  const readyCount = recordings.filter(
+    (recording) => recording.status === "ready",
+  ).length;
+
   return (
     <AppScreen
+      tone="aurora"
       contentStyle={styles.content}
       refreshControl={
         <RefreshControl
@@ -110,30 +161,126 @@ export default function RecordingsScreen() {
         />
       }
     >
-      <AppHeader title="Recordings" />
+      <AppHeader
+        eyebrow="MEETING LIBRARY"
+        title="Recordings"
+        subtitle="Review meeting outcomes, share sessions, and keep your team aligned."
+        size="page"
+        rightSlot={
+          <IconButton
+            icon={<RefreshCw color={colors.primary} size={19} />}
+            variant="soft"
+            accessibilityLabel="Refresh recordings"
+            onPress={() => void loadRecordings()}
+          />
+        }
+      />
 
-      <View style={styles.hero}>
+      <View
+        style={[
+          styles.librarySummary,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
         <View
           style={[
-            styles.heroIcon,
-            {
-              backgroundColor: colors.primarySoft,
-              borderColor: `${colors.primary}28`,
-            },
+            styles.summaryIcon,
+            { backgroundColor: colors.primarySoft },
           ]}
         >
-          <Film color={colors.primary} size={22} />
+          <Film color={colors.primary} size={23} />
         </View>
 
-        <View style={styles.heroCopy}>
+        <View style={styles.summaryCopy}>
           <AppText variant="bodyStrong">
-            Your meeting library
+            {recordings.length
+              ? `${recordings.length} recording${recordings.length === 1 ? "" : "s"} in your library`
+              : "Your meeting library"}
           </AppText>
 
           <AppText variant="caption" tone="muted">
-            Replay, download, and share recordings from your meetings.
+            {readyCount
+              ? `${readyCount} ready to replay, download, or share.`
+              : "Finished meetings will appear here once processing is complete."}
           </AppText>
         </View>
+      </View>
+
+      <View
+        style={[
+          styles.searchField,
+          {
+            backgroundColor: colors.card,
+            borderColor: colors.border,
+          },
+        ]}
+      >
+        <Search color={colors.textSoft} size={19} />
+
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search recordings or room IDs"
+          placeholderTextColor={colors.textSoft}
+          accessibilityLabel="Search recordings"
+          style={[styles.searchInput, { color: colors.text }]}
+        />
+
+        {query ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Clear recording search"
+            hitSlop={10}
+            onPress={() => setQuery("")}
+          >
+            <X color={colors.textSoft} size={18} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      <View style={styles.filters}>
+        {(
+          [
+            ["all", "All"],
+            ["ready", "Ready"],
+            ["processing", "Processing"],
+          ] as const
+        ).map(([value, label]) => {
+          const active = filter === value;
+
+          return (
+            <Pressable
+              key={value}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              onPress={() => setFilter(value)}
+              style={[
+                styles.filter,
+                {
+                  backgroundColor: active
+                    ? colors.primary
+                    : colors.card,
+                  borderColor: active
+                    ? colors.primary
+                    : colors.border,
+                },
+              ]}
+            >
+              <AppText
+                variant="caption"
+                style={{
+                  color: active ? "#FFFFFF" : colors.textMuted,
+                  fontWeight: "800",
+                }}
+              >
+                {label}
+              </AppText>
+            </Pressable>
+          );
+        })}
       </View>
 
       {error ? (
@@ -148,33 +295,38 @@ export default function RecordingsScreen() {
         >
           <AppText
             variant="caption"
-            style={[styles.errorText, { color: colors.danger }]}
+            style={{ color: colors.danger, fontWeight: "700" }}
           >
             {error}
           </AppText>
 
-          <AppButton
-            title="Try again"
-            variant="secondary"
-            size="md"
+          <Pressable
+            accessibilityRole="button"
             onPress={() => void loadRecordings()}
-          />
+          >
+            <AppText
+              variant="caption"
+              style={{ color: colors.primary, fontWeight: "800" }}
+            >
+              Try again
+            </AppText>
+          </Pressable>
         </View>
       ) : null}
 
       {isLoading && recordings.length === 0 ? (
         <View
           style={[
-            styles.loadingCard,
+            styles.stateCard,
             {
               backgroundColor: colors.card,
-              borderColor: colors.glassBorder,
+              borderColor: colors.border,
             },
           ]}
         >
           <View
             style={[
-              styles.loadingIcon,
+              styles.stateIcon,
               { backgroundColor: colors.primarySoft },
             ]}
           >
@@ -184,44 +336,29 @@ export default function RecordingsScreen() {
           <AppText variant="bodyStrong">Loading recordings</AppText>
 
           <AppText variant="caption" tone="muted">
-            Fetching your saved meetings.
+            Fetching your saved meeting sessions.
           </AppText>
         </View>
       ) : null}
 
       {!isLoading && !error && recordings.length === 0 ? (
-        <View
-          style={[
-            styles.emptyCard,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.glassBorder,
-            },
-          ]}
-        >
-          <View
-            style={[
-              styles.emptyIcon,
-              { backgroundColor: colors.primarySoft },
-            ]}
-          >
-            <Film color={colors.primary} size={28} />
-          </View>
-
-          <AppText variant="subtitle">No recordings yet</AppText>
-
-          <AppText
-            variant="caption"
-            tone="muted"
-            style={styles.emptyDescription}
-          >
-            Record a meeting as host and it will appear here when processing
-            finishes.
-          </AppText>
-        </View>
+        <EmptyState
+          title="No recordings yet"
+          description="When a hosted meeting finishes recording and processing, it will appear here."
+        />
       ) : null}
 
-      {recordings.length > 0 ? (
+      {!isLoading &&
+      !error &&
+      recordings.length > 0 &&
+      visibleRecordings.length === 0 ? (
+        <EmptyState
+          title="No matching recordings"
+          description="Try another search term or change the recording filter."
+        />
+      ) : null}
+
+      {visibleRecordings.length > 0 ? (
         <Animated.View
           style={[
             styles.list,
@@ -238,50 +375,33 @@ export default function RecordingsScreen() {
             },
           ]}
         >
-          <View style={styles.listHeader}>
+          <View style={styles.listTitleRow}>
             <AppText variant="sectionTitle">
-              All recordings
+              {filter === "all" ? "All recordings" : `${filter === "ready" ? "Ready" : "Processing"} recordings`}
             </AppText>
 
-            <View
-              style={[
-                styles.countBadge,
-                {
-                  backgroundColor: colors.secondarySoft,
-                  borderColor: `${colors.secondary}26`,
-                },
-              ]}
-            >
-              <AppText
-                variant="label"
-                style={{ color: colors.secondary }}
-              >
-                {recordings.length}
-              </AppText>
-            </View>
+            <AppText variant="caption" tone="muted">
+              {visibleRecordings.length}
+            </AppText>
           </View>
 
-          {recordings.map((recording) => {
-            const title =
-              recording.title ||
-              recording.fileName ||
-              "Telefya meeting recording";
-
-            const isReady = recording.status === "ready";
+          {visibleRecordings.map((recording) => {
+            const title = getRecordingTitle(recording);
+            const ready = recording.status === "ready";
 
             return (
               <Pressable
                 key={recording.recordingId}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${title}`}
                 onPress={() =>
                   router.push(
                     `/recordings/${recording.recordingId}` as any,
                   )
                 }
-                accessibilityRole="button"
-                accessibilityLabel={`Open ${title}`}
                 style={({ pressed }) => [
                   styles.pressable,
-                  { opacity: pressed ? 0.78 : 1 },
+                  { opacity: pressed ? 0.8 : 1 },
                 ]}
               >
                 <View
@@ -289,31 +409,43 @@ export default function RecordingsScreen() {
                     styles.recordingCard,
                     {
                       backgroundColor: colors.card,
-                      borderColor: colors.glassBorder,
+                      borderColor: colors.border,
                     },
                   ]}
                 >
                   <View
                     style={[
                       styles.thumbnail,
-                      { backgroundColor: colors.primarySoft },
+                      { backgroundColor: colors.surfaceStrong },
                     ]}
                   >
-                    <Film color={colors.primary} size={25} />
+                    {recording.thumbnailUrl ? (
+                      <Image
+                        source={{ uri: recording.thumbnailUrl }}
+                        style={StyleSheet.absoluteFill}
+                        resizeMode="cover"
+                      />
+                    ) : (
+                      <Film color={colors.primary} size={25} />
+                    )}
 
-                    {isReady ? (
+                    {ready ? (
                       <View
                         style={[
                           styles.playBadge,
                           { backgroundColor: colors.primary },
                         ]}
                       >
-                        <Play color="#FFFFFF" size={11} fill="#FFFFFF" />
+                        <Play
+                          color="#FFFFFF"
+                          size={11}
+                          fill="#FFFFFF"
+                        />
                       </View>
                     ) : null}
                   </View>
 
-                  <View style={styles.copy}>
+                  <View style={styles.recordingCopy}>
                     <View style={styles.titleRow}>
                       <AppText
                         variant="bodyStrong"
@@ -327,7 +459,10 @@ export default function RecordingsScreen() {
                     </View>
 
                     <View style={styles.meta}>
-                      <CalendarDays color={colors.textSoft} size={14} />
+                      <CalendarDays
+                        color={colors.textSoft}
+                        size={14}
+                      />
 
                       <AppText
                         variant="caption"
@@ -360,127 +495,170 @@ export default function RecordingsScreen() {
   );
 }
 
+function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  const { colors } = useAppTheme();
+
+  return (
+    <View
+      style={[
+        styles.stateCard,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.border,
+        },
+      ]}
+    >
+      <View
+        style={[
+          styles.stateIcon,
+          { backgroundColor: colors.primarySoft },
+        ]}
+      >
+        <Film color={colors.primary} size={25} />
+      </View>
+
+      <AppText variant="sectionTitle">{title}</AppText>
+
+      <AppText
+        variant="caption"
+        tone="muted"
+        style={styles.stateDescription}
+      >
+        {description}
+      </AppText>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.four,
+    paddingBottom: Spacing.five,
   },
-
-  hero: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.three,
-  },
-
-  heroIcon: {
-    width: 48,
-    height: 48,
+  librarySummary: {
+    minHeight: 84,
     borderWidth: 1,
     borderRadius: Radius.large,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  heroCopy: {
-    flex: 1,
-    minWidth: 0,
-    gap: 3,
-  },
-
-  list: {
-    gap: Spacing.three,
-  },
-
-  listHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  countBadge: {
-    minWidth: 32,
-    height: 30,
-    borderWidth: 1,
-    borderRadius: Radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 9,
-  },
-
-  pressable: {
-    borderRadius: Radius.xLarge,
-  },
-
-  recordingCard: {
-    minHeight: 102,
-    borderWidth: 1,
-    borderRadius: Radius.xLarge,
     padding: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
-
-  thumbnail: {
-    width: 62,
-    height: 62,
-    borderRadius: Radius.large,
+  summaryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
-
+  summaryCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  searchField: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 15,
+    paddingVertical: 0,
+  },
+  filters: {
+    flexDirection: "row",
+    gap: Spacing.two,
+  },
+  filter: {
+    minHeight: 34,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    paddingHorizontal: Spacing.three,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorCard: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.two,
+  },
+  list: {
+    gap: Spacing.two,
+  },
+  listTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: Spacing.one,
+    marginBottom: Spacing.one,
+  },
+  pressable: {
+    borderRadius: Radius.large,
+  },
+  recordingCard: {
+    minHeight: 104,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+  thumbnail: {
+    width: 62,
+    height: 62,
+    overflow: "hidden",
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   playBadge: {
     position: "absolute",
-    right: -3,
-    bottom: -3,
-    width: 23,
-    height: 23,
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
     borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  copy: {
+  recordingCopy: {
     flex: 1,
     minWidth: 0,
     gap: 4,
   },
-
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.one,
   },
-
   title: {
     flex: 1,
     minWidth: 0,
   },
-
   meta: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
   },
-
-  loadingCard: {
-    minHeight: 180,
-    borderWidth: 1,
-    borderRadius: Radius.xLarge,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.two,
-  },
-
-  loadingIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: Radius.large,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  emptyCard: {
-    minHeight: 240,
+  stateCard: {
+    minHeight: 225,
     borderWidth: 1,
     borderRadius: Radius.xLarge,
     alignItems: "center",
@@ -488,29 +666,16 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingHorizontal: Spacing.five,
   },
-
-  emptyIcon: {
-    width: 66,
-    height: 66,
-    borderRadius: Radius.xLarge,
+  stateIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: Radius.large,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: Spacing.one,
   },
-
-  emptyDescription: {
+  stateDescription: {
+    maxWidth: 290,
     textAlign: "center",
-  },
-
-  errorCard: {
-    borderWidth: 1,
-    borderRadius: Radius.large,
-    padding: Spacing.three,
-    gap: Spacing.three,
-  },
-
-  errorText: {
-    textAlign: "center",
-    fontWeight: "700",
+    lineHeight: 20,
   },
 });

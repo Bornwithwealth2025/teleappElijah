@@ -9,15 +9,14 @@ import {
   Bell,
   CalendarClock,
   Mail,
-  ShieldCheck,
+  Radio,
 } from "lucide-react-native";
 
-import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
-import { Spacing } from "@/constants/theme";
+import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useAuthStore from "@/store/authStore";
 import usePreferencesStore from "@/store/preferencesStore";
@@ -39,13 +38,10 @@ export default function NotificationPreferencesScreen() {
   const { colors } = useAppTheme();
 
   const user = useAuthStore((state) => state.user);
-
   const preferences = usePreferencesStore(
     (state) => state.notifications,
   );
-  const initialize = usePreferencesStore(
-    (state) => state.initialize,
-  );
+  const initialize = usePreferencesStore((state) => state.initialize);
   const updateNotificationPreferences = usePreferencesStore(
     (state) => state.updateNotificationPreferences,
   );
@@ -60,50 +56,26 @@ export default function NotificationPreferencesScreen() {
     {
       key: "reminders",
       title: "Meeting reminders",
-      description:
-        "Get notified before scheduled meetings start.",
-      icon: (
-        <CalendarClock
-          color={colors.primary}
-          size={20}
-        />
-      ),
+      description: "Receive reminders before scheduled meetings start.",
+      icon: <CalendarClock color={colors.primary} size={20} />,
     },
     {
       key: "invitations",
-      title: "Room invitations",
-      description:
-        "Receive alerts when someone shares a room with you.",
-      icon: (
-        <Mail
-          color={colors.primary}
-          size={20}
-        />
-      ),
+      title: "Meeting invitations",
+      description: "Know when a Telefya room is shared with you.",
+      icon: <Mail color={colors.secondary} size={20} />,
     },
     {
       key: "waitingRoom",
       title: "Waiting room requests",
-      description:
-        "Get alerted when a participant is waiting for approval.",
-      icon: (
-        <Bell
-          color={colors.primary}
-          size={20}
-        />
-      ),
+      description: "Hosts are alerted when someone requests to join.",
+      icon: <Bell color={colors.success} size={20} />,
     },
     {
       key: "recordings",
       title: "Recording ready",
-      description:
-        "Get notified when a meeting recording is ready.",
-      icon: (
-        <Mail
-          color={colors.primary}
-          size={20}
-        />
-      ),
+      description: "Get an alert when your recording is available.",
+      icon: <Radio color={colors.primary} size={20} />,
     },
   ];
 
@@ -113,103 +85,134 @@ export default function NotificationPreferencesScreen() {
     });
   }
 
-function handleSave() {
-  Alert.alert(
-    "Preferences saved",
-    "Your notification choices now apply across your signed-in devices.",
-  );
-}
+  function showSavedMessage() {
+    Alert.alert(
+      "Preferences updated",
+      "Your notification preferences have been saved on this device.",
+    );
+  }
+
+  const enabledCount = options.filter(
+    (option) => preferences[option.key],
+  ).length;
 
   return (
-    <AppScreen contentStyle={styles.content}>
+    <AppScreen tone="aurora" contentStyle={styles.content}>
       <AppHeader
-        eyebrow="SETTINGS"
+        eyebrow="MEETING ALERTS"
         title="Notifications"
-        subtitle="Choose how Telefya keeps you informed."
+        subtitle="Control the moments Telefya should bring to your attention."
+        size="page"
       />
 
-      <AppCard
-        variant="tinted"
-        style={styles.introCard}
-      >
+      <AppCard elevated style={styles.summaryCard}>
         <View
           style={[
-            styles.introIcon,
-            { backgroundColor: colors.primary },
+            styles.summaryIcon,
+            { backgroundColor: colors.primarySoft },
           ]}
         >
-          <ShieldCheck color="#FFFFFF" size={21} />
+          <Bell color={colors.primary} size={23} />
         </View>
 
-        <View style={styles.copy}>
+        <View style={styles.summaryCopy}>
           <AppText variant="bodyStrong">
-            Stay informed, not interrupted
+            {enabledCount} of {options.length} alerts enabled
           </AppText>
 
           <AppText variant="caption" tone="muted">
-            Choose the alerts that matter to your day.
+            Changes are saved immediately when you switch an alert on or off.
           </AppText>
         </View>
       </AppCard>
 
-      <View style={styles.list}>
-        {options.map((option) => {
-          const enabled = preferences[option.key];
+      <View style={styles.section}>
+        <AppText variant="overline" tone="muted">
+          ALERT TYPES
+        </AppText>
 
-          return (
-            <AppCard
-              key={option.key}
-              variant="soft"
-              style={styles.optionCard}
-            >
+        <View style={styles.optionList}>
+          {options.map((option) => {
+            const enabled = preferences[option.key];
+
+            return (
               <View
+                key={option.key}
                 style={[
-                  styles.optionIcon,
+                  styles.option,
                   {
-                    backgroundColor: enabled
-                      ? colors.primarySoft
-                      : colors.surfaceStrong,
+                    backgroundColor: colors.card,
+                    borderColor: enabled
+                      ? `${colors.primary}38`
+                      : colors.border,
                   },
                 ]}
               >
-                {option.icon}
+                <View
+                  style={[
+                    styles.optionIcon,
+                    {
+                      backgroundColor: enabled
+                        ? colors.primarySoft
+                        : colors.surfaceStrong,
+                    },
+                  ]}
+                >
+                  {option.icon}
+                </View>
+
+                <View style={styles.optionCopy}>
+                  <AppText variant="bodyStrong">
+                    {option.title}
+                  </AppText>
+
+                  <AppText variant="caption" tone="muted">
+                    {option.description}
+                  </AppText>
+                </View>
+
+                <Switch
+                  value={enabled}
+                  onValueChange={() => togglePreference(option.key)}
+                  trackColor={{
+                    false: colors.borderStrong,
+                    true: colors.primary,
+                  }}
+                  thumbColor="#FFFFFF"
+                  accessibilityLabel={`Toggle ${option.title}`}
+                />
               </View>
-
-              <View style={styles.copy}>
-                <AppText variant="bodyStrong">
-                  {option.title}
-                </AppText>
-
-                <AppText variant="caption" tone="muted">
-                  {option.description}
-                </AppText>
-              </View>
-
-              <Switch
-                value={enabled}
-                onValueChange={() =>
-                  togglePreference(option.key)
-                }
-                trackColor={{
-                  false: colors.border,
-                  true: colors.primarySoft,
-                }}
-                thumbColor={
-                  enabled
-                    ? colors.primary
-                    : colors.textSoft
-                }
-              />
-            </AppCard>
-          );
-        })}
+            );
+          })}
+        </View>
       </View>
 
-      <AppButton
-        title="Save preferences"
-        onPress={handleSave}
-        containerStyle={styles.saveButton}
-      />
+      <View
+        style={[
+          styles.infoNotice,
+          {
+            backgroundColor: colors.secondarySoft,
+            borderColor: `${colors.secondary}25`,
+          },
+        ]}
+      >
+        <Radio color={colors.secondary} size={19} />
+
+        <AppText
+          variant="caption"
+          style={{ color: colors.textMuted, flex: 1 }}
+        >
+          To receive alerts, allow notifications for Telefya in your device settings.
+        </AppText>
+      </View>
+
+      <AppText
+        variant="caption"
+        style={[styles.savedText, { color: colors.primary }]}
+        onPress={showSavedMessage}
+      >
+        Your notification preferences are saved automatically.
+      </AppText>
     </AppScreen>
   );
 }
@@ -217,48 +220,62 @@ function handleSave() {
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.five,
+    paddingBottom: Spacing.five,
   },
-
-  introCard: {
+  summaryCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
-
-  introIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
+  summaryIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.large,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  list: {
-    gap: Spacing.three,
+  summaryCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
   },
-
-  optionCard: {
-    minHeight: 86,
+  section: {
+    gap: Spacing.two,
+  },
+  optionList: {
+    gap: Spacing.two,
+  },
+  option: {
+    minHeight: 84,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    padding: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
-
   optionIcon: {
     width: 42,
     height: 42,
-    borderRadius: 14,
+    borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  copy: {
+  optionCopy: {
     flex: 1,
     minWidth: 0,
-    gap: Spacing.one,
+    gap: 3,
   },
-
-  saveButton: {
-    marginTop: Spacing.two,
+  infoNotice: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+  savedText: {
+    textAlign: "center",
+    fontWeight: "800",
   },
 });

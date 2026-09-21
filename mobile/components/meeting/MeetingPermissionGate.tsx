@@ -4,12 +4,18 @@ import React, {
   type ReactNode,
 } from "react";
 import {
+  Alert,
   Animated,
+  Linking,
+  Platform,
   StyleSheet,
   View,
 } from "react-native";
+import Constants from "expo-constants";
 import {
   Camera,
+  CircleAlert,
+  LockKeyhole,
   Mic,
   ShieldAlert,
 } from "lucide-react-native";
@@ -41,26 +47,35 @@ export function MeetingPermissionGate({
   } = useMeetingPermissions();
 
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(12)).current;
+  const translateY = useRef(new Animated.Value(16)).current;
+
+  // WebRTC camera/video requires Telefya's custom development build.
+  // It cannot run inside the standard Expo Go client.
+  const isExpoGo = Constants.appOwnership === "expo";
 
   useEffect(() => {
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 360,
+        duration: 260,
         useNativeDriver: true,
       }),
       Animated.spring(translateY, {
         toValue: 0,
-        speed: 18,
-        bounciness: 5,
+        damping: 18,
+        stiffness: 210,
+        mass: 0.85,
         useNativeDriver: true,
       }),
     ]).start();
   }, [opacity, translateY]);
 
   useEffect(() => {
-    if (!autoRequest || status !== "idle") {
+    if (
+      isExpoGo ||
+      !autoRequest ||
+      status !== "idle"
+    ) {
       return;
     }
 
@@ -71,24 +86,77 @@ export function MeetingPermissionGate({
     });
   }, [
     autoRequest,
+    isExpoGo,
     onGranted,
     requestPermissions,
     status,
   ]);
 
-  if (granted) {
+  if (granted && !isExpoGo) {
     return <>{children}</>;
   }
 
   const checking = status === "checking";
   const denied = status === "denied";
 
-  async function handleRequest() {
+  async function handleAllowPermissions() {
     const success = await requestPermissions();
 
     if (success) {
       onGranted?.();
     }
+  }
+
+  function openAndroidSettings() {
+    void Linking.openSettings().catch(() => {
+      Alert.alert(
+        "Unable to open Settings",
+        "Open Android Settings, select Apps, choose Telefya, then allow Camera and Microphone.",
+      );
+    });
+  }
+
+  function explainDevelopmentBuild() {
+    Alert.alert(
+      "Open Telefya development build",
+      "Live meeting video uses native WebRTC. Close Expo Go and open the installed Telefya development build created with npx expo run:android.",
+    );
+  }
+
+  const title = isExpoGo
+    ? "Open the Telefya development build"
+    : denied
+      ? "Camera and microphone are blocked"
+      : "Prepare your meeting";
+
+  const description = isExpoGo
+    ? "Expo Go cannot load Telefya’s native WebRTC meeting camera. Use the installed Telefya development build to test video meetings."
+    : denied
+      ? Platform.OS === "android"
+        ? "Camera and microphone access was denied. Enable both permissions in Android Settings, then return here and continue."
+        : "Camera and microphone access was denied. Enable both permissions in Settings, then return here and continue."
+      : "Telefya needs your camera and microphone before you can preview or join a live meeting.";
+
+  const buttonTitle = isExpoGo
+    ? "Why do I need the Telefya build?"
+    : checking
+      ? "Checking permissions..."
+      : denied
+        ? "Open device settings"
+        : "Allow camera and microphone";
+
+  function handlePrimaryAction() {
+    if (isExpoGo) {
+      explainDevelopmentBuild();
+      return;
+    }
+
+    if (denied) {
+      openAndroidSettings();
+      return;
+    }
+
+    void handleAllowPermissions();
   }
 
   return (
@@ -106,30 +174,29 @@ export function MeetingPermissionGate({
           style={[
             styles.icon,
             {
-              backgroundColor: denied
-                ? `${colors.danger}18`
-                : colors.primarySoft,
+              backgroundColor: isExpoGo
+                ? colors.secondarySoft
+                : denied
+                  ? `${colors.danger}18`
+                  : colors.primarySoft,
             },
           ]}
         >
-          {denied ? (
-            <ShieldAlert
-              color={colors.danger}
-              size={26}
-            />
+          {isExpoGo ? (
+            <LockKeyhole color={colors.secondary} size={27} />
+          ) : denied ? (
+            <ShieldAlert color={colors.danger} size={27} />
           ) : (
             <View style={styles.iconRow}>
-              <Camera color={colors.primary} size={21} />
-              <Mic color={colors.primary} size={21} />
+              <Camera color={colors.primary} size={22} />
+              <Mic color={colors.primary} size={22} />
             </View>
           )}
         </View>
 
         <View style={styles.copy}>
-          <AppText variant="sectionTitle">
-            {denied
-              ? "Permission required"
-              : "Prepare your meeting"}
+          <AppText variant="sectionTitle" style={styles.title}>
+            {title}
           </AppText>
 
           <AppText
@@ -137,11 +204,35 @@ export function MeetingPermissionGate({
             tone="muted"
             style={styles.description}
           >
-            {denied
-              ? "Camera and microphone access is disabled. Enable both permissions in your Android settings to join."
-              : "Telefya needs access to your camera and microphone before you join a live meeting."}
+            {description}
           </AppText>
         </View>
+
+        {!isExpoGo ? (
+          <View
+            style={[
+              styles.requirements,
+              {
+                backgroundColor: colors.surfaceStrong,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.requirementRow}>
+              <Camera color={colors.primary} size={16} />
+              <AppText variant="caption" style={styles.requirementText}>
+                Camera for your video preview
+              </AppText>
+            </View>
+
+            <View style={styles.requirementRow}>
+              <Mic color={colors.primary} size={16} />
+              <AppText variant="caption" style={styles.requirementText}>
+                Microphone for meeting audio
+              </AppText>
+            </View>
+          </View>
+        ) : null}
 
         {error ? (
           <View
@@ -149,13 +240,15 @@ export function MeetingPermissionGate({
               styles.errorBox,
               {
                 backgroundColor: `${colors.danger}12`,
-                borderColor: `${colors.danger}35`,
+                borderColor: `${colors.danger}38`,
               },
             ]}
           >
+            <CircleAlert color={colors.danger} size={17} />
+
             <AppText
               variant="caption"
-              style={{ color: colors.danger }}
+              style={[styles.errorText, { color: colors.danger }]}
             >
               {error}
             </AppText>
@@ -163,17 +256,21 @@ export function MeetingPermissionGate({
         ) : null}
 
         <AppButton
-          title={
-            checking
-              ? "Checking permissions..."
-              : denied
-                ? "Try again"
-                : "Allow camera and microphone"
-          }
+          title={buttonTitle}
           loading={checking}
           disabled={checking}
-          onPress={() => void handleRequest()}
+          onPress={handlePrimaryAction}
         />
+
+        {denied && !isExpoGo ? (
+          <AppText
+            variant="caption"
+            tone="muted"
+            style={styles.helpText}
+          >
+            After enabling permissions, return to Telefya and tap Try again.
+          </AppText>
+        ) : null}
       </AppCard>
     </Animated.View>
   );
@@ -187,18 +284,20 @@ const styles = StyleSheet.create({
   card: {
     gap: Spacing.four,
     alignItems: "center",
+    paddingVertical: Spacing.five,
   },
 
   icon: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
+    width: 68,
+    height: 68,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
   },
 
   iconRow: {
     flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.one,
   },
 
@@ -208,16 +307,53 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 
+  title: {
+    textAlign: "center",
+  },
+
   description: {
-    maxWidth: 320,
+    maxWidth: 330,
     textAlign: "center",
     lineHeight: 21,
   },
 
+  requirements: {
+    width: "100%",
+    gap: Spacing.two,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: Spacing.three,
+  },
+
+  requirementRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+
+  requirementText: {
+    flex: 1,
+    fontWeight: "700",
+  },
+
   errorBox: {
     width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.two,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: Spacing.three,
+  },
+
+  errorText: {
+    flex: 1,
+    lineHeight: 19,
+    fontWeight: "700",
+  },
+
+  helpText: {
+    marginTop: -Spacing.two,
+    textAlign: "center",
   },
 });

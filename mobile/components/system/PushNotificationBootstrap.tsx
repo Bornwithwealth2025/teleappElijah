@@ -10,7 +10,25 @@ import useAuthStore from "@/store/authStore";
 function getSafeNotificationRoute(
   notification: Notifications.Notification,
 ): Href | null {
-  const route = notification.request.content.data?.url;
+  const data = notification.request.content.data ?? {};
+  const type = data.type;
+  const roomId = data.roomId;
+
+  if (
+    type === "waiting_room_request" &&
+    typeof roomId === "string" &&
+    /^[a-zA-Z0-9_-]{3,120}$/.test(roomId)
+  ) {
+    return {
+      pathname: "/meeting/[meetingId]",
+      params: {
+        meetingId: roomId,
+        host: "true",
+      },
+    };
+  }
+
+  const route = data.url;
 
   if (
     typeof route !== "string" ||

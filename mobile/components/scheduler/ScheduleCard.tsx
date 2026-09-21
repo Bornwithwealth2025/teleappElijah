@@ -1,20 +1,21 @@
-import React, { useRef } from "react";
+import React from "react";
 import {
-  Animated,
+  CalendarDays,
+  Copy,
+  Play,
+  Share2,
+  UserPlus,
+  UsersRound,
+} from "lucide-react-native";
+import {
   Pressable,
   StyleSheet,
   View,
 } from "react-native";
-import {
-  CalendarDays,
-  Copy,
-  Trash2,
-  UsersRound,
-} from "lucide-react-native";
 
+import { AppButton } from "@/components/ui/AppButton";
 import { AppCard } from "@/components/ui/AppCard";
 import { AppText } from "@/components/ui/AppText";
-import { IconButton } from "@/components/ui/IconButton";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 
@@ -23,190 +24,224 @@ type ScheduleCardProps = {
   date: string;
   time: string;
   guests: number;
-  onPress?: () => void;
-  onCopy?: () => void;
+  status?: string;
+  onStart: () => void;
+  onCopy: () => void;
+  onShare: () => void;
+  onInvite: () => void;
   onDelete?: () => void;
 };
+
+function UtilityAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+}) {
+  const { colors } = useAppTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.utility,
+        {
+          backgroundColor: colors.surface,
+          borderColor: colors.border,
+          opacity: pressed ? 0.8 : 1,
+        },
+      ]}
+    >
+      {icon}
+      <AppText style={[styles.utilityText, { color: colors.text }]}>
+        {label}
+      </AppText>
+    </Pressable>
+  );
+}
 
 export function ScheduleCard({
   title,
   date,
   time,
   guests,
-  onPress,
+  status,
+  onStart,
   onCopy,
-  onDelete,
+  onShare,
+  onInvite,
 }: ScheduleCardProps) {
   const { colors } = useAppTheme();
-  const scale = useRef(new Animated.Value(1)).current;
-
   const safeGuests = Math.max(0, Number(guests) || 0);
-
-  function animatePressIn() {
-    Animated.spring(scale, {
-      toValue: 0.985,
-      useNativeDriver: true,
-      speed: 24,
-      bounciness: 4,
-    }).start();
-  }
-
-  function animatePressOut() {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      speed: 20,
-      bounciness: 7,
-    }).start();
-  }
-
-  const meetingInfo = (
-    <>
-      <View
-        style={[
-          styles.dateBlock,
-          {
-            backgroundColor: colors.primarySoft,
-            borderColor: `${colors.primary}25`,
-          },
-        ]}
-      >
-        <CalendarDays color={colors.primary} size={18} />
-
-        <AppText
-          variant="label"
-          numberOfLines={1}
-          style={{ color: colors.primary }}
-        >
-          {date}
-        </AppText>
-
-        <AppText
-          variant="caption"
-          numberOfLines={1}
-          style={[styles.dateTime, { color: colors.primary }]}
-        >
-          {time}
-        </AppText>
-      </View>
-
-      <View style={styles.copy}>
-        <AppText variant="bodyStrong" numberOfLines={1}>
-          {title}
-        </AppText>
-
-        <View style={styles.metaRow}>
-          <UsersRound color={colors.textSoft} size={14} />
-
-          <AppText variant="caption" tone="muted">
-            {safeGuests} {safeGuests === 1 ? "guest" : "guests"} invited
-          </AppText>
-        </View>
-      </View>
-    </>
-  );
+  const isLive = status === "live";
 
   return (
-    <Animated.View
-      style={[
-        styles.animated,
-        {
-          transform: [{ scale }],
-        },
-      ]}
-    >
-      <AppCard elevated style={styles.card}>
-        {onPress ? (
-          <Pressable
-            onPress={onPress}
-            onPressIn={animatePressIn}
-            onPressOut={animatePressOut}
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${title}`}
-            style={styles.mainAction}
-          >
-            {meetingInfo}
-          </Pressable>
-        ) : (
-          <View style={styles.mainAction}>{meetingInfo}</View>
-        )}
-
-        <View style={styles.actions}>
-          {onCopy ? (
-            <IconButton
-              icon={<Copy color={colors.primary} size={16} />}
-              variant="soft"
-              size={36}
-              accessibilityLabel="Copy meeting link"
-              onPress={onCopy}
-            />
-          ) : null}
-
-          {onDelete ? (
-            <IconButton
-              icon={<Trash2 color={colors.danger} size={16} />}
-              variant="surface"
-              size={36}
-              accessibilityLabel="Delete scheduled meeting"
-              onPress={onDelete}
-            />
-          ) : null}
+    <AppCard elevated style={styles.card}>
+      <View style={styles.header}>
+        <View
+          style={[
+            styles.dateBlock,
+            {
+              backgroundColor: colors.primarySoft,
+              borderColor: `${colors.primary}28`,
+            },
+          ]}
+        >
+          <CalendarDays color={colors.primary} size={18} />
+          <AppText style={[styles.dateText, { color: colors.primary }]}>
+            {date}
+          </AppText>
+          <AppText variant="caption" style={{ color: colors.primary }}>
+            {time}
+          </AppText>
         </View>
-      </AppCard>
-    </Animated.View>
+
+        <View style={styles.copy}>
+          <View style={styles.titleRow}>
+            <AppText variant="bodyStrong" numberOfLines={1}>
+              {title}
+            </AppText>
+
+            {isLive ? (
+              <View
+                style={[
+                  styles.livePill,
+                  { backgroundColor: `${colors.success}18` },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.liveDot,
+                    { backgroundColor: colors.success },
+                  ]}
+                />
+                <AppText style={[styles.liveText, { color: colors.success }]}>
+                  LIVE
+                </AppText>
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.metaRow}>
+            <UsersRound color={colors.textSoft} size={14} />
+            <AppText variant="caption" tone="muted">
+              {safeGuests} invited
+            </AppText>
+          </View>
+        </View>
+      </View>
+
+      <AppButton
+        title={isLive ? "Open live meeting" : "Start meeting"}
+        variant="gradient"
+        size="md"
+        leftIcon={<Play color="#FFFFFF" size={17} fill="#FFFFFF" />}
+        onPress={onStart}
+      />
+
+      <View style={styles.utilities}>
+        <UtilityAction
+          icon={<Copy color={colors.primary} size={16} />}
+          label="Copy link"
+          onPress={onCopy}
+        />
+
+        <UtilityAction
+          icon={<Share2 color={colors.secondary} size={16} />}
+          label="Share"
+          onPress={onShare}
+        />
+
+        <UtilityAction
+          icon={<UserPlus color={colors.accent} size={16} />}
+          label="Invite"
+          onPress={onInvite}
+        />
+      </View>
+    </AppCard>
   );
 }
 
 const styles = StyleSheet.create({
-  animated: {
-    width: "100%",
-  },
-
   card: {
-    minHeight: 96,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.two,
+    gap: Spacing.three,
   },
-
-  mainAction: {
-    flex: 1,
-    minWidth: 0,
+  header: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
-
   dateBlock: {
-    width: 76,
-    minHeight: 68,
+    width: 74,
+    minHeight: 70,
     borderWidth: 1,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
     gap: 2,
-    paddingHorizontal: Spacing.one,
   },
-
-  dateTime: {
-    fontWeight: "700",
+  dateText: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: "900",
   },
-
   copy: {
     flex: 1,
     minWidth: 0,
+    gap: 6,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.one,
   },
-
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
   },
-
-  actions: {
+  livePill: {
+    minHeight: 22,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 7,
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.one,
+    gap: 4,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: Radius.pill,
+  },
+  liveText: {
+    fontSize: 9,
+    lineHeight: 12,
+    fontWeight: "900",
+  },
+  utilities: {
+    flexDirection: "row",
+    gap: Spacing.two,
+  },
+  utility: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 42,
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    paddingHorizontal: Spacing.two,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+  utilityText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "800",
   },
 });

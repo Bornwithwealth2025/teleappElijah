@@ -1,14 +1,15 @@
 import React from "react";
 import {
   Alert,
-  Platform,
   RefreshControl,
   Share,
   StyleSheet,
   View,
 } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { router } from "expo-router";
 import {
+  CalendarClock,
   CalendarDays,
   Link2,
   RefreshCw,
@@ -17,8 +18,8 @@ import {
 
 import { ScheduleCard } from "@/components/scheduler/ScheduleCard";
 import { ScheduleForm } from "@/components/scheduler/ScheduleForm";
+import { InvitePeopleSheet } from "@/components/meeting/InvitePeopleSheet";
 import { SectionHeader } from "@/components/shared/SectionHeader";
-import { AppCard } from "@/components/ui/AppCard";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
@@ -26,7 +27,10 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useSchedulerStore from "@/store/schedulerStore";
-import { getRoomIdFromMeetingUrl } from "@/utils/meetingLinks";
+import {
+  createMeetingUrl,
+  getRoomIdFromMeetingUrl,
+} from "@/utils/meetingLinks";
 
 function formatScheduleDate(value?: string | null) {
   if (!value) {
@@ -62,31 +66,6 @@ function formatScheduleTime(value?: string | null) {
   });
 }
 
-async function shareMeetingLink(value?: string | null) {
-  if (!value) {
-    Alert.alert(
-      "Meeting link",
-      "No meeting link is available for this room.",
-    );
-    return;
-  }
-
-  if (
-    Platform.OS === "web" &&
-    typeof navigator !== "undefined" &&
-    navigator.clipboard
-  ) {
-    await navigator.clipboard.writeText(value);
-    Alert.alert("Meeting link", "Meeting link copied.");
-    return;
-  }
-
-  await Share.share({
-    title: "Join my Telefya meeting",
-    message: value,
-  });
-}
-
 function getScheduleTitle(item: any) {
   return (
     item?.title ??
@@ -96,14 +75,53 @@ function getScheduleTitle(item: any) {
   );
 }
 
+function getMeetingLink(item: any) {
+  const roomId =
+    getRoomIdFromMeetingUrl(item?.meeting_url) ||
+    String(item?.room_id ?? item?.roomId ?? "");
+
+  return roomId
+    ? createMeetingUrl(roomId)
+    : String(item?.meeting_url ?? "");
+}
+
+async function copyMeetingLink(item: any) {
+  const link = getMeetingLink(item);
+
+  if (!link) {
+    Alert.alert("Meeting link unavailable");
+    return;
+  }
+
+  await Clipboard.setStringAsync(link);
+  Alert.alert("Copied", "Meeting link copied to clipboard.");
+}
+
+async function shareMeetingLink(item: any) {
+  const link = getMeetingLink(item);
+
+  if (!link) {
+    Alert.alert("Meeting link unavailable");
+    return;
+  }
+
+  await Share.share({
+    title: "Join my Telefya meeting",
+    message: `Join my Telefya meeting: ${link}`,
+  });
+}
+
 export default function SchedulerScreen() {
   const { colors } = useAppTheme();
+  const [inviteMeeting, setInviteMeeting] = React.useState<any>(null);
 
   const meetings = useSchedulerStore((state) => state.meetings);
   const isLoading = useSchedulerStore((state) => state.isLoading);
-  const deleteMeetings = useSchedulerStore((state) => state.deleteMeetings);
-  const fetchMeetings = useSchedulerStore((state) => state.fetchMeetings);
   const error = useSchedulerStore((state) => state.error);
+  const fetchMeetings = useSchedulerStore((state) => state.fetchMeetings);
+  const deleteMeetings = useSchedulerStore(
+    (state) => state.deleteMeetings,
+  );
 
   React.useEffect(() => {
     void fetchMeetings();
@@ -111,12 +129,12 @@ export default function SchedulerScreen() {
 
   function confirmDelete(meetingId: string) {
     Alert.alert(
-      "Delete meeting?",
-      "This will remove the scheduled meeting. This action cannot be undone.",
+      "Delete scheduled meeting?",
+      "Its invitation link will no longer be available. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
-          text: "Delete",
+          text: "Delete meeting",
           style: "destructive",
           onPress: () => void deleteMeetings([meetingId]),
         },
@@ -126,6 +144,7 @@ export default function SchedulerScreen() {
 
   return (
     <AppScreen
+      tone="aurora"
       contentStyle={styles.content}
       refreshControl={
         <RefreshControl
@@ -137,7 +156,9 @@ export default function SchedulerScreen() {
       }
     >
       <AppHeader
-        title="Schedule"
+        eyebrow="MEETING PLANNER"
+        title="Schedule with clarity"
+        subtitle="Create secure meeting rooms, organize your agenda, and send an invitation in moments."
         size="page"
         rightSlot={
           <IconButton
@@ -151,29 +172,30 @@ export default function SchedulerScreen() {
 
       <View
         style={[
-          styles.introCard,
+          styles.plannerNote,
           {
-            backgroundColor: colors.card,
-            borderColor: colors.glassBorder,
+            backgroundColor: colors.surfaceStrong,
+            borderColor: colors.borderStrong,
+            borderLeftColor: colors.primary,
           },
         ]}
       >
         <View
           style={[
-            styles.introIcon,
-            { backgroundColor: colors.primarySoft },
+            styles.plannerIcon,
+            { backgroundColor: `${colors.primary}20` },
           ]}
         >
-          <CalendarDays color={colors.primary} size={21} />
+          <CalendarClock color={colors.primary} size={20} />
         </View>
 
-        <View style={styles.introCopy}>
+        <View style={styles.plannerCopy}>
           <AppText variant="bodyStrong">
-            Plan your next conversation
+            A meeting link is created automatically
           </AppText>
 
           <AppText variant="caption" tone="muted">
-            Create a shareable meeting link and invite your team when ready.
+            Select a time below. After creating it, share the secure Telefya link from your meeting list.
           </AppText>
         </View>
       </View>
@@ -188,7 +210,10 @@ export default function SchedulerScreen() {
             },
           ]}
         >
-          <AppText variant="caption" style={{ color: colors.danger }}>
+          <AppText
+            variant="caption"
+            style={{ color: colors.danger, fontWeight: "700" }}
+          >
             {error}
           </AppText>
         </View>
@@ -196,36 +221,40 @@ export default function SchedulerScreen() {
 
       <ScheduleForm />
 
-      <View style={styles.sectionRow}>
-        <SectionHeader
-          title="Scheduled meetings"
-          actionLabel={String(meetings.length)}
-        />
-      </View>
+      <SectionHeader
+        title="Your scheduled meetings"
+        actionLabel={meetings.length ? String(meetings.length) : undefined}
+      />
 
       <View style={styles.list}>
         {isLoading && meetings.length === 0 ? (
           <View
             style={[
-              styles.loadingCard,
+              styles.stateCard,
               {
                 backgroundColor: colors.card,
-                borderColor: colors.glassBorder,
+                borderColor: colors.border,
               },
             ]}
           >
             <View
               style={[
-                styles.loadingIcon,
+                styles.stateIcon,
                 { backgroundColor: colors.primarySoft },
               ]}
             >
-              <Video color={colors.primary} size={22} />
+              <Video color={colors.primary} size={23} />
             </View>
 
-            <AppText variant="bodyStrong">
-              Loading meetings
-            </AppText>
+            <View style={styles.stateCopy}>
+              <AppText variant="bodyStrong">
+                Loading your schedule
+              </AppText>
+
+              <AppText variant="caption" tone="muted">
+                Retrieving your upcoming meetings.
+              </AppText>
+            </View>
           </View>
         ) : null}
 
@@ -235,7 +264,7 @@ export default function SchedulerScreen() {
               styles.emptyCard,
               {
                 backgroundColor: colors.card,
-                borderColor: colors.glassBorder,
+                borderColor: colors.border,
               },
             ]}
           >
@@ -249,15 +278,15 @@ export default function SchedulerScreen() {
             </View>
 
             <AppText variant="sectionTitle">
-              No meetings scheduled
+              Your schedule is open
             </AppText>
 
             <AppText
               variant="caption"
               tone="muted"
-              style={styles.centerText}
+              style={styles.emptyCopy}
             >
-              Schedule a meeting above and share the link with participants.
+              Create your first scheduled meeting above. It will appear here with quick share and delete controls.
             </AppText>
           </View>
         ) : null}
@@ -279,26 +308,27 @@ export default function SchedulerScreen() {
               title={getScheduleTitle(item)}
               date={formatScheduleDate(displayDate)}
               time={formatScheduleTime(displayDate)}
-              guests={item?.participants_count ?? item?.participants ?? 1}
-              onPress={() => {
+              guests={item?.participants_count ?? item?.participants ?? 0}
+              status={item?.status}
+              onStart={() => {
                 if (!roomId) {
-                  Alert.alert(
-                    "Meeting unavailable",
-                    "This meeting does not have a valid room ID.",
-                  );
+                  Alert.alert("Meeting unavailable");
                   return;
                 }
 
                 router.push({
                   pathname: "/meeting/[meetingId]",
-                  params: { meetingId: roomId },
+                  params: {
+                    meetingId: roomId,
+                    host: "true",
+                  },
                 });
               }}
-              onCopy={() => void shareMeetingLink(item?.meeting_url)}
+              onCopy={() => void copyMeetingLink(item)}
+              onShare={() => void shareMeetingLink(item)}
+              onInvite={() => setInviteMeeting(item)}
               onDelete={() => {
-                const backendMeetingId = item?.id;
-
-                if (!backendMeetingId) {
+                if (!item?.id) {
                   Alert.alert(
                     "Unable to delete",
                     "This meeting does not have a valid backend ID.",
@@ -306,12 +336,19 @@ export default function SchedulerScreen() {
                   return;
                 }
 
-                confirmDelete(String(backendMeetingId));
+                confirmDelete(String(item.id));
               }}
             />
           );
         })}
       </View>
+
+      <InvitePeopleSheet
+        visible={Boolean(inviteMeeting)}
+        meetingId={inviteMeeting?.id ?? null}
+        meetingTitle={getScheduleTitle(inviteMeeting)}
+        onClose={() => setInviteMeeting(null)}
+      />
     </AppScreen>
   );
 }
@@ -319,59 +356,62 @@ export default function SchedulerScreen() {
 const styles = StyleSheet.create({
   content: {
     gap: Spacing.four,
+    paddingBottom: Spacing.twelve,
   },
-
-  introCard: {
-    minHeight: 78,
+  plannerNote: {
+    minHeight: 92,
     borderWidth: 1,
-    borderRadius: Radius.xLarge,
+    borderLeftWidth: 3,
+    borderRadius: Radius.large,
     padding: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
-
-  introIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: Radius.large,
+  plannerIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
-
-  introCopy: {
+  plannerCopy: {
     flex: 1,
     minWidth: 0,
     gap: 3,
   },
-
-  sectionRow: {
-    marginTop: Spacing.one,
+  errorCard: {
+    borderWidth: 1,
+    borderRadius: Radius.medium,
+    padding: Spacing.three,
   },
-
   list: {
     gap: Spacing.two,
+    paddingBottom: Spacing.four,
   },
-
-  loadingCard: {
-    minHeight: 142,
+  stateCard: {
+    minHeight: 92,
     borderWidth: 1,
-    borderRadius: Radius.xLarge,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: Spacing.two,
-  },
-
-  loadingIcon: {
-    width: 54,
-    height: 54,
     borderRadius: Radius.large,
+    padding: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+  stateIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
-
+  stateCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
   emptyCard: {
-    minHeight: 210,
+    minHeight: 220,
     borderWidth: 1,
     borderRadius: Radius.xLarge,
     alignItems: "center",
@@ -379,7 +419,6 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     paddingHorizontal: Spacing.five,
   },
-
   emptyIcon: {
     width: 60,
     height: 60,
@@ -387,14 +426,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  centerText: {
+  emptyCopy: {
+    maxWidth: 290,
     textAlign: "center",
-  },
-
-  errorCard: {
-    borderWidth: 1,
-    borderRadius: Radius.large,
-    padding: Spacing.three,
+    lineHeight: 20,
   },
 });

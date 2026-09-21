@@ -191,6 +191,30 @@ const useAuthStore = create<AuthState>((set) => {
         error: null,
       });
 
+      const backgroundAt = Number(
+        await authStorage.getItem(
+          STORAGE_KEYS.SESSION_BACKGROUND_AT,
+        ),
+      );
+
+      if (
+        Number.isFinite(backgroundAt) &&
+        Date.now() - backgroundAt >= 15 * 60 * 1000
+      ) {
+        await clearAuthSession();
+
+        set({
+          user: null,
+          token: null,
+          isAuthenticated: false,
+          isLoading: false,
+          isHydrated: true,
+          error: null,
+        });
+
+        return;
+      }
+
       try {
         const token = await authStorage.getItem(
           STORAGE_KEYS.ACCESS_TOKEN,
