@@ -2,9 +2,11 @@ import React from "react";
 import { router, useLocalSearchParams } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
+  ChevronRight,
   Clock3,
   Copy,
   LogIn,
+  LogOut,
   Radio,
   Share2,
   ShieldCheck,
@@ -31,11 +33,10 @@ import { MeetingParticipantSheet } from "@/components/meeting/MeetingParticipant
 import { MeetingPermissionGate } from "@/components/meeting/MeetingPermissionGate";
 import { RecordingControls } from "@/components/meeting/RecordingControls";
 import { VideoEffectsSheet } from "@/components/meeting/VideoEffectsSheet";
-import { AppButton } from "@/components/ui/AppButton";
-import { AppCard } from "@/components/ui/AppCard";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
-import { IconButton } from "@/components/ui/IconButton";
+import { Tap } from "@/components/ui/Tap";
+import { TelefyaGradients } from "@/constants/colors";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import type { VideoEffectId } from "@/services/video-effects.service";
@@ -70,6 +71,95 @@ function getUserId(user: any) {
       user?.userId ??
       user?.email ??
       "guest-user",
+  );
+}
+
+function RoundButton({
+  icon,
+  label,
+  onPress,
+  backgroundColor,
+  borderColor,
+  size = 40,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  backgroundColor: string;
+  borderColor: string;
+  size?: number;
+}) {
+  return (
+    <Tap label={label} onPress={onPress}>
+      <View
+        style={[
+          styles.roundButton,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            backgroundColor,
+            borderColor,
+          },
+        ]}
+      >
+        {icon}
+      </View>
+    </Tap>
+  );
+}
+
+function ActionTile({
+  icon,
+  title,
+  description,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  onPress: () => void;
+}) {
+  const { colors, isDark } = useAppTheme();
+
+  return (
+    <Tap label={title} onPress={onPress} style={styles.tilePressable}>
+      <View
+        style={[
+          styles.tile,
+          {
+            backgroundColor: isDark
+              ? "rgba(255,255,255,0.045)"
+              : colors.card,
+            borderColor: isDark
+              ? "rgba(255,255,255,0.12)"
+              : colors.border,
+          },
+        ]}
+      >
+        <View
+          style={[styles.tileIcon, { backgroundColor: colors.primary }]}
+        >
+          {icon}
+        </View>
+
+        <View style={styles.tileCopy}>
+          <AppText
+            numberOfLines={1}
+            style={[styles.tileTitle, { color: colors.text }]}
+          >
+            {title}
+          </AppText>
+
+          <AppText
+            numberOfLines={1}
+            style={[styles.tileDescription, { color: colors.textMuted }]}
+          >
+            {description}
+          </AppText>
+        </View>
+      </View>
+    </Tap>
   );
 }
 
@@ -234,8 +324,38 @@ export default function MeetingRoomScreen() {
   const [controlsVisible, setControlsVisible] =
     React.useState(true);
 
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  const [activityTick, setActivityTick] = React.useState(0);
+
   const [effectBusy, setEffectBusy] =
     React.useState(false);
+
+  React.useEffect(() => {
+    if (!joined || !controlsVisible) return;
+
+    if (
+      moreOpen ||
+      chatVisible ||
+      participantsVisible ||
+      recordingVisible ||
+      effectsVisible
+    ) {
+      return;
+    }
+
+    const timer = setTimeout(() => setControlsVisible(false), 5000);
+
+    return () => clearTimeout(timer);
+  }, [
+    joined,
+    controlsVisible,
+    moreOpen,
+    chatVisible,
+    participantsVisible,
+    recordingVisible,
+    effectsVisible,
+    activityTick,
+  ]);
 
   const handleSelectVideoEffect = React.useCallback(
     async (effectId: VideoEffectId) => {
@@ -453,62 +573,60 @@ export default function MeetingRoomScreen() {
             <View
               style={[
                 styles.liveTopBar,
-                {
-                  top: insets.top + Spacing.two,
-                  backgroundColor: "transparent",
-                  borderColor: "transparent",
-                },
+                { top: insets.top + Spacing.two },
               ]}
             >
-            <Image
-              source={require("@/assets/images/telefya-logo.png")}
-              resizeMode="contain"
-              style={styles.topLogo}
-            />
+              <Image
+                source={require("@/assets/images/telefya-logo.png")}
+                resizeMode="contain"
+                style={styles.topLogo}
+              />
 
-            <View style={styles.liveTopActions}>
-              <View
-                style={[
-                  styles.connectedPill,
-                  {
-                    backgroundColor: `${networkPillColor}16`,
-                    borderColor: `${networkPillColor}38`,
-                  },
-                ]}
-              >
+              <View style={styles.liveTopActions}>
                 <View
                   style={[
-                    styles.connectedDot,
-                    { backgroundColor: networkPillColor },
-                  ]}
-                />
-
-                <AppText
-                  style={[
-                    styles.livePillText,
-                    { color: networkPillColor },
+                    styles.connectedPill,
+                    {
+                      backgroundColor: "rgba(3,13,43,0.55)",
+                      borderColor: `${networkPillColor}66`,
+                    },
                   ]}
                 >
-                  {networkQuality.label}
-                </AppText>
-              </View>
+                  <View
+                    style={[
+                      styles.connectedDot,
+                      { backgroundColor: networkPillColor },
+                    ]}
+                  />
 
-              {isHost ? (
-                <IconButton
-                  icon={<Radio color={colors.danger} size={17} />}
-                  variant="soft"
-                  accessibilityLabel="Open recording controls"
-                  onPress={() => setRecordingVisible(true)}
+                  <AppText
+                    style={[
+                      styles.livePillText,
+                      { color: networkPillColor },
+                    ]}
+                  >
+                    {networkQuality.label}
+                  </AppText>
+                </View>
+
+                {isHost ? (
+                  <RoundButton
+                    icon={<Radio color={colors.danger} size={18} />}
+                    label="Open recording controls"
+                    backgroundColor="rgba(3,13,43,0.55)"
+                    borderColor="rgba(255,255,255,0.22)"
+                    onPress={() => setRecordingVisible(true)}
+                  />
+                ) : null}
+
+                <RoundButton
+                  icon={<Share2 color="#FFFFFF" size={18} />}
+                  label="Share meeting room"
+                  backgroundColor="rgba(3,13,43,0.55)"
+                  borderColor="rgba(255,255,255,0.22)"
+                  onPress={handleShare}
                 />
-              ) : null}
-
-              <IconButton
-                icon={<Share2 color={colors.text} size={17} />}
-                variant="soft"
-                accessibilityLabel="Share meeting room"
-                onPress={handleShare}
-              />
-            </View>
+              </View>
             </View>
           ) : null}
 
@@ -568,7 +686,7 @@ export default function MeetingRoomScreen() {
               style={[
                 styles.liveMeta,
                 {
-                  bottom: 108 + insets.bottom,
+                  bottom: 124 + insets.bottom,
                   backgroundColor: isDark
                     ? colors.glassStrong
                     : colors.card,
@@ -576,63 +694,57 @@ export default function MeetingRoomScreen() {
                 },
               ]}
             >
-            <View style={styles.metaLeft}>
-              <AppText
-                numberOfLines={1}
-                style={[
-                  styles.metaCode,
-                  { color: colors.text },
-                ]}
-              >
-                {roomCode}
-              </AppText>
-
-              <View
-                style={[
-                  styles.metaDivider,
-                  { backgroundColor: colors.divider },
-                ]}
-              />
-
-              <Users color={colors.textMuted} size={15} />
-
-              <AppText
-                style={[
-                  styles.metaCount,
-                  { color: colors.textMuted },
-                ]}
-              >
-                {participants.length}
-              </AppText>
-            </View>
-
-            <View style={styles.metaActions}>
-              <IconButton
-                icon={<Copy color={colors.primary} size={17} />}
-                variant="soft"
-                accessibilityLabel="Copy room code"
-                onPress={handleCopy}
-              />
-
-              <View
-                style={[
-                  styles.securePill,
-                  {
-                    backgroundColor: colors.primarySoft,
-                  },
-                ]}
-              >
-                <ShieldCheck color={colors.primary} size={15} />
+              <View style={styles.metaLeft}>
                 <AppText
-                  style={[
-                    styles.secureText,
-                    { color: colors.primary },
-                  ]}
+                  numberOfLines={1}
+                  style={[styles.metaCode, { color: colors.text }]}
                 >
-                  Secure
+                  {roomCode}
+                </AppText>
+
+                <View
+                  style={[
+                    styles.metaDivider,
+                    { backgroundColor: colors.divider },
+                  ]}
+                />
+
+                <Users color={colors.textMuted} size={15} />
+
+                <AppText
+                  style={[styles.metaCount, { color: colors.textMuted }]}
+                >
+                  {participants.length}
                 </AppText>
               </View>
-            </View>
+
+              <View style={styles.metaActions}>
+                <RoundButton
+                  icon={<Copy color={colors.primary} size={16} />}
+                  label="Copy room code"
+                  size={32}
+                  backgroundColor={colors.primarySoft}
+                  borderColor={`${colors.primary}33`}
+                  onPress={handleCopy}
+                />
+
+                <View
+                  style={[
+                    styles.securePill,
+                    {
+                      backgroundColor: colors.primarySoft,
+                      borderColor: `${colors.primary}33`,
+                    },
+                  ]}
+                >
+                  <ShieldCheck color={colors.primary} size={15} />
+                  <AppText
+                    style={[styles.secureText, { color: colors.primary }]}
+                  >
+                    Secure
+                  </AppText>
+                </View>
+              </View>
             </View>
           ) : null}
 
@@ -643,28 +755,30 @@ export default function MeetingRoomScreen() {
                 { bottom: Spacing.two + insets.bottom },
               ]}
             >
-            <MeetingControls
-              muted={isMuted}
-              cameraOff={isCameraOff}
-              handRaised={isHandRaised}
-              screenSharing={isScreenSharing}
-              participantCount={participants.length}
-              pendingRequestCount={pendingJoinRequests.length}
-              onToggleMute={() => void toggleMute()}
-              onToggleCamera={() => void toggleCamera()}
-              onOpenBackgroundEffects={() => {
-                setEffectsVisible(true);
-              }}
-              onToggleHand={() => void toggleHand()}
-              onToggleScreenShare={() =>
-                void handleToggleScreenShare()
-              }
-              onOpenChat={openChat}
-              onOpenParticipants={() => {
-                setParticipantsVisible(true);
-              }}
-              onLeave={() => void handleLeave()}
-            />
+              <MeetingControls
+                muted={isMuted}
+                cameraOff={isCameraOff}
+                handRaised={isHandRaised}
+                screenSharing={isScreenSharing}
+                participantCount={participants.length}
+                pendingRequestCount={pendingJoinRequests.length}
+                onToggleMute={() => void toggleMute()}
+                onToggleCamera={() => void toggleCamera()}
+                onOpenBackgroundEffects={() => {
+                  setEffectsVisible(true);
+                }}
+                onToggleHand={() => void toggleHand()}
+                onToggleScreenShare={() =>
+                  void handleToggleScreenShare()
+                }
+                onOpenChat={openChat}
+                onOpenParticipants={() => {
+                  setParticipantsVisible(true);
+                }}
+                onLeave={() => void handleLeave()}
+                onActivity={() => setActivityTick((tick) => tick + 1)}
+                onMoreVisibilityChange={setMoreOpen}
+              />
             </View>
           ) : null}
         </Animated.View>
@@ -748,10 +862,15 @@ export default function MeetingRoomScreen() {
                   </AppText>
                 </View>
 
-                <IconButton
+                <RoundButton
                   icon={<X color={colors.text} size={18} />}
-                  variant="ghost"
-                  accessibilityLabel="Close recording controls"
+                  label="Close recording controls"
+                  backgroundColor={
+                    isDark ? "rgba(255,255,255,0.06)" : colors.surface
+                  }
+                  borderColor={
+                    isDark ? "rgba(255,255,255,0.16)" : colors.border
+                  }
                   onPress={() => setRecordingVisible(false)}
                 />
               </View>
@@ -810,6 +929,14 @@ export default function MeetingRoomScreen() {
     );
   }
 
+  const joinLabel = isHostRoute
+    ? "Start meeting"
+    : joining
+      ? "Joining..."
+      : waitingRoomStatus === "declined"
+        ? "Request again"
+        : "Request to join";
+
   return (
     <AppScreen
       tone="plain"
@@ -865,15 +992,7 @@ export default function MeetingRoomScreen() {
           </View>
         </View>
 
-        <View
-          style={[
-            styles.roomPanel,
-            {
-              backgroundColor: "transparent",
-              borderColor: "transparent",
-            },
-          ]}
-        >
+        <View style={styles.roomPanel}>
           <View style={styles.roomHeader}>
             <View style={styles.roomCopy}>
               <AppText variant="caption" tone="muted">
@@ -889,7 +1008,10 @@ export default function MeetingRoomScreen() {
               <View
                 style={[
                   styles.hostBadge,
-                  { backgroundColor: colors.primarySoft },
+                  {
+                    backgroundColor: colors.primarySoft,
+                    borderColor: `${colors.primary}33`,
+                  },
                 ]}
               >
                 <ShieldCheck color={colors.primary} size={14} />
@@ -912,72 +1034,119 @@ export default function MeetingRoomScreen() {
               style={[
                 styles.waitingCard,
                 {
-                  backgroundColor: colors.primarySoft,
-                  borderColor: colors.border,
+                  backgroundColor: isDark
+                    ? "rgba(255,255,255,0.045)"
+                    : colors.card,
+                  borderColor: isDark
+                    ? "rgba(255,255,255,0.12)"
+                    : colors.border,
                 },
               ]}
             >
-              <View
-                style={[
-                  styles.waitingIcon,
-                  { backgroundColor: `${colors.primary}1D` },
-                ]}
-              >
-                <Clock3 color={colors.primary} size={22} />
+              <View style={styles.waitingTop}>
+                <View
+                  style={[
+                    styles.waitingIcon,
+                    { backgroundColor: colors.primary },
+                  ]}
+                >
+                  <Clock3 color="#FFFFFF" size={22} />
+                </View>
+
+                <View style={styles.waitingCopy}>
+                  <AppText
+                    numberOfLines={1}
+                    style={[styles.waitingTitle, { color: colors.text }]}
+                  >
+                    {waitingRoomStatus === "requesting"
+                      ? "Requesting access"
+                      : "You’re in the waiting room"}
+                  </AppText>
+
+                  <AppText
+                    numberOfLines={2}
+                    style={[
+                      styles.waitingMessage,
+                      { color: colors.textMuted },
+                    ]}
+                  >
+                    {waitingRoomMessage ||
+                      "The host will admit you when they are ready."}
+                  </AppText>
+                </View>
               </View>
 
-              <View style={styles.waitingCopy}>
-                <AppText variant="bodyStrong">
-                  {waitingRoomStatus === "requesting"
-                    ? "Requesting access"
-                    : "You’re in the waiting room"}
-                </AppText>
-
-                <AppText variant="caption" tone="muted">
-                  {waitingRoomMessage ||
-                    "The host will admit you when they are ready."}
-                </AppText>
-              </View>
-
-              <AppButton
-                title="Leave"
-                variant="ghost"
-                fullWidth={false}
+              <Tap
+                label="Leave"
                 onPress={() => void handleLeave()}
-              />
+                style={styles.fullWidth}
+              >
+                <View
+                  style={[
+                    styles.leaveButton,
+                    {
+                      borderColor: isDark
+                        ? "rgba(255,255,255,0.18)"
+                        : colors.borderStrong,
+                    },
+                  ]}
+                >
+                  <LogOut color={colors.textMuted} size={18} />
+                  <AppText
+                    style={[styles.leaveText, { color: colors.textMuted }]}
+                  >
+                    Leave
+                  </AppText>
+                </View>
+              </Tap>
             </View>
           ) : (
             <View style={styles.preJoinActions}>
-              <AppButton
-                title={
-                  isHostRoute
-                    ? "Start meeting"
-                    : joining
-                      ? "Joining..."
-                      : waitingRoomStatus === "declined"
-                        ? "Request again"
-                        : "Request to join"
-                }
-                loading={joining}
+              <Tap
+                label={joinLabel}
                 disabled={joining || leaving}
                 onPress={() => void handleJoin()}
-                containerStyle={styles.joinButton}
-                leftIcon={<LogIn color="#FFFFFF" size={18} />}
-              />
+                style={styles.fullWidth}
+              >
+                <LinearGradient
+                  colors={TelefyaGradients.primary}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.joinButton}
+                >
+                  <View style={styles.joinIcon}>
+                    <LogIn color="#FFFFFF" size={20} />
+                  </View>
 
-              <IconButton
-                icon={<Copy color={colors.primary} size={18} />}
-                variant="soft"
-                accessibilityLabel="Copy room code"
-                onPress={handleCopy}
-              />
+                  <AppText numberOfLines={1} style={styles.joinText}>
+                    {joinLabel}
+                  </AppText>
 
-              <IconButton
-                icon={<Share2 color={colors.primary} size={18} />}
-                variant="soft"
-                accessibilityLabel="Share meeting room"
-                onPress={handleShare}
-              />
+                  <View style={styles.joinChevron}>
+                    <ChevronRight
+                      color="#FFFFFF"
+                      size={20}
+                      strokeWidth={2.6}
+                    />
+                  </View>
+                </LinearGradient>
+              </Tap>
+
+              <View style={styles.tileRow}>
+                <ActionTile
+                  icon={<Copy color="#FFFFFF" size={19} />}
+                  title="Copy code"
+                  description="Room code"
+                  onPress={handleCopy}
+                />
+
+                <ActionTile
+                  icon={<Share2 color="#FFFFFF" size={19} />}
+                  title="Share"
+                  description="Send invite"
+                  onPress={handleShare}
+                />
+              </View>
             </View>
           )}
         </View>
@@ -1046,6 +1215,16 @@ export default function MeetingRoomScreen() {
 }
 
 const styles = StyleSheet.create({
+  fullWidth: {
+    width: "100%",
+  },
+
+  roundButton: {
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   liveScreen: {
     flex: 1,
     paddingHorizontal: 0,
@@ -1112,7 +1291,7 @@ const styles = StyleSheet.create({
   },
 
   connectedPill: {
-    minHeight: 30,
+    height: 34,
     borderWidth: 1,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
@@ -1122,13 +1301,14 @@ const styles = StyleSheet.create({
   },
 
   connectedDot: {
-    width: 7,
-    height: 7,
+    width: 8,
+    height: 8,
     borderRadius: Radius.pill,
   },
 
   livePillText: {
-    fontSize: 11,
+    fontSize: 12,
+    lineHeight: 16,
     fontWeight: "800",
   },
 
@@ -1155,12 +1335,13 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: Spacing.three,
     right: Spacing.three,
-    bottom: 108,
+    bottom: 124,
     zIndex: 20,
-    minHeight: 46,
+    height: 44,
     borderWidth: 1,
     borderRadius: Radius.medium,
-    paddingHorizontal: Spacing.three,
+    paddingLeft: Spacing.three,
+    paddingRight: Spacing.two,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -1171,22 +1352,22 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
+    gap: 8,
   },
 
   metaCode: {
     maxWidth: 132,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "800",
   },
 
   metaDivider: {
     width: 1,
-    height: 14,
+    height: 16,
   },
 
   metaCount: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "700",
   },
 
@@ -1197,16 +1378,17 @@ const styles = StyleSheet.create({
   },
 
   securePill: {
-    minHeight: 32,
+    height: 30,
+    borderWidth: 1,
     borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
   },
 
   secureText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "800",
   },
 
@@ -1287,8 +1469,9 @@ const styles = StyleSheet.create({
   },
 
   roomPanel: {
+    width: "100%",
     paddingVertical: Spacing.two,
-    gap: Spacing.three,
+    gap: Spacing.four,
   },
 
   roomHeader: {
@@ -1305,7 +1488,8 @@ const styles = StyleSheet.create({
   },
 
   hostBadge: {
-    minHeight: 28,
+    height: 32,
+    borderWidth: 1,
     borderRadius: Radius.pill,
     paddingHorizontal: Spacing.three,
     flexDirection: "row",
@@ -1319,28 +1503,121 @@ const styles = StyleSheet.create({
   },
 
   preJoinActions: {
+    width: "100%",
+    gap: Spacing.three,
+  },
+
+  joinButton: {
+    width: "100%",
+    height: 64,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.three,
+    shadowColor: "#0F6BFF",
+    shadowOpacity: 0.34,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+
+  joinIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(3,13,43,0.28)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.28)",
+  },
+
+  joinText: {
+    flex: 1,
+    textAlign: "center",
+    color: "#FFFFFF",
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "900",
+    letterSpacing: -0.2,
+  },
+
+  joinChevron: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.18)",
+  },
+
+  tileRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: Spacing.three,
+  },
+
+  tilePressable: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  tile: {
+    height: 76,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    paddingHorizontal: Spacing.two,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
   },
 
-  joinButton: {
+  tileIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  tileCopy: {
     flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+
+  tileTitle: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: "800",
+  },
+
+  tileDescription: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "600",
   },
 
   waitingCard: {
-    minHeight: 96,
+    width: "100%",
     borderWidth: 1,
     borderRadius: Radius.large,
     padding: Spacing.three,
+    gap: Spacing.three,
+  },
+
+  waitingTop: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
 
   waitingIcon: {
-    width: 46,
-    height: 46,
+    width: 52,
+    height: 52,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
@@ -1350,6 +1627,35 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 3,
+  },
+
+  waitingTitle: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "800",
+  },
+
+  waitingMessage: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
+  },
+
+  leaveButton: {
+    width: "100%",
+    height: 48,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  leaveText: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: "800",
   },
 
   errorPanel: {

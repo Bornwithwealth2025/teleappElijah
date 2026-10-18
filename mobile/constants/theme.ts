@@ -247,7 +247,7 @@ export const Layout = {
       ? 720
       : 620,
 
-  bottomTabInset: SCREEN.isTablet ? 112 : 100,
+  bottomTabInset: SCREEN.isTablet ? 132 : 124,
 
   screenPadding: SCREEN.isCompact
     ? Spacing.three
@@ -281,7 +281,7 @@ export const Layout = {
       ? Spacing.six
       : Spacing.four,
 
-  touchTarget: 44,
+  touchTarget: 48,
   compactTouchTarget: 40,
 };
 

@@ -1,5 +1,6 @@
 import React, { useRef } from "react";
 import { router, Redirect, Tabs } from "expo-router";
+import type { BottomTabBarButtonProps } from "@react-navigation/bottom-tabs";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   CalendarDays,
@@ -17,9 +18,18 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { SCREEN, Spacing } from "@/constants/theme";
+import { Radius, SCREEN, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import useAuthStore from "@/store/authStore";
+
+type QuietTabButtonProps = Omit<
+  BottomTabBarButtonProps,
+  "pressColor" | "pressOpacity" | "hoverEffect"
+> & {
+  pressColor?: ColorValue;
+  pressOpacity?: number;
+  hoverEffect?: unknown;
+};
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -28,49 +38,94 @@ function QuietTabButton({
   style,
   onPressIn,
   onPressOut,
+  pressColor: _pressColor,
+  pressOpacity: _pressOpacity,
+  hoverEffect: _hoverEffect,
   ...props
-}: any) {
+}: QuietTabButtonProps) {
+  const { colors } = useAppTheme();
   const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
 
-  function animate(value: number) {
-    Animated.spring(scale, {
-      toValue: value,
-      useNativeDriver: true,
-      speed: 32,
-      bounciness: 2,
-    }).start();
+  const focused = Boolean(
+    (props as { accessibilityState?: { selected?: boolean } })
+      .accessibilityState?.selected,
+  );
+
+  function animate(toValue: number, toOpacity: number) {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue,
+        useNativeDriver: true,
+        stiffness: 280,
+        damping: 22,
+        mass: 0.7,
+      }),
+      Animated.timing(opacity, {
+        toValue: toOpacity,
+        duration: 110,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }
 
   return (
     <AnimatedPressable
-      {...props}
+      {...(props as React.ComponentProps<typeof Pressable>)}
       android_ripple={{ color: "transparent" }}
       onPressIn={(event) => {
-        animate(0.96);
+        animate(0.96, 0.78);
         onPressIn?.(event);
       }}
       onPressOut={(event) => {
-        animate(1);
+        animate(1, 1);
         onPressOut?.(event);
       }}
-      style={[style, { transform: [{ scale }] }]}
+      style={[
+        style,
+        styles.tabPressable,
+        {
+          opacity,
+          transform: [{ scale }],
+        },
+      ]}
     >
-      {children}
+      <View
+        style={[
+          styles.tabInner,
+          focused && {
+            backgroundColor: `${colors.primary}22`,
+            borderColor: `${colors.primary}44`,
+          },
+        ]}
+      >
+        {children}
+      </View>
     </AnimatedPressable>
   );
 }
 
 function QuickCreateButton() {
-  const { colors } = useAppTheme();
   const scale = useRef(new Animated.Value(1)).current;
+  const lift = useRef(new Animated.Value(0)).current;
 
-  function animate(value: number) {
-    Animated.spring(scale, {
-      toValue: value,
-      useNativeDriver: true,
-      speed: 30,
-      bounciness: 3,
-    }).start();
+  function animate(active: boolean) {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: active ? 0.92 : 1,
+        useNativeDriver: true,
+        stiffness: 300,
+        damping: 20,
+        mass: 0.7,
+      }),
+      Animated.spring(lift, {
+        toValue: active ? 2 : 0,
+        useNativeDriver: true,
+        stiffness: 300,
+        damping: 20,
+        mass: 0.7,
+      }),
+    ]).start();
   }
 
   return (
@@ -79,30 +134,27 @@ function QuickCreateButton() {
       accessibilityLabel="Create a meeting"
       android_ripple={{ color: "transparent" }}
       onPress={() => router.push("/(tabs)/create")}
-      onPressIn={() => animate(0.92)}
-      onPressOut={() => animate(1)}
+      onPressIn={() => animate(true)}
+      onPressOut={() => animate(false)}
       style={[
         styles.quickCreateWrap,
-        { transform: [{ scale }] },
+        {
+          transform: [{ translateY: lift }, { scale }],
+        },
       ]}
     >
-      <View
-        style={[
-          styles.quickCreateRing,
-          {
-            backgroundColor: colors.card,
-            borderColor: colors.border,
-          },
-        ]}
-      >
-        <LinearGradient
-          colors={["#7B1CFF", "#0F6BFF", "#12D8B0"]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.quickCreateButton}
-        >
-          <Plus color="#FFFFFF" size={25} strokeWidth={2.7} />
-        </LinearGradient>
+      <View style={styles.quickCreateGlow}>
+        <View style={styles.quickCreateOuterRing}>
+          <LinearGradient
+            colors={["#7B1CFF", "#0F6BFF", "#12D8B0"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.quickCreateButton}
+          >
+            <View style={styles.quickCreateHighlight} />
+            <Plus color="#FFFFFF" size={28} strokeWidth={2.7} />
+          </LinearGradient>
+        </View>
       </View>
     </AnimatedPressable>
   );
@@ -128,22 +180,16 @@ export default function TabsLayout() {
     return <Redirect href="/welcome" />;
   }
 
-  const iconSize = SCREEN.isSmallWidth ? 19 : 20;
-  const tabBarHeight = 72 + insets.bottom;
+  const iconSize = SCREEN.isSmallWidth ? 20 : 22;
+  const dockBottom = Math.max(insets.bottom, Spacing.two);
+  const tabBarHeight = 72;
 
   const renderTabIcon = (
     Icon: React.ComponentType<any>,
     focused: boolean,
     color: ColorValue,
   ) => (
-    <View
-      style={[
-        styles.iconWrap,
-        focused && {
-          backgroundColor: colors.primarySoft,
-        },
-      ]}
-    >
+    <View style={styles.iconWrap}>
       <Icon
         color={color}
         size={iconSize}
@@ -157,45 +203,62 @@ export default function TabsLayout() {
       screenOptions={{
         headerShown: false,
         tabBarHideOnKeyboard: true,
-        sceneStyle: { backgroundColor: colors.background },
+        sceneStyle: {
+          backgroundColor: colors.background,
+        },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.tabInactive,
         tabBarActiveBackgroundColor: "transparent",
         tabBarInactiveBackgroundColor: "transparent",
         tabBarButton: (props) => <QuietTabButton {...props} />,
+        tabBarBackground: () => (
+          <View style={styles.dockShell}>
+            <LinearGradient
+              colors={[
+                "rgba(8, 32, 68, 0.98)",
+                "rgba(2, 16, 40, 0.99)",
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.dockGradient}
+            />
+            <View style={styles.dockHighlight} />
+          </View>
+        ),
         tabBarStyle: {
           position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
+          left: Spacing.three,
+          right: Spacing.three,
+          bottom: dockBottom,
           height: tabBarHeight,
-          paddingTop: Spacing.two,
-          paddingBottom: Math.max(insets.bottom, Spacing.two),
+          paddingTop: 0,
+          paddingBottom: 0,
           paddingHorizontal: Spacing.two,
+          overflow: "visible",
+          borderWidth: 1,
           borderTopWidth: 1,
-          borderTopColor: colors.border,
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-          backgroundColor: colors.card,
+          borderColor: "rgba(125, 168, 255, 0.22)",
+          borderRadius: Radius.xLarge,
+          backgroundColor: "transparent",
           shadowColor: "#020817",
-          shadowOpacity: 0.22,
-          shadowRadius: 18,
-          shadowOffset: { width: 0, height: -5 },
-          elevation: 14,
+          shadowOpacity: 0.42,
+          shadowRadius: 24,
+          shadowOffset: { width: 0, height: 12 },
+          elevation: 18,
         },
         tabBarItemStyle: {
-          minHeight: 52,
-          borderRadius: 14,
-          paddingTop: 0,
+          height: tabBarHeight - 2,
+          paddingVertical: 8,
+          paddingHorizontal: 2,
         },
         tabBarIconStyle: {
           marginBottom: 0,
         },
         tabBarLabelStyle: {
-          fontSize: 10,
-          lineHeight: 12,
-          fontWeight: "700",
-          marginTop: 1,
+          fontSize: 11,
+          lineHeight: 14,
+          fontWeight: "800",
+          marginTop: 2,
         },
       }}
     >
@@ -247,39 +310,89 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
+  dockShell: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: Radius.xLarge,
+    overflow: "hidden",
+  },
+
+  dockGradient: {
+    ...StyleSheet.absoluteFill,
+  },
+
+  dockHighlight: {
+    position: "absolute",
+    top: 0,
+    left: 32,
+    right: 32,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+  },
+
+  tabPressable: {
+    borderRadius: Radius.large,
+  },
+
+  tabInner: {
+    flex: 1,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: "transparent",
+    borderRadius: Radius.large,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   iconWrap: {
-    width: 34,
-    height: 30,
-    borderRadius: 11,
+    width: 38,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
   },
 
   quickCreateWrap: {
-    width: 64,
-    height: 72,
+    width: 78,
+    height: 84,
     alignItems: "center",
     justifyContent: "flex-start",
-    marginTop: -12,
+    marginTop: -28,
   },
 
-  quickCreateRing: {
-    width: 58,
-    height: 58,
-    padding: 3,
-    borderRadius: 29,
-    borderWidth: 2,
+  quickCreateGlow: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     shadowColor: "#0F6BFF",
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 7,
+    shadowOpacity: 0.55,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+
+  quickCreateOuterRing: {
+    width: 68,
+    height: 68,
+    padding: 4,
+    borderRadius: 34,
+    backgroundColor: "#061A3A",
+    borderWidth: 1,
+    borderColor: "rgba(181, 210, 255, 0.55)",
   },
 
   quickCreateButton: {
     flex: 1,
-    borderRadius: 26,
+    overflow: "hidden",
+    borderRadius: 30,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  quickCreateHighlight: {
+    position: "absolute",
+    top: 0,
+    left: 10,
+    right: 10,
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.5)",
   },
 });

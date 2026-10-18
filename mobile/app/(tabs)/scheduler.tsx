@@ -1,6 +1,7 @@
 import React from "react";
 import {
   Alert,
+  Linking,
   RefreshControl,
   Share,
   StyleSheet,
@@ -31,6 +32,7 @@ import {
   createMeetingUrl,
   getRoomIdFromMeetingUrl,
 } from "@/utils/meetingLinks";
+import { createGoogleCalendarUrl } from "@/utils/googleCalendar";
 
 function formatScheduleDate(value?: string | null) {
   if (!value) {
@@ -109,6 +111,38 @@ async function shareMeetingLink(item: any) {
     title: "Join my Telefya meeting",
     message: `Join my Telefya meeting: ${link}`,
   });
+}
+
+async function addMeetingToGoogleCalendar(item: any) {
+  const meetingUrl = getMeetingLink(item);
+  const scheduledFor =
+    item?.scheduled_for ??
+    item?.scheduled_at ??
+    item?.start_time ??
+    item?.date;
+
+  if (!meetingUrl || !scheduledFor) {
+    Alert.alert(
+      "Calendar unavailable",
+      "This meeting does not have a valid link or scheduled time.",
+    );
+    return;
+  }
+
+  try {
+    const calendarUrl = createGoogleCalendarUrl({
+      title: getScheduleTitle(item),
+      startsAt: scheduledFor,
+      meetingUrl,
+    });
+
+    await Linking.openURL(calendarUrl);
+  } catch (error) {
+    Alert.alert(
+      "Unable to open Google Calendar",
+      error instanceof Error ? error.message : "Please try again.",
+    );
+  }
 }
 
 export default function SchedulerScreen() {
@@ -326,6 +360,7 @@ export default function SchedulerScreen() {
               }}
               onCopy={() => void copyMeetingLink(item)}
               onShare={() => void shareMeetingLink(item)}
+              onAddToCalendar={() => void addMeetingToGoogleCalendar(item)}
               onInvite={() => setInviteMeeting(item)}
               onDelete={() => {
                 if (!item?.id) {

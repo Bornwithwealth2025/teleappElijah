@@ -3,7 +3,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { router, type Href } from "expo-router";
 import {
   Alert,
-  Pressable,
   RefreshControl,
   StyleSheet,
   Switch,
@@ -26,6 +25,7 @@ import { ProfileAvatar } from "@/components/shared/ProfileAvatar";
 import { AppButton } from "@/components/ui/AppButton";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
+import { Tap } from "@/components/ui/Tap";
 import { TelefyaGradients } from "@/constants/colors";
 import { Radius, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
@@ -83,32 +83,39 @@ function MenuRow({
   onPress,
   rightSlot,
 }: MenuRowProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
   const content = (
     <View
       style={[
         styles.menuRow,
         {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
+          backgroundColor: isDark
+            ? "rgba(255,255,255,0.045)"
+            : colors.card,
+          borderColor: isDark
+            ? "rgba(255,255,255,0.12)"
+            : colors.border,
         },
       ]}
     >
-      <View
-        style={[
-          styles.menuIcon,
-          { backgroundColor: colors.primarySoft },
-        ]}
-      >
+      <View style={[styles.menuIcon, { backgroundColor: colors.primary }]}>
         {icon}
       </View>
 
       <View style={styles.menuCopy}>
-        <AppText variant="bodyStrong">{label}</AppText>
+        <AppText
+          numberOfLines={1}
+          style={[styles.menuLabel, { color: colors.text }]}
+        >
+          {label}
+        </AppText>
 
         {subtitle ? (
-          <AppText variant="caption" tone="muted" numberOfLines={1}>
+          <AppText
+            numberOfLines={1}
+            style={[styles.menuSubtitle, { color: colors.textMuted }]}
+          >
             {subtitle}
           </AppText>
         ) : null}
@@ -116,7 +123,7 @@ function MenuRow({
 
       {rightSlot ?? (
         <View style={styles.menuArrow}>
-          <ChevronRight color={colors.textSoft} size={20} />
+          <ChevronRight color={colors.textMuted} size={22} />
         </View>
       )}
     </View>
@@ -127,17 +134,9 @@ function MenuRow({
   }
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`Open ${label}`}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.menuPressable,
-        { opacity: pressed ? 0.78 : 1 },
-      ]}
-    >
+    <Tap label={`Open ${label}`} onPress={onPress} style={styles.fullWidth}>
       {content}
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -301,15 +300,18 @@ export default function ProfileScreen() {
               {email}
             </AppText>
 
-            <Pressable
-              accessibilityRole="button"
+            <Tap
+              label="Edit profile"
               onPress={() => router.push("/settings/account" as Href)}
-              style={styles.editProfile}
+              style={styles.editProfilePressable}
             >
-              <AppText variant="caption" style={styles.profileHeroAction}>
-                Edit profile
-              </AppText>
-            </Pressable>
+              <View style={styles.editProfile}>
+                <AppText style={styles.profileHeroAction}>
+                  Edit profile
+                </AppText>
+                <ChevronRight color="#FFFFFF" size={15} strokeWidth={2.6} />
+              </View>
+            </Tap>
           </View>
         </View>
 
@@ -328,14 +330,14 @@ export default function ProfileScreen() {
         </AppText>
 
         <MenuRow
-          icon={<Settings2 color={colors.primary} size={20} />}
+          icon={<Settings2 color="#FFFFFF" size={21} />}
           label="Settings"
           subtitle="Account, preferences, billing, and privacy"
           onPress={() => router.push("/settings" as Href)}
         />
 
         <MenuRow
-          icon={<Video color={colors.primary} size={20} />}
+          icon={<Video color="#FFFFFF" size={21} />}
           label="Meeting defaults"
           subtitle="Camera, microphone, and joining preferences"
           onPress={() =>
@@ -344,7 +346,7 @@ export default function ProfileScreen() {
         />
 
         <MenuRow
-          icon={<CreditCard color={colors.primary} size={20} />}
+          icon={<CreditCard color="#FFFFFF" size={21} />}
           label="Billing and plan"
           subtitle="Subscription, invoices, and plan details"
           onPress={() => router.push("/settings/billing" as Href)}
@@ -357,7 +359,7 @@ export default function ProfileScreen() {
         </AppText>
 
         <MenuRow
-          icon={<Bell color={colors.primary} size={20} />}
+          icon={<Bell color="#FFFFFF" size={21} />}
           label="Notifications"
           subtitle="Meeting invitations, reminders, and recordings"
           onPress={() =>
@@ -366,14 +368,14 @@ export default function ProfileScreen() {
         />
 
         <MenuRow
-          icon={<ShieldCheck color={colors.primary} size={20} />}
+          icon={<ShieldCheck color="#FFFFFF" size={21} />}
           label="Privacy and security"
           subtitle="Sign-in security and account protection"
           onPress={() => router.push("/settings/security" as Href)}
         />
 
         <MenuRow
-          icon={<Contrast color={colors.primary} size={20} />}
+          icon={<Contrast color="#FFFFFF" size={21} />}
           label="Appearance"
           subtitle={
             preference === "system"
@@ -399,27 +401,26 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Log out"
-        onPress={confirmLogout}
-        style={[
-          styles.logout,
-          {
-            backgroundColor: `${colors.danger}0D`,
-            borderColor: `${colors.danger}30`,
-          },
-        ]}
-      >
-        <LogOut color={colors.danger} size={19} />
-
-        <AppText
-          variant="bodyStrong"
-          style={{ color: colors.danger }}
+      <Tap label="Log out" onPress={confirmLogout} style={styles.fullWidth}>
+        <View
+          style={[
+            styles.logout,
+            {
+              backgroundColor: `${colors.danger}0D`,
+              borderColor: `${colors.danger}30`,
+            },
+          ]}
         >
-          Log out
-        </AppText>
-      </Pressable>
+          <LogOut color={colors.danger} size={19} />
+
+          <AppText
+            variant="bodyStrong"
+            style={{ color: colors.danger }}
+          >
+            Log out
+          </AppText>
+        </View>
+      </Tap>
     </AppScreen>
   );
 }
@@ -428,6 +429,9 @@ const styles = StyleSheet.create({
   content: {
     gap: Spacing.five,
     paddingBottom: Spacing.five,
+  },
+  fullWidth: {
+    width: "100%",
   },
   profileHero: {
     gap: Spacing.three,
@@ -447,6 +451,8 @@ const styles = StyleSheet.create({
   },
   profileHeroAction: {
     color: "#FFFFFF",
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: "800",
   },
   profileTop: {
@@ -459,9 +465,21 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 3,
   },
-  editProfile: {
+  editProfilePressable: {
     alignSelf: "flex-start",
     marginTop: Spacing.one,
+  },
+  editProfile: {
+    height: 32,
+    paddingLeft: Spacing.three,
+    paddingRight: Spacing.two,
+    borderRadius: Radius.pill,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(3, 15, 40, 0.28)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.24)",
   },
   workspaceStatus: {
     minHeight: 40,
@@ -485,24 +503,22 @@ const styles = StyleSheet.create({
     backgroundColor: "#42E5A0",
   },
   section: {
-    gap: Spacing.two,
-  },
-  menuPressable: {
-    borderRadius: Radius.large,
+    width: "100%",
+    gap: Spacing.three,
   },
   menuRow: {
-    minHeight: 76,
+    width: "100%",
+    height: 84,
     borderWidth: 1,
     borderRadius: Radius.large,
     paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
   menuIcon: {
-    width: 44,
-    height: 44,
+    width: 52,
+    height: 52,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
@@ -511,24 +527,33 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     justifyContent: "center",
-    gap: 3,
+    gap: 4,
+  },
+  menuLabel: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "800",
+  },
+  menuSubtitle: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
   },
   menuArrow: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.pill,
+    width: 28,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
   },
   logout: {
-    minHeight: 54,
+    width: "100%",
+    height: 56,
     borderWidth: 1,
-    borderRadius: Radius.large,
+    borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: Spacing.two,
-    marginTop: Spacing.one,
   },
   guestContent: {
     flex: 1,

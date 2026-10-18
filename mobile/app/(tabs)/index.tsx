@@ -3,11 +3,12 @@ import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import {
   Bell,
+  CalendarClock,
   CalendarDays,
   CalendarPlus,
   ChevronRight,
   Clock3,
-  Film,
+  FolderOpen,
   Link2,
   Plus,
   Users,
@@ -22,7 +23,6 @@ import {
 } from "react-native";
 
 import { BASE_URL } from "@/api/client";
-import { AppButton } from "@/components/ui/AppButton";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { IconButton } from "@/components/ui/IconButton";
@@ -151,14 +151,17 @@ function getMeetingDate(value?: string | null) {
 
 type UpcomingMeetingProps = {
   meeting: any;
+  isLive: boolean;
   onPress: () => void;
 };
 
 function UpcomingMeeting({
   meeting,
+  isLive,
   onPress,
 }: UpcomingMeetingProps) {
   const { colors, isDark } = useAppTheme();
+  const [pressed, setPressed] = React.useState(false);
 
   const dateValue =
     meeting?.date ??
@@ -174,77 +177,176 @@ function UpcomingMeeting({
   return (
     <Pressable
       onPress={onPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
       accessibilityRole="button"
       accessibilityLabel={`Join ${getMeetingTitle(meeting)}`}
-      style={({ pressed }) => [
-        styles.meetingRow,
-        {
-          backgroundColor: isDark
-            ? "rgba(255,255,255,0.045)"
-            : colors.surface,
-          borderColor: isDark
-            ? "rgba(255,255,255,0.09)"
-            : colors.border,
-          opacity: pressed ? 0.74 : 1,
-        },
-      ]}
+      style={styles.meetingPressable}
     >
       <View
         style={[
-          styles.dateBlock,
+          styles.meetingRow,
           {
-            backgroundColor: colors.primarySoft,
-            borderColor: `${colors.primary}24`,
+            backgroundColor: isDark
+              ? "rgba(255,255,255,0.045)"
+              : colors.surface,
+            borderColor: isDark
+              ? "rgba(255,255,255,0.12)"
+              : colors.border,
+            opacity: pressed ? 0.76 : 1,
           },
         ]}
       >
-        <AppText style={[styles.dateDay, { color: colors.primary }]}>
-          {date.day}
-        </AppText>
+        <View style={[styles.dateBlock, { backgroundColor: colors.primary }]}>
+          <AppText style={styles.dateDay}>{date.day}</AppText>
 
-        <AppText
-          numberOfLines={1}
-          style={[styles.dateMonth, { color: colors.primary }]}
-        >
-          {date.month}
-        </AppText>
-      </View>
-
-      <View style={styles.meetingCopy}>
-        <AppText
-          numberOfLines={1}
-          style={[styles.meetingTitle, { color: colors.text }]}
-        >
-          {getMeetingTitle(meeting)}
-        </AppText>
-
-        <View style={styles.meetingDetails}>
-          <Clock3 color={colors.textSoft} size={14} />
-          <AppText style={[styles.meetingMeta, { color: colors.textMuted }]}>
-            {date.time}
-          </AppText>
-
-          <View
-            style={[
-              styles.dotSeparator,
-              { backgroundColor: colors.textSoft },
-            ]}
-          />
-
-          <Users color={colors.textSoft} size={14} />
-          <AppText style={[styles.meetingMeta, { color: colors.textMuted }]}>
-            {participantCount}
+          <AppText numberOfLines={1} style={styles.dateMonth}>
+            {date.month}
           </AppText>
         </View>
-      </View>
 
+        <View style={styles.meetingCopy}>
+          <AppText
+            numberOfLines={1}
+            style={[styles.meetingTitle, { color: colors.text }]}
+          >
+            {getMeetingTitle(meeting)}
+          </AppText>
+
+          <View style={styles.meetingDetails}>
+            <Clock3 color={colors.textSoft} size={15} />
+            <AppText style={[styles.meetingMeta, { color: colors.textMuted }]}>
+              {date.time}
+            </AppText>
+
+            <View
+              style={[
+                styles.dotSeparator,
+                { backgroundColor: colors.textSoft },
+              ]}
+            />
+
+            <Users color={colors.textSoft} size={15} />
+            <AppText style={[styles.meetingMeta, { color: colors.textMuted }]}>
+              {participantCount}
+            </AppText>
+          </View>
+        </View>
+
+        {isLive ? (
+          <View style={styles.meetingTrailing}>
+            <View style={styles.livePill}>
+              <View style={styles.liveDot} />
+              <AppText style={styles.liveText}>LIVE</AppText>
+            </View>
+          </View>
+        ) : null}
+      </View>
+    </Pressable>
+  );
+}
+
+function HeroActionTile({
+  icon,
+  title,
+  description,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      onPress={onPress}
+      style={styles.heroActionPressable}
+    >
+      <View style={styles.heroActionTile}>
+        <View style={styles.heroActionIcon}>{icon}</View>
+
+        <View style={styles.heroActionCopy}>
+          <AppText numberOfLines={1} style={styles.heroActionTitle}>
+            {title}
+          </AppText>
+
+          <AppText numberOfLines={1} style={styles.heroActionDescription}>
+            {description}
+          </AppText>
+        </View>
+
+        <View style={styles.heroActionChevron}>
+          <ChevronRight color="#FFFFFF" size={16} strokeWidth={2.6} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function LibraryRow({
+  icon,
+  title,
+  description,
+  accent,
+  onPress,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  accent: string;
+  onPress: () => void;
+}) {
+  const { colors, isDark } = useAppTheme();
+  const [pressed, setPressed] = React.useState(false);
+
+  return (
+    <Pressable
+      onPress={onPress}
+      onPressIn={() => setPressed(true)}
+      onPressOut={() => setPressed(false)}
+      accessibilityRole="button"
+      accessibilityLabel={title}
+      style={styles.libraryPressable}
+    >
       <View
         style={[
-          styles.joinCircle,
-          { backgroundColor: colors.primary },
+          styles.libraryRow,
+          {
+            backgroundColor: isDark
+              ? "rgba(255,255,255,0.045)"
+              : colors.surface,
+            borderColor: isDark
+              ? "rgba(255,255,255,0.12)"
+              : colors.border,
+            opacity: pressed ? 0.76 : 1,
+          },
         ]}
       >
-        <ChevronRight color="#FFFFFF" size={19} />
+        <View style={[styles.libraryIcon, { backgroundColor: accent }]}>
+          {icon}
+        </View>
+
+        <View style={styles.libraryCopy}>
+          <AppText
+            numberOfLines={1}
+            style={[styles.libraryTitle, { color: colors.text }]}
+          >
+            {title}
+          </AppText>
+
+          <AppText
+            numberOfLines={1}
+            style={[styles.libraryDescription, { color: colors.textMuted }]}
+          >
+            {description}
+          </AppText>
+        </View>
+
+        <View style={styles.libraryChevron}>
+          <ChevronRight color={colors.textMuted} size={22} />
+        </View>
       </View>
     </Pressable>
   );
@@ -292,6 +394,7 @@ export default function HomeScreen() {
   const liveMeetings = inbox.live;
   const upcomingMeetings = inbox.upcoming;
   const pendingInvitations = inbox.invitations;
+  const hasLive = liveMeetings.length > 0;
 
   const featuredMeetings = [...liveMeetings, ...upcomingMeetings].slice(
     0,
@@ -365,13 +468,24 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <IconButton
-          icon={<Bell color={colors.text} size={19} />}
-          variant="surface"
-          size={42}
-          accessibilityLabel="Open notifications"
-          onPress={() => router.push("/(tabs)/profile")}
-        />
+        <View>
+          <IconButton
+            icon={<Bell color={colors.text} size={19} />}
+            variant="surface"
+            size={44}
+            accessibilityLabel="Open notifications"
+            onPress={() => router.push("/(tabs)/profile")}
+          />
+
+          {pendingInvitations.length > 0 ? (
+            <View
+              style={[
+                styles.bellBadge,
+                { backgroundColor: colors.primary },
+              ]}
+            />
+          ) : null}
+        </View>
       </View>
 
       <LinearGradient
@@ -391,7 +505,7 @@ export default function HomeScreen() {
             <View style={styles.readyDot} />
 
             <AppText numberOfLines={1} style={styles.readyText}>
-              READY TO MEET
+              Ready to meet
             </AppText>
           </View>
         </View>
@@ -406,55 +520,41 @@ export default function HomeScreen() {
           </AppText>
         </View>
 
-        <AppButton
-          title="Start instant meeting"
-          variant="outline"
-          textColor="#FFFFFF"
-          leftIcon={<Plus color="#FFFFFF" size={21} />}
-          rightIcon={<ChevronRight color="#FFFFFF" size={20} />}
-          contentAlign="spaceBetween"
-          containerStyle={styles.primaryAction}
-          style={{
-            backgroundColor: "rgba(2,6,24,0.20)",
-            borderColor: "rgba(255,255,255,0.46)",
-          }}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Start instant meeting"
           onPress={startMeeting}
-        />
+          style={styles.heroPrimaryPressable}
+        >
+          <View style={styles.heroPrimaryButton}>
+            <View style={styles.heroPrimaryIcon}>
+              <Plus color="#FFFFFF" size={22} strokeWidth={2.8} />
+            </View>
+
+            <AppText numberOfLines={1} style={styles.heroPrimaryButtonText}>
+              Start instant meeting
+            </AppText>
+
+            <View style={styles.heroPrimaryChevron}>
+              <ChevronRight color="#0F6BFF" size={22} strokeWidth={2.6} />
+            </View>
+          </View>
+        </Pressable>
 
         <View style={styles.heroUtilities}>
-          <Pressable
+          <HeroActionTile
+            icon={<CalendarPlus color="#FFFFFF" size={19} strokeWidth={2.25} />}
+            title="Schedule"
+            description="Plan ahead"
             onPress={() => router.push("/(tabs)/scheduler")}
-            accessibilityRole="button"
-            accessibilityLabel="Schedule a meeting"
-            style={({ pressed }) => [
-              styles.heroUtility,
-              pressed && styles.pressed,
-            ]}
-          >
-            <View style={styles.heroUtilityIcon}>
-              <CalendarPlus color="#FFFFFF" size={17} />
-            </View>
-            <AppText numberOfLines={1} style={styles.heroUtilityText}>
-              Schedule
-            </AppText>
-          </Pressable>
+          />
 
-          <Pressable
+          <HeroActionTile
+            icon={<Link2 color="#FFFFFF" size={19} strokeWidth={2.25} />}
+            title="Join meeting"
+            description="Use a link"
             onPress={() => router.push("/meeting/join")}
-            accessibilityRole="button"
-            accessibilityLabel="Join a meeting"
-            style={({ pressed }) => [
-              styles.heroUtility,
-              pressed && styles.pressed,
-            ]}
-          >
-            <View style={styles.heroUtilityIcon}>
-              <Link2 color="#FFFFFF" size={17} />
-            </View>
-            <AppText numberOfLines={1} style={styles.heroUtilityText}>
-              Join meeting
-            </AppText>
-          </Pressable>
+          />
         </View>
       </LinearGradient>
 
@@ -494,22 +594,24 @@ export default function HomeScreen() {
             </AppText>
           </View>
 
-          <View style={styles.emptyArrow}>
-            <ChevronRight color={colors.secondary} size={20} />
-          </View>
+          <ChevronRight color={colors.secondary} size={20} />
         </Pressable>
       ) : null}
 
       <View style={styles.sectionHeader}>
-        <View>
-          <AppText style={[styles.sectionTitle, { color: colors.text }]}>
-            {liveMeetings.length > 0 ? "Live now" : "Upcoming meetings"}
-          </AppText>
+        <View style={styles.sectionHeaderCopy}>
+          <View style={styles.sectionTitleRow}>
+            {hasLive ? <View style={styles.sectionLiveDot} /> : null}
+
+            <AppText style={[styles.sectionTitle, { color: colors.text }]}>
+              {hasLive ? "Live now" : "Upcoming meetings"}
+            </AppText>
+          </View>
 
           <AppText
             style={[styles.sectionSubtitle, { color: colors.textMuted }]}
           >
-            {liveMeetings.length > 0
+            {hasLive
               ? "Join an active conversation."
               : "Your next scheduled conversations."}
           </AppText>
@@ -520,10 +622,12 @@ export default function HomeScreen() {
           accessibilityRole="button"
           accessibilityLabel="View all meetings"
           hitSlop={8}
+          style={styles.viewAllButton}
         >
           <AppText style={[styles.viewAll, { color: colors.primary }]}>
             View all
           </AppText>
+          <ChevronRight color={colors.primary} size={16} />
         </Pressable>
       </View>
 
@@ -547,6 +651,7 @@ export default function HomeScreen() {
             <UpcomingMeeting
               key={String(meeting?.id ?? meeting?.meeting_url)}
               meeting={meeting}
+              isLive={liveMeetings.includes(meeting)}
               onPress={() =>
                 router.push({
                   pathname: "/meeting/[meetingId]",
@@ -598,52 +703,53 @@ export default function HomeScreen() {
             </AppText>
           </View>
 
-          <View style={styles.emptyArrow}>
-            <ChevronRight color={colors.primary} size={20} />
-          </View>
+          <ChevronRight color={colors.primary} size={20} />
         </Pressable>
       )}
 
-      <Pressable
-        onPress={() => router.push("/recordings")}
-        accessibilityRole="button"
-        accessibilityLabel="Open recordings library"
-        style={({ pressed }) => [
-          styles.recordingShortcut,
-          {
-            backgroundColor: isDark
-              ? "rgba(123, 90, 255, 0.13)"
-              : colors.secondarySoft,
-            borderColor: `${colors.secondary}2C`,
-            opacity: pressed ? 0.76 : 1,
-          },
-        ]}
-      >
+      <View style={styles.libraryHeader}>
         <View
           style={[
-            styles.recordingIcon,
-            { backgroundColor: `${colors.secondary}1F` },
+            styles.libraryHeaderIcon,
+            {
+              backgroundColor: `${colors.secondary}24`,
+              borderColor: `${colors.secondary}3A`,
+            },
           ]}
         >
-          <Film color={colors.secondary} size={20} />
+          <FolderOpen color={colors.secondary} size={19} />
         </View>
 
-        <View style={styles.recordingCopy}>
-          <AppText style={[styles.recordingTitle, { color: colors.text }]}>
+        <View style={styles.libraryHeaderCopy}>
+          <AppText style={[styles.sectionTitle, { color: colors.text }]}>
             Your meeting library
           </AppText>
 
           <AppText
-            style={[styles.recordingDescription, { color: colors.textMuted }]}
+            style={[styles.sectionSubtitle, { color: colors.textMuted }]}
           >
-            Replay, download, and share completed recordings.
+            Access your past and upcoming meetings.
           </AppText>
         </View>
+      </View>
 
-        <View style={styles.emptyArrow}>
-          <ChevronRight color={colors.secondary} size={20} />
-        </View>
-      </Pressable>
+      <View style={styles.libraryList}>
+        <LibraryRow
+          icon={<CalendarDays color="#FFFFFF" size={22} />}
+          title="Past meetings"
+          description="View recorded and completed meetings"
+          accent={colors.secondary}
+          onPress={() => router.push("/recordings")}
+        />
+
+        <LibraryRow
+          icon={<CalendarClock color="#FFFFFF" size={22} />}
+          title="Upcoming meetings"
+          description="See your scheduled meetings"
+          accent={colors.primary}
+          onPress={() => router.push("/(tabs)/meetings")}
+        />
+      </View>
 
       <View style={styles.bottomSpace} />
     </AppScreen>
@@ -671,8 +777,8 @@ const styles = StyleSheet.create({
   },
 
   avatarShell: {
-    width: 46,
-    height: 46,
+    width: 48,
+    height: 48,
     overflow: "hidden",
     borderWidth: 1,
     borderRadius: Radius.pill,
@@ -709,12 +815,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  bellBadge: {
+    position: "absolute",
+    top: 9,
+    right: 10,
+    width: 9,
+    height: 9,
+    borderRadius: Radius.pill,
+  },
+
   meetingHero: {
-    minHeight: 310,
     overflow: "hidden",
     borderRadius: Radius.card,
-    padding: Spacing.five,
-    justifyContent: "space-between",
+    padding: Spacing.four,
+    gap: Spacing.three,
     ...Shadows.enterprise,
   },
 
@@ -745,36 +859,33 @@ const styles = StyleSheet.create({
   },
 
   readyPill: {
-    minHeight: 30,
-    maxWidth: 148,
+    minHeight: 34,
     borderRadius: Radius.pill,
-    paddingHorizontal: Spacing.two,
+    paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
     backgroundColor: "rgba(3, 13, 43, 0.40)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.24)",
   },
 
   readyDot: {
-    width: 8,
-    height: 8,
+    width: 9,
+    height: 9,
     borderRadius: Radius.pill,
-    backgroundColor: "#A7FF5A",
-    shadowColor: "#A7FF5A",
+    backgroundColor: "#12D8B0",
+    shadowColor: "#12D8B0",
     shadowOpacity: 0.9,
     shadowRadius: 6,
     elevation: 3,
   },
 
   readyText: {
-    flexShrink: 1,
     color: "#FFFFFF",
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: "900",
-    letterSpacing: 0.45,
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: "800",
   },
 
   heroCopy: {
@@ -783,157 +894,254 @@ const styles = StyleSheet.create({
 
   heroTitle: {
     color: "#FFFFFF",
-    fontSize: 28,
-    lineHeight: 34,
+    fontSize: 30,
+    lineHeight: 36,
     fontWeight: "900",
     letterSpacing: -0.7,
   },
 
   heroDescription: {
-    maxWidth: 300,
-    color: "rgba(255,255,255,0.78)",
-    fontSize: 14,
-    lineHeight: 21,
+    maxWidth: 320,
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 15,
+    lineHeight: 22,
     fontWeight: "500",
   },
 
-  primaryAction: {
+  heroPrimaryPressable: {
+    width: "100%",
     marginTop: Spacing.two,
+  },
+
+  heroPrimaryButton: {
+    width: "100%",
+    height: 64,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.three,
+    shadowColor: "#061A3A",
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+
+  heroPrimaryIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#0F6BFF",
+  },
+
+  heroPrimaryButtonText: {
+    flex: 1,
+    textAlign: "center",
+    color: "#0B2D75",
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: "900",
+    letterSpacing: -0.2,
+  },
+
+  heroPrimaryChevron: {
+    width: 40,
+    height: 40,
+    borderRadius: Radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(15,107,255,0.10)",
   },
 
   heroUtilities: {
     width: "100%",
     flexDirection: "row",
-    gap: Spacing.two,
-    marginTop: Spacing.four,
-    paddingTop: Spacing.three,
-    borderTopWidth: 1,
-    borderTopColor: "rgba(255,255,255,0.24)",
+    alignItems: "stretch",
+    gap: Spacing.three,
+    marginTop: Spacing.one,
   },
 
-  heroUtility: {
+  heroActionPressable: {
     flex: 1,
     minWidth: 0,
-    minHeight: 54,
+  },
+
+  heroActionTile: {
+    height: 80,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    borderColor: "rgba(255,255,255,0.30)",
+    backgroundColor: "rgba(3,13,43,0.22)",
     paddingHorizontal: Spacing.two,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-    borderWidth: 1,
-    borderRadius: Radius.medium,
-    borderColor: "rgba(255,255,255,0.30)",
-    backgroundColor: "rgba(3,13,43,0.18)",
+    gap: Spacing.two,
   },
 
-  heroUtilityIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 9,
+  heroActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(3,13,43,0.22)",
+    backgroundColor: "rgba(255,255,255,0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.24)",
   },
 
-  heroUtilityText: {
-    flexShrink: 1,
+  heroActionCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+
+  heroActionTitle: {
     color: "#FFFFFF",
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "800",
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: "900",
   },
 
-  emptyArrow: {
-    width: 36,
-    height: 36,
-    marginLeft: "auto",
+  heroActionDescription: {
+    color: "rgba(255,255,255,0.75)",
+    fontSize: 11,
+    lineHeight: 15,
+    fontWeight: "600",
+  },
+
+  heroActionChevron: {
+    width: 24,
+    height: 24,
     borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "rgba(255,255,255,0.16)",
   },
 
   sectionHeader: {
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: Spacing.three,
   },
 
+  sectionHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.two,
+  },
+
+  sectionLiveDot: {
+    width: 11,
+    height: 11,
+    borderRadius: Radius.pill,
+    backgroundColor: "#12D8B0",
+    shadowColor: "#12D8B0",
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+
   sectionTitle: {
-    fontSize: 19,
-    lineHeight: 25,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "900",
-    letterSpacing: -0.3,
+    letterSpacing: -0.4,
   },
 
   sectionSubtitle: {
     marginTop: 3,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 19,
+  },
+
+  viewAllButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 2,
+    paddingTop: 6,
   },
 
   viewAll: {
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "800",
   },
 
   meetingList: {
-    gap: Spacing.two,
+    width: "100%",
+    gap: Spacing.three,
+  },
+
+  meetingPressable: {
+    width: "100%",
   },
 
   meetingRow: {
-    minHeight: 82,
+    width: "100%",
+    minHeight: 96,
     borderWidth: 1,
     borderRadius: Radius.large,
-    padding: Spacing.three,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
 
   dateBlock: {
-    width: 54,
-    minHeight: 56,
-    borderWidth: 1,
+    width: 60,
+    height: 60,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
 
   dateDay: {
-    fontSize: 19,
-    lineHeight: 22,
+    color: "#FFFFFF",
+    fontSize: 21,
+    lineHeight: 24,
     fontWeight: "900",
   },
 
   dateMonth: {
     marginTop: 1,
-    fontSize: 10,
-    lineHeight: 13,
-    fontWeight: "800",
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: "700",
   },
 
   meetingCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 5,
+    gap: 6,
   },
 
   meetingTitle: {
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 17,
+    lineHeight: 22,
     fontWeight: "800",
   },
 
   meetingDetails: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
   },
 
   meetingMeta: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 13,
+    lineHeight: 17,
     fontWeight: "600",
   },
 
@@ -944,12 +1152,37 @@ const styles = StyleSheet.create({
     opacity: 0.65,
   },
 
-  joinCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: Radius.pill,
+  meetingTrailing: {
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  livePill: {
+    height: 30,
+    borderRadius: Radius.pill,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "rgba(18,216,176,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(18,216,176,0.42)",
+  },
+
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: Radius.pill,
+    backgroundColor: "#12D8B0",
+  },
+
+  liveText: {
+    color: "#12D8B0",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "900",
+    letterSpacing: 0.4,
   },
 
   loadingState: {
@@ -984,45 +1217,79 @@ const styles = StyleSheet.create({
     gap: 3,
   },
 
-  recordingShortcut: {
-    minHeight: 94,
-    borderWidth: 1,
-    borderRadius: Radius.large,
-    padding: Spacing.four,
+  libraryHeader: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: Spacing.three,
+    marginTop: Spacing.two,
   },
 
-  recordingIcon: {
-    width: 46,
-    height: 46,
+  libraryHeaderIcon: {
+    width: 38,
+    height: 38,
+    marginTop: 2,
+    borderWidth: 1,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  recordingCopy: {
+  libraryHeaderCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
   },
 
-  recordingTitle: {
-    fontSize: 15,
-    lineHeight: 20,
-    fontWeight: "900",
+  libraryList: {
+    width: "100%",
+    gap: Spacing.three,
   },
 
-  recordingDescription: {
-    fontSize: 12,
+  libraryPressable: {
+    width: "100%",
+  },
+
+  libraryRow: {
+    width: "100%",
+    height: 84,
+    borderWidth: 1,
+    borderRadius: Radius.large,
+    paddingHorizontal: Spacing.three,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+
+  libraryIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: Radius.medium,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  libraryCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+
+  libraryTitle: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "800",
+  },
+
+  libraryDescription: {
+    fontSize: 13,
     lineHeight: 18,
-    fontWeight: "600",
+    fontWeight: "500",
   },
 
-  pressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.985 }],
+  libraryChevron: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   bottomSpace: {

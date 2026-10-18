@@ -25,6 +25,7 @@ import { AppHeader } from "@/components/ui/AppHeader";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
 import { IconButton } from "@/components/ui/IconButton";
+import { Tap } from "@/components/ui/Tap";
 import {
   Radius,
   Spacing,
@@ -81,7 +82,7 @@ function MeetingRow({
   onOpen,
   onRespond,
 }: MeetingRowProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const isLive = kind === "live";
   const isInvitation = kind === "invitation";
 
@@ -91,143 +92,152 @@ function MeetingRow({
       ? colors.secondary
       : colors.primary;
 
-  return (
+  const body = (
     <View
       style={[
         styles.card,
         {
-          backgroundColor: colors.card,
+          backgroundColor: isDark
+            ? "rgba(255,255,255,0.045)"
+            : colors.card,
           borderColor: isLive
             ? `${colors.success}58`
-            : colors.border,
+            : isDark
+              ? "rgba(255,255,255,0.12)"
+              : colors.border,
         },
       ]}
     >
-      <View
-        style={[
-          styles.icon,
-          {
-            backgroundColor: `${accent}20`,
-            borderColor: `${accent}38`,
-          },
-        ]}
-      >
-        {isLive ? (
-          <Radio color={accent} size={20} />
-        ) : isInvitation ? (
-          <Users color={accent} size={20} />
-        ) : (
-          <CalendarDays color={accent} size={20} />
-        )}
-      </View>
+      <View style={styles.cardTop}>
+        <View style={[styles.icon, { backgroundColor: accent }]}>
+          {isLive ? (
+            <Radio color="#FFFFFF" size={22} />
+          ) : isInvitation ? (
+            <Users color="#FFFFFF" size={22} />
+          ) : (
+            <CalendarDays color="#FFFFFF" size={22} />
+          )}
+        </View>
 
-      <View style={styles.copy}>
-        <View style={styles.titleRow}>
-          <AppText variant="bodyStrong" numberOfLines={1}>
+        <View style={styles.copy}>
+          <AppText
+            numberOfLines={1}
+            style={[styles.title, { color: colors.text }]}
+          >
             {getTitle(meeting)}
           </AppText>
 
-          {isLive ? (
-            <View
-              style={[
-                styles.livePill,
-                { backgroundColor: `${colors.success}1C` },
-              ]}
+          <View style={styles.metaRow}>
+            <Clock3 color={colors.textSoft} size={15} />
+            <AppText
+              numberOfLines={1}
+              style={[styles.meta, { color: colors.textMuted }]}
             >
-              <View
-                style={[
-                  styles.liveDot,
-                  { backgroundColor: colors.success },
-                ]}
-              />
-              <AppText
-                variant="label"
-                style={{ color: colors.success }}
-              >
-                Live
-              </AppText>
-            </View>
+              {formatTime(meeting)}
+            </AppText>
+          </View>
+
+          {meeting.host_name ? (
+            <AppText
+              numberOfLines={1}
+              style={[styles.meta, { color: colors.textMuted }]}
+            >
+              Hosted by {meeting.host_name}
+            </AppText>
           ) : null}
         </View>
 
-        <View style={styles.metaRow}>
-          <Clock3 color={colors.textSoft} size={14} />
-          <AppText variant="caption" tone="muted">
-            {formatTime(meeting)}
-          </AppText>
-        </View>
-
-        {meeting.host_name ? (
-          <AppText variant="caption" tone="muted">
-            Hosted by {meeting.host_name}
-          </AppText>
+        {isLive ? (
+          <View style={styles.livePill}>
+            <View style={styles.liveDot} />
+            <AppText style={styles.liveText}>LIVE</AppText>
+          </View>
+        ) : !isInvitation ? (
+          <View
+            style={[
+              styles.openCircle,
+              {
+                backgroundColor: isDark
+                  ? "rgba(255,255,255,0.06)"
+                  : colors.primarySoft,
+                borderColor: isDark
+                  ? "rgba(255,255,255,0.16)"
+                  : `${colors.primary}33`,
+              },
+            ]}
+          >
+            {meeting.relationship === "host" ? (
+              <Video color={colors.text} size={17} />
+            ) : (
+              <ChevronRight color={colors.text} size={18} />
+            )}
+          </View>
         ) : null}
       </View>
 
-      {!isInvitation ? (
-        <Pressable
-          onPress={onOpen}
-          accessibilityRole="button"
-          accessibilityLabel={
-            meeting.relationship === "host"
-              ? `Start ${getTitle(meeting)}`
-              : `Join ${getTitle(meeting)}`
-          }
-          style={({ pressed }) => [
-            styles.openButton,
-            {
-              backgroundColor: accent,
-              opacity: pressed ? 0.74 : 1,
-            },
-          ]}
-        >
-          {meeting.relationship === "host" ? (
-            <Video color="#FFFFFF" size={18} />
-          ) : (
-            <ChevronRight color="#FFFFFF" size={19} />
-          )}
-        </Pressable>
-      ) : null}
-
       {isInvitation ? (
         <View style={styles.invitationActions}>
-          <Pressable
+          <Tap
+            label={`Decline ${getTitle(meeting)}`}
             disabled={busy}
             onPress={() => onRespond("declined")}
-            accessibilityRole="button"
-            accessibilityLabel={`Decline ${getTitle(meeting)}`}
-            style={({ pressed }) => [
-              styles.secondaryAction,
-              {
-                borderColor: colors.borderStrong,
-                opacity: pressed || busy ? 0.65 : 1,
-              },
-            ]}
+            style={styles.actionFlex}
           >
-            <X color={colors.textMuted} size={17} />
-          </Pressable>
+            <View
+              style={[
+                styles.declineButton,
+                {
+                  borderColor: isDark
+                    ? "rgba(255,255,255,0.16)"
+                    : colors.borderStrong,
+                },
+              ]}
+            >
+              <X color={colors.textMuted} size={18} />
+              <AppText
+                style={[styles.declineText, { color: colors.textMuted }]}
+              >
+                Decline
+              </AppText>
+            </View>
+          </Tap>
 
-          <Pressable
+          <Tap
+            label={`Accept ${getTitle(meeting)}`}
             disabled={busy}
             onPress={() => onRespond("accepted")}
-            accessibilityRole="button"
-            accessibilityLabel={`Accept ${getTitle(meeting)}`}
-            style={({ pressed }) => [
-              styles.primaryAction,
-              {
-                backgroundColor: accent,
-                opacity: pressed || busy ? 0.65 : 1,
-              },
-            ]}
+            style={styles.actionFlex}
           >
-            <Check color="#FFFFFF" size={17} />
-            <AppText style={styles.acceptText}>
-              {busy ? "Saving" : "Accept"}
-            </AppText>
-          </Pressable>
+            <View
+              style={[styles.acceptButton, { backgroundColor: accent }]}
+            >
+              <Check color="#FFFFFF" size={18} />
+              <AppText style={styles.acceptText}>
+                {busy ? "Saving" : "Accept"}
+              </AppText>
+            </View>
+          </Tap>
         </View>
       ) : null}
     </View>
+  );
+
+  if (isInvitation) {
+    return body;
+  }
+
+  return (
+    <Tap
+      label={
+        meeting.relationship === "host"
+          ? `Start ${getTitle(meeting)}`
+          : `Join ${getTitle(meeting)}`
+      }
+      onPress={onOpen}
+      style={styles.fullWidth}
+    >
+      {body}
+    </Tap>
   );
 }
 
@@ -258,16 +268,22 @@ function MeetingSection({
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
-        <View>
-          <AppText variant="sectionTitle">{title}</AppText>
+        <View style={styles.sectionHeaderCopy}>
+          <View style={styles.sectionTitleRow}>
+            {kind === "live" ? <View style={styles.sectionLiveDot} /> : null}
+            <AppText variant="sectionTitle">{title}</AppText>
+          </View>
+
           <AppText variant="caption" tone="muted">
             {subtitle}
           </AppText>
         </View>
 
-        <AppText variant="label" tone="primary">
-          {meetings.length}
-        </AppText>
+        <View style={styles.countPill}>
+          <AppText variant="label" tone="primary">
+            {meetings.length}
+          </AppText>
+        </View>
       </View>
 
       <View style={styles.sectionList}>
@@ -385,7 +401,7 @@ export default function MeetingsScreen() {
           <IconButton
             icon={<RefreshCw color={colors.primary} size={18} />}
             variant="surface"
-            size={42}
+            size={44}
             accessibilityLabel="Refresh meetings"
             onPress={() => void fetchInbox()}
           />
@@ -397,20 +413,25 @@ export default function MeetingsScreen() {
       {error ? (
         <Pressable
           onPress={() => void fetchInbox()}
-          style={[
-            styles.errorCard,
-            {
-              backgroundColor: `${colors.danger}10`,
-              borderColor: `${colors.danger}38`,
-            },
-          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading meetings"
         >
-          <AppText
-            variant="caption"
-            style={{ color: colors.danger, fontWeight: "700" }}
+          <View
+            style={[
+              styles.errorCard,
+              {
+                backgroundColor: `${colors.danger}10`,
+                borderColor: `${colors.danger}38`,
+              },
+            ]}
           >
-            {error} Tap to retry.
-          </AppText>
+            <AppText
+              variant="caption"
+              style={{ color: colors.danger, fontWeight: "700" }}
+            >
+              {error} Tap to retry.
+            </AppText>
+          </View>
         </Pressable>
       ) : null}
 
@@ -494,23 +515,60 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: Spacing.three,
   },
-  sectionList: {
-    gap: Spacing.two,
+  sectionHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
   },
-  card: {
-    minHeight: 96,
-    borderWidth: 1,
-    borderRadius: Radius.large,
-    padding: Spacing.three,
+  sectionTitleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.two,
   },
-  icon: {
-    width: 44,
-    height: 44,
+  sectionLiveDot: {
+    width: 10,
+    height: 10,
+    borderRadius: Radius.pill,
+    backgroundColor: "#12D8B0",
+    shadowColor: "#12D8B0",
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  countPill: {
+    minWidth: 34,
+    height: 30,
+    paddingHorizontal: Spacing.two,
+    borderRadius: Radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(15,107,255,0.14)",
+  },
+  sectionList: {
+    width: "100%",
+    gap: Spacing.three,
+  },
+  fullWidth: {
+    width: "100%",
+  },
+  card: {
+    width: "100%",
+    minHeight: 96,
     borderWidth: 1,
+    borderRadius: Radius.large,
+    padding: Spacing.three,
+    gap: Spacing.three,
+  },
+  cardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.three,
+  },
+  icon: {
+    width: 52,
+    height: 52,
     borderRadius: Radius.medium,
     justifyContent: "center",
     alignItems: "center",
@@ -520,59 +578,89 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 4,
   },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.one,
+  title: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "800",
   },
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
+  },
+  meta: {
+    flexShrink: 1,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "600",
   },
   livePill: {
+    height: 30,
     borderRadius: Radius.pill,
-    paddingHorizontal: 7,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    justifyContent: "center",
+    gap: 6,
+    backgroundColor: "rgba(18,216,176,0.14)",
+    borderWidth: 1,
+    borderColor: "rgba(18,216,176,0.42)",
   },
   liveDot: {
-    width: 6,
-    height: 6,
+    width: 8,
+    height: 8,
     borderRadius: Radius.pill,
+    backgroundColor: "#12D8B0",
   },
-  openButton: {
-    width: 40,
-    height: 40,
+  liveText: {
+    color: "#12D8B0",
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
+  openCircle: {
+    width: 38,
+    height: 38,
     borderRadius: Radius.pill,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },
   invitationActions: {
-    gap: Spacing.one,
-    alignItems: "flex-end",
+    width: "100%",
+    flexDirection: "row",
+    gap: Spacing.two,
   },
-  primaryAction: {
-    minHeight: 34,
-    borderRadius: Radius.medium,
-    paddingHorizontal: Spacing.two,
+  actionFlex: {
+    flex: 1,
+  },
+  declineButton: {
+    height: 46,
+    borderWidth: 1,
+    borderRadius: Radius.pill,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    justifyContent: "center",
+    gap: 6,
   },
-  secondaryAction: {
-    width: 34,
-    height: 30,
-    borderWidth: 1,
-    borderRadius: Radius.small,
+  declineText: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: "800",
+  },
+  acceptButton: {
+    height: 46,
+    borderRadius: Radius.pill,
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 6,
   },
   acceptText: {
     color: "#FFFFFF",
-    fontSize: 12,
+    fontSize: 14,
+    lineHeight: 18,
     fontWeight: "800",
   },
   errorCard: {

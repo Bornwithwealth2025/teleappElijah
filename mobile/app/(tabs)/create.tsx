@@ -5,15 +5,17 @@ import {
   CalendarPlus,
   ChevronRight,
   Link2,
+  Plus,
   Video,
 } from "lucide-react-native";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 
 import UserService from "@/api/user.service";
 import { BRAND_GRADIENT } from "@/components/ui/AppButton";
 import { AppHeader } from "@/components/ui/AppHeader";
 import { AppScreen } from "@/components/ui/AppScreen";
 import { AppText } from "@/components/ui/AppText";
+import { Tap } from "@/components/ui/Tap";
 import { Radius, Shadows, Spacing } from "@/constants/theme";
 import { useAppTheme } from "@/hooks/use-app-themes";
 import {
@@ -26,6 +28,7 @@ type ActionRowProps = {
   icon: React.ReactNode;
   title: string;
   description: string;
+  accent: string;
   onPress: () => void;
 };
 
@@ -33,51 +36,51 @@ function ActionRow({
   icon,
   title,
   description,
+  accent,
   onPress,
 }: ActionRowProps) {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={title}
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.secondaryAction,
-        {
-          backgroundColor: colors.card,
-          borderColor: colors.border,
-          opacity: pressed ? 0.86 : 1,
-          transform: [{ scale: pressed ? 0.99 : 1 }],
-        },
-      ]}
-    >
+    <Tap label={title} onPress={onPress} style={styles.fullWidth}>
       <View
         style={[
-          styles.secondaryIcon,
-          { backgroundColor: colors.primarySoft },
+          styles.secondaryAction,
+          {
+            backgroundColor: isDark
+              ? "rgba(255,255,255,0.045)"
+              : colors.card,
+            borderColor: isDark
+              ? "rgba(255,255,255,0.12)"
+              : colors.border,
+          },
         ]}
       >
-        {icon}
-      </View>
+        <View style={[styles.secondaryIcon, { backgroundColor: accent }]}>
+          {icon}
+        </View>
 
-      <View style={styles.secondaryCopy}>
-        <AppText variant="bodyStrong">{title}</AppText>
+        <View style={styles.secondaryCopy}>
+          <AppText
+            numberOfLines={1}
+            style={[styles.secondaryTitle, { color: colors.text }]}
+          >
+            {title}
+          </AppText>
 
-        <AppText variant="caption" tone="muted" numberOfLines={2}>
-          {description}
-        </AppText>
-      </View>
+          <AppText
+            numberOfLines={2}
+            style={[styles.secondaryDescription, { color: colors.textMuted }]}
+          >
+            {description}
+          </AppText>
+        </View>
 
-      <View
-        style={[
-          styles.arrowShell,
-          { backgroundColor: colors.surfaceStrong },
-        ]}
-      >
-        <ChevronRight color={colors.primary} size={19} />
+        <View style={styles.arrowShell}>
+          <ChevronRight color={colors.textMuted} size={22} />
+        </View>
       </View>
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -142,7 +145,7 @@ export default function QuickMeetingScreen() {
 
         <View style={styles.primaryCopy}>
           <AppText style={styles.primaryTitle}>
-            {isStarting ? "Starting meeting..." : "Start instant meeting"}
+            Start instant meeting
           </AppText>
 
           <AppText style={styles.primaryDescription}>
@@ -150,17 +153,26 @@ export default function QuickMeetingScreen() {
           </AppText>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Start instant meeting"
+        <Tap
+          label="Start instant meeting"
+          disabled={isStarting}
           onPress={startNow}
-          style={({ pressed }) => [
-            styles.primaryArrow,
-            pressed && styles.pressed,
-          ]}
+          style={styles.fullWidth}
         >
-          <ChevronRight color="#FFFFFF" size={22} />
-        </Pressable>
+          <View style={styles.primaryButton}>
+            <View style={styles.primaryButtonIcon}>
+              <Plus color="#FFFFFF" size={20} strokeWidth={2.8} />
+            </View>
+
+            <AppText numberOfLines={1} style={styles.primaryButtonText}>
+              {isStarting ? "Starting meeting..." : "Start instant meeting"}
+            </AppText>
+
+            <View style={styles.primaryButtonChevron}>
+              <ChevronRight color="#0F6BFF" size={21} strokeWidth={2.6} />
+            </View>
+          </View>
+        </Tap>
       </LinearGradient>
 
       {startError ? (
@@ -178,16 +190,18 @@ export default function QuickMeetingScreen() {
         </AppText>
 
         <ActionRow
-          icon={<Link2 color={colors.secondary} size={21} />}
+          icon={<Link2 color="#FFFFFF" size={22} />}
           title="Join with a meeting link"
           description="Paste a Telefya link and request access from the host."
+          accent={colors.secondary}
           onPress={() => router.push("/meeting/join")}
         />
 
         <ActionRow
-          icon={<CalendarPlus color={colors.accent} size={21} />}
+          icon={<CalendarPlus color="#FFFFFF" size={22} />}
           title="Schedule a meeting"
           description="Choose a date and time, then invite people to join."
+          accent={colors.primary}
           onPress={() => router.push("/(tabs)/scheduler")}
         />
       </View>
@@ -200,12 +214,13 @@ const styles = StyleSheet.create({
     gap: Spacing.five,
   },
 
+  fullWidth: {
+    width: "100%",
+  },
+
   primaryAction: {
-    minHeight: 148,
     borderRadius: Radius.card,
     padding: Spacing.four,
-    flexDirection: "row",
-    alignItems: "center",
     gap: Spacing.three,
     ...Shadows.enterprise,
   },
@@ -222,53 +237,87 @@ const styles = StyleSheet.create({
   },
 
   primaryCopy: {
-    flex: 1,
-    minWidth: 0,
     gap: 4,
   },
 
   primaryTitle: {
     color: "#FFFFFF",
-    fontSize: 19,
-    lineHeight: 25,
+    fontSize: 22,
+    lineHeight: 28,
     fontWeight: "900",
+    letterSpacing: -0.3,
   },
 
   primaryDescription: {
-    color: "rgba(255,255,255,0.84)",
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: "600",
+    color: "rgba(255,255,255,0.86)",
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: "500",
   },
 
-  primaryArrow: {
-    width: 42,
-    height: 42,
+  primaryButton: {
+    width: "100%",
+    height: 62,
+    paddingHorizontal: Spacing.three,
+    borderRadius: Radius.pill,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: Spacing.three,
+    shadowColor: "#061A3A",
+    shadowOpacity: 0.22,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+
+  primaryButtonIcon: {
+    width: 38,
+    height: 38,
     borderRadius: Radius.pill,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(3,13,43,0.22)",
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.24)",
+    backgroundColor: "#0F6BFF",
+  },
+
+  primaryButtonText: {
+    flex: 1,
+    textAlign: "center",
+    color: "#0B2D75",
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "900",
+  },
+
+  primaryButtonChevron: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.pill,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(15,107,255,0.10)",
   },
 
   section: {
-    gap: Spacing.two,
+    width: "100%",
+    gap: Spacing.three,
   },
 
   secondaryAction: {
-    minHeight: 88,
+    width: "100%",
+    height: 88,
     borderWidth: 1,
     borderRadius: Radius.large,
-    padding: Spacing.three,
+    paddingHorizontal: Spacing.three,
     flexDirection: "row",
     alignItems: "center",
     gap: Spacing.three,
   },
 
   secondaryIcon: {
-    width: 46,
-    height: 46,
+    width: 52,
+    height: 52,
     borderRadius: Radius.medium,
     alignItems: "center",
     justifyContent: "center",
@@ -277,19 +326,25 @@ const styles = StyleSheet.create({
   secondaryCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 3,
+    gap: 4,
+  },
+
+  secondaryTitle: {
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: "800",
+  },
+
+  secondaryDescription: {
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "500",
   },
 
   arrowShell: {
-    width: 34,
-    height: 34,
-    borderRadius: Radius.pill,
+    width: 28,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  pressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.95 }],
   },
 });
