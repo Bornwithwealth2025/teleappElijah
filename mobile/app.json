@@ -2,7 +2,7 @@
   "expo": {
     "name": "Telefya",
     "slug": "telefya-app",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "default",
     "icon": "./assets/images/app-icon.png",
     "scheme": "telefyapp",
@@ -23,7 +23,7 @@
     },
     "android": {
       "package": "com.telefya.app",
-      "versionCode": 8,
+      "versionCode": 10,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "CAMERA",
